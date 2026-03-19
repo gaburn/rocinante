@@ -1,0 +1,61 @@
+{
+  "name": "rocinante",
+  "private": true,
+  "version": "1.0.0",
+  "description": "A real-time dashboard for monitoring and interacting with GitHub Copilot CLI sessions. Named after the ship from The Expanse, which was named after Don Quixote's horse — a workhorse.",
+  "author": "gaburn",
+  "license": "MIT",
+  "keywords": [
+    "copilot",
+    "dashboard",
+    "session-monitor",
+    "agent-dashboard",
+    "developer-tools"
+  ],
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -n client,server -c blue,green \"npm:dev:client\" \"npm:dev:server\"",
+    "dev:client": "vite",
+    "dev:server": "tsx watch server/index.ts",
+    "start": "tsx server/index.ts",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.2.2",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/addon-web-links": "^0.12.0",
+    "@xterm/xterm": "^6.0.0",
+    "concurrently": "^9.2.1",
+    "d3-force": "^3.0.0",
+    "express": "^5.2.1",
+    "js-yaml": "^4.1.1",
+    "node-pty": "^1.1.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "tailwindcss": "^4.2.2",
+    "tsx": "^4.21.0",
+    "ws": "^8.19.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/d3-force": "^3.0.10",
+    "@types/express": "^5.0.6",
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^24.12.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@types/ws": "^8.18.1",
+    "@vitejs/plugin-react": "^6.0.0",
+    "better-sqlite3": "^12.8.0",
+    "eslint": "^9.39.4",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "globals": "^17.4.0",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.56.1",
+    "vite": "^8.0.0"
+  }
+}

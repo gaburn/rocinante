@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <script>
+      try {
+        var s = JSON.parse(localStorage.getItem('dashboard-settings'));
+        var t = s && s.display && s.display.theme;
+        if (t === 'light') document.documentElement.classList.replace('dark','light');
+        else if (t === 'system' && matchMedia('(prefers-color-scheme:light)').matches)
+          document.documentElement.classList.replace('dark','light');
+      } catch(e){}
+    </script>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rocinante</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

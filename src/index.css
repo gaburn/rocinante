@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+@theme {
+  /* ——————————————————————————————————————————————————
+   * Surface Colors
+   * A layered dark palette with a cool blue-violet undertone.
+   * Each step lifts the surface just enough to create
+   * perceptible depth without losing the "lights off" feel.
+   * —————————————————————————————————————————————————— */
+  --color-surface-primary: oklch(0.145 0.015 270);   /* near-black, faint violet cast  */
+  --color-surface-secondary: oklch(0.185 0.016 270);  /* panel / card background        */
+  --color-surface-tertiary: oklch(0.225 0.018 270);   /* raised element / nested card    */
+  --color-surface-hover: oklch(0.265 0.020 270);      /* interactive hover highlight     */
+
+  /* ——————————————————————————————————————————————————
+   * Border Colors
+   * default is nearly invisible — just enough to
+   * separate surfaces. active pops with indigo energy.
+   * —————————————————————————————————————————————————— */
+  --color-border-default: oklch(0.30 0.015 270);
+  --color-border-active: oklch(0.65 0.175 275);
+
+  /* ——————————————————————————————————————————————————
+   * Foreground Color
+   * High-contrast off-white for body text on dark
+   * surfaces. Warm-neutral to reduce eye strain.
+   * —————————————————————————————————————————————————— */
+  --color-foreground: oklch(0.93 0 0);
+  --color-fg: oklch(1 0 0);
+  --color-fg-heading: oklch(0.95 0.005 270);
+  --color-fg-secondary: oklch(0.55 0.010 270);
+  --color-fg-muted: oklch(0.40 0.010 270);
+
+  /* ——————————————————————————————————————————————————
+   * Typography — Monospace Stack
+   * Optimised for legibility at small sizes in a
+   * developer-tool context. System fonts first for
+   * instant rendering, web-safe fallbacks after.
+   * —————————————————————————————————————————————————— */
+  --font-mono: "JetBrains Mono", "Fira Code", ui-monospace, "Cascadia Code",
+    "Source Code Pro", Menlo, Consolas, "DejaVu Sans Mono", monospace;
+}
+
+.light {
+  --color-surface-primary: oklch(0.985 0.005 270);
+  --color-surface-secondary: oklch(0.96 0.008 270);
+  --color-surface-tertiary: oklch(0.93 0.010 270);
+  --color-surface-hover: oklch(0.89 0.012 270);
+  --color-border-default: oklch(0.84 0.010 270);
+  --color-border-active: oklch(0.55 0.175 275);
+  --color-fg: oklch(0.15 0.015 270);
+  --color-fg-heading: oklch(0.12 0.010 270);
+  --color-fg-secondary: oklch(0.45 0.010 270);
+  --color-fg-muted: oklch(0.55 0.010 270);
+}
