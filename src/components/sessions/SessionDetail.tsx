@@ -237,7 +237,7 @@ function StatCard({ status, label, count }: StatCardProps) {
 /* ── Main component ──────────────────────────────────────────── */
 
 export default function SessionDetail() {
-  const { selectedSession } = useSessionContext();
+  const { selectedSession, isArchived, toggleArchive } = useSessionContext();
   const { settings } = useSettingsContext();
   const { openSessionTerminal, openShellTerminal, hasTab, canOpenTab } = useTerminalContext();
   const panes = settings.display.paneVisibility;
@@ -374,6 +374,53 @@ export default function SessionDetail() {
                       </svg>
                       {isShellOpen ? 'Shell \u25CF' : 'Shell'}
                     </button>
+
+                    {/* Archive / Unarchive toggle */}
+                    <button
+                      type="button"
+                      onClick={() => toggleArchive(session.id)}
+                      title={isArchived(session.id) ? 'Unarchive this session' : 'Archive this session'}
+                      className={`
+                        inline-flex items-center gap-1.5
+                        px-2.5 py-1 rounded-md text-xs font-mono
+                        transition-colors
+                        ${
+                          isArchived(session.id)
+                            ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
+                            : 'bg-surface-tertiary text-fg/50 hover:bg-surface-hover hover:text-fg/80'
+                        }
+                      `}
+                    >
+                      {isArchived(session.id) ? (
+                        <svg
+                          className="h-3 w-3"
+                          viewBox="0 0 16 16"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          aria-hidden="true"
+                        >
+                          <path d="M5 5L2.5 8L5 11" />
+                          <path d="M2.5 8H10C11.5 8 13 6.5 13 5C13 3.5 11.5 2 10 2H7.5" />
+                        </svg>
+                      ) : (
+                        <svg
+                          className="h-3 w-3"
+                          viewBox="0 0 16 16"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          aria-hidden="true"
+                        >
+                          <path d="M3 8L6.5 11.5L13 4.5" />
+                        </svg>
+                      )}
+                      {isArchived(session.id) ? 'Unarchive' : 'Archive'}
+                    </button>
                   </div>
                 );
               })()}
@@ -479,6 +526,22 @@ export default function SessionDetail() {
                 <p className="text-sm leading-relaxed text-amber-300/90">
                   {session.waitingFor}
                 </p>
+              </div>
+            </div>
+          )}
+
+          {/* ── Archived banner ─────────────────────────── */}
+          {isArchived(session.id) && (
+            <div className="bg-surface-tertiary border border-border-default rounded-lg px-3 py-2 text-xs text-fg/40">
+              <div className="flex items-center justify-between gap-2">
+                <span>📦 This session is archived</span>
+                <button
+                  type="button"
+                  onClick={() => toggleArchive(session.id)}
+                  className="text-fg/50 hover:text-fg/80 underline underline-offset-2 transition-colors"
+                >
+                  Unarchive
+                </button>
               </div>
             </div>
           )}

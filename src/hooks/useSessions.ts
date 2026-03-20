@@ -6,6 +6,7 @@ import {
 } from '../services/sessionService'
 import { useSettingsContext } from '../context/SettingsContext'
 import type { Session, SessionStatus, StatusCounts } from '../types'
+import { useArchive } from './useArchive'
 
 export interface UseSessionsResult {
   sessions: Session[]
@@ -14,7 +15,9 @@ export interface UseSessionsResult {
   statusFilter: SessionStatus | 'all'
   searchQuery: string
   viewMode: 'list' | 'network'
+  showArchived: boolean
   statusCounts: StatusCounts
+  archivedCount: number
   isLoading: boolean
   error: string | null
   autoRefreshEnabled: boolean
@@ -22,12 +25,19 @@ export interface UseSessionsResult {
   setStatusFilter: (status: SessionStatus | 'all') => void
   setSearchQuery: (query: string) => void
   setViewMode: (mode: 'list' | 'network') => void
+  setShowArchived: (show: boolean) => void
+  isArchived: (id: string) => boolean
+  archiveSession: (id: string) => void
+  unarchiveSession: (id: string) => void
+  toggleArchive: (id: string) => void
+  archiveAllCompleted: () => void
   refreshSessions: () => void
   toggleAutoRefresh: () => void
 }
 
 export function useSessions(): UseSessionsResult {
   const { settings } = useSettingsContext()
+  const archive = useArchive()
   const [allSessions, setAllSessions] = useState<Session[]>([])
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<SessionStatus | 'all'>('all')
@@ -35,6 +45,7 @@ export function useSessions(): UseSessionsResult {
   const [viewMode, setViewMode] = useState<'list' | 'network'>(
     settings.display.defaultViewMode,
   )
+  const [showArchived, setShowArchived] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true)
@@ -46,6 +57,7 @@ export function useSessions(): UseSessionsResult {
     try {
       const sessions = await getSessions()
       setAllSessions(sessions)
+      archive.pruneStaleIds(sessions.map((session) => session.id))
     } catch (loadError) {
       const message =
         loadError instanceof Error
@@ -55,7 +67,7 @@ export function useSessions(): UseSessionsResult {
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [archive.pruneStaleIds])
 
   useEffect(() => {
     void loadSessions()
@@ -80,6 +92,10 @@ export function useSessions(): UseSessionsResult {
 
   const sessions = useMemo(() => {
     let filtered = allSessions
+
+    if (!showArchived) {
+      filtered = filtered.filter((session) => !archive.isArchived(session.id))
+    }
 
     if (!settings.display.showCompletedSessions) {
       filtered = filtered.filter((session) => session.status !== 'completed')
@@ -120,13 +136,33 @@ export function useSessions(): UseSessionsResult {
     return filtered
   }, [
     allSessions,
+    showArchived,
     statusFilter,
     searchQuery,
     settings.display.showCompletedSessions,
     settings.display.sortOrder,
+    archive.archivedIds,
   ])
 
-  const statusCounts = useMemo(() => getStatusCounts(allSessions), [allSessions])
+  const statusCounts = useMemo(() => {
+    const base = showArchived
+      ? allSessions
+      : allSessions.filter((session) => !archive.isArchived(session.id))
+
+    return getStatusCounts(base)
+  }, [allSessions, showArchived, archive.archivedIds])
+
+  const archiveAllCompleted = useCallback(() => {
+    const completedIds = allSessions
+      .filter((session) => session.status === 'completed')
+      .map((session) => session.id)
+    archive.archiveByIds(completedIds)
+  }, [allSessions, archive])
+
+  const archivedCount = useMemo(
+    () => allSessions.filter((session) => archive.isArchived(session.id)).length,
+    [allSessions, archive.archivedIds],
+  )
 
   const selectedSession = useMemo(
     () => allSessions.find((session) => session.id === selectedSessionId) ?? null,
@@ -172,7 +208,9 @@ export function useSessions(): UseSessionsResult {
     statusFilter,
     searchQuery,
     viewMode,
+    showArchived,
     statusCounts,
+    archivedCount,
     isLoading,
     error,
     autoRefreshEnabled,
@@ -180,6 +218,12 @@ export function useSessions(): UseSessionsResult {
     setStatusFilter,
     setSearchQuery,
     setViewMode,
+    setShowArchived,
+    isArchived: archive.isArchived,
+    archiveSession: archive.archiveSession,
+    unarchiveSession: archive.unarchiveSession,
+    toggleArchive: archive.toggleArchive,
+    archiveAllCompleted,
     refreshSessions,
     toggleAutoRefresh,
   }

@@ -26,7 +26,7 @@ interface StatusItem {
 }
 
 export default function StatusSummaryBar() {
-  const { statusCounts } = useSessionContext()
+  const { statusCounts, archivedCount } = useSessionContext()
 
   const items: StatusItem[] = [
     { status: 'active',    count: statusCounts.active,    label: 'Active'  },
@@ -106,6 +106,15 @@ export default function StatusSummaryBar() {
             </span>
           </span>
         ))}
+        {archivedCount > 0 && (
+          <>
+            <span className="text-fg/15 mx-1">·</span>
+            <span>
+              <span className="text-fg/30 font-semibold tabular-nums">{archivedCount}</span>
+              <span className="text-fg/20"> Archived</span>
+            </span>
+          </>
+        )}
       </span>
     </div>
   )

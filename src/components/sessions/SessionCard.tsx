@@ -31,13 +31,17 @@ import { Sparkline } from '../common/Sparkline';
 interface SessionCardProps {
   session: Session;
   isSelected: boolean;
+  isArchived: boolean;
   onClick: () => void;
+  onArchive: (e: React.MouseEvent) => void;
 }
 
 export default function SessionCard({
   session,
   isSelected,
+  isArchived,
   onClick,
+  onArchive,
 }: SessionCardProps) {
   const agentCount = countAgents(session.rootAgent);
   const timeAgo = formatRelativeTime(session.lastActivityAt);
@@ -48,12 +52,13 @@ export default function SessionCard({
       onClick={onClick}
       aria-current={isSelected ? 'true' : undefined}
       className={`
-        group w-full text-left cursor-pointer
+        group relative w-full text-left cursor-pointer
         border-l-[3px] rounded-r-md
         px-3 py-2.5
-        transition-colors duration-150 ease-out
+        transition-[colors,opacity] duration-150 ease-out
         focus-visible:outline-none
         focus-visible:ring-1 focus-visible:ring-border-active
+        ${isArchived ? 'opacity-50' : ''}
         ${
           isSelected
             ? 'bg-surface-tertiary border-border-active'
@@ -61,6 +66,57 @@ export default function SessionCard({
         }
       `}
     >
+      {/* ── Archive / Unarchive button ────────────── */}
+      <span
+        role="button"
+        tabIndex={-1}
+        title={isArchived ? 'Unarchive' : 'Archive'}
+        onClick={(e) => {
+          e.stopPropagation();
+          onArchive(e);
+        }}
+        className={`
+          absolute top-1.5 right-1.5
+          inline-flex items-center justify-center
+          w-5 h-5 rounded p-0.5
+          text-fg/30 hover:text-fg/60
+          transition-opacity duration-150
+          ${isArchived ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}
+        `}
+      >
+        {isArchived ? (
+          /* ↩ undo / unarchive arrow */
+          <svg
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.75"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="w-3.5 h-3.5"
+            aria-hidden="true"
+          >
+            <path d="M4 7l-3 3 3 3" />
+            <path d="M1 10h9a4 4 0 0 0 0-8H8" />
+          </svg>
+        ) : (
+          /* ↓ archive box */
+          <svg
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.75"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="w-3.5 h-3.5"
+            aria-hidden="true"
+          >
+            <rect x="1" y="1" width="14" height="4" rx="1" />
+            <path d="M2 5v8a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V5" />
+            <path d="M6 9h4" />
+          </svg>
+        )}
+      </span>
       {/* ── Top row: name + status badge ──────────── */}
       <div className="flex items-center justify-between gap-2 min-w-0">
         <span className="truncate text-sm font-semibold text-fg/90">
