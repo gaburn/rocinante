@@ -255,6 +255,7 @@ export default function SessionDetail() {
   const panes = settings.display.paneVisibility;
   const [isEditingName, setIsEditingName] = useState(false);
   const [editNameValue, setEditNameValue] = useState('');
+  const [errorExpanded, setErrorExpanded] = useState(false);
 
   /* ── Empty state ────────────────────────────────────────────
    *  Centred welcome screen — feels intentional, not broken.
@@ -286,7 +287,6 @@ export default function SessionDetail() {
   const totalAgents = countAgents(session.rootAgent);
   const agentCounts = countAgentsByStatus(session.rootAgent);
   const hasGitContext = !!(session.cwd || session.repository || session.branch);
-  const [errorExpanded, setErrorExpanded] = useState(false);
   const hasCustomName = getCustomName(session.id) !== null;
 
   const enterNameEditMode = () => {
