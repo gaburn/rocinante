@@ -57,6 +57,14 @@ export default function SessionGroup({
     setIsEditing(true);
   }, [description]);
 
+  const handleStartEditingClick = useCallback(
+    (e: React.MouseEvent<HTMLButtonElement>) => {
+      e.stopPropagation();
+      startEditing();
+    },
+    [startEditing],
+  );
+
   const commitEdit = useCallback(() => {
     setIsEditing(false);
     onDescriptionChange?.(draftText.trim());
@@ -164,7 +172,7 @@ export default function SessionGroup({
           <button
             type="button"
             aria-label="Add description"
-            onClick={startEditing}
+            onClick={handleStartEditingClick}
             className={
               'opacity-0 group-hover:opacity-100 shrink-0 mr-1 p-0.5 rounded ' +
               'text-[11px] leading-none cursor-pointer transition-opacity duration-100 ' +
@@ -205,7 +213,7 @@ export default function SessionGroup({
       {showDescriptionUI && !isEditing && hasDescription && (
         <button
           type="button"
-          onClick={startEditing}
+          onClick={handleStartEditingClick}
           className={
             'block w-full text-left text-[10px] text-fg/30 truncate pl-5 pr-2 ' +
             'cursor-pointer rounded-sm hover:text-fg/50 transition-colors'
