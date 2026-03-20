@@ -13,6 +13,7 @@ import {
   getStatusTextClass,
 } from '../../utils/statusColors';
 import StatusBadge from '../common/StatusBadge';
+import WorkstreamAutocomplete from '../common/WorkstreamAutocomplete';
 import SubagentTree from '../agents/SubagentTree';
 import WaterfallChart from '../waterfall/WaterfallChart';
 import EventTimeline from '../timeline/EventTimeline';
@@ -237,7 +238,7 @@ function StatCard({ status, label, count }: StatCardProps) {
 /* ── Main component ──────────────────────────────────────────── */
 
 export default function SessionDetail() {
-  const { selectedSession, isArchived, toggleArchive } = useSessionContext();
+  const { selectedSession, isArchived, toggleArchive, getWorkstream, setWorkstream, removeWorkstream, getWorkstreamNames } = useSessionContext();
   const { settings } = useSettingsContext();
   const { openSessionTerminal, openShellTerminal, hasTab, canOpenTab } = useTerminalContext();
   const panes = settings.display.paneVisibility;
@@ -432,6 +433,18 @@ export default function SessionDetail() {
           <p className="font-mono text-[11px] leading-none text-fg/30 select-all">
             {session.id}
           </p>
+
+          {/* Workstream assignment */}
+          <div className="mt-1">
+            <WorkstreamAutocomplete
+              value={getWorkstream(session.id)}
+              suggestions={getWorkstreamNames}
+              onChange={(name) => setWorkstream(session.id, name)}
+              onRemove={() => removeWorkstream(session.id)}
+              size="md"
+              placeholder="Assign workstream…"
+            />
+          </div>
 
           {/* Intent block — full text, never truncated */}
           <div className="rounded-lg border-l-2 border-border-active bg-surface-secondary px-3.5 py-3">

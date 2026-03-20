@@ -1,7 +1,10 @@
+import { useState } from 'react';
+import type { Session } from '../../types';
 import { useSessionContext } from '../../context/SessionContext';
 import StatusSummaryBar from '../common/StatusSummaryBar';
 import StatusFilter from '../filters/StatusFilter';
 import SessionCard from './SessionCard';
+import SessionGroup from './SessionGroup';
 
 const SKELETON_CARD_COUNT = 5;
 
@@ -45,6 +48,12 @@ export default function SessionList() {
     toggleArchive,
     archiveAllCompleted,
     archivedCount,
+    getWorkstream,
+    setWorkstream,
+    removeWorkstream,
+    getWorkstreamNames,
+    hasAnyWorkstreams,
+    groupedSessions,
   } = useSessionContext();
 
   const showSkeletons = isLoading && sessions.length === 0;
@@ -59,6 +68,67 @@ export default function SessionList() {
 
   const activeSessions = sessions.filter((s) => !isArchived(s.id));
   const archivedSessions = sessions.filter((s) => isArchived(s.id));
+
+  /* ── Grouped-mode collapse state ──────────────── */
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+
+  const toggleCollapse = (name: string) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  };
+
+  /** Render session cards for a group, splitting active / archived. */
+  const renderGroupCards = (groupSessions: Session[]) => {
+    const active = groupSessions.filter((s) => !isArchived(s.id));
+    const archived = groupSessions.filter((s) => isArchived(s.id));
+
+    return (
+      <div className="space-y-2.5 py-1.5">
+        {active.map((session) => (
+          <SessionCard
+            key={session.id}
+            session={session}
+            isSelected={selectedSession?.id === session.id}
+            isArchived={false}
+            onClick={() => selectSession(session.id)}
+            onArchive={(e) => { e.stopPropagation(); toggleArchive(session.id); }}
+            workstream={getWorkstream(session.id)}
+            workstreamNames={getWorkstreamNames}
+            onSetWorkstream={(name) => setWorkstream(session.id, name)}
+            onRemoveWorkstream={() => removeWorkstream(session.id)}
+          />
+        ))}
+
+        {showArchived && archived.length > 0 && (
+          <>
+            <div className="text-[10px] font-mono uppercase tracking-widest text-fg/20 px-1 py-2">
+              Archived
+            </div>
+
+            {archived.map((session) => (
+              <div key={session.id} className="opacity-50 transition-opacity duration-200 hover:opacity-70">
+                <SessionCard
+                  session={session}
+                  isSelected={selectedSession?.id === session.id}
+                  isArchived
+                  onClick={() => selectSession(session.id)}
+                  onArchive={(e) => { e.stopPropagation(); toggleArchive(session.id); }}
+                  workstream={getWorkstream(session.id)}
+                  workstreamNames={getWorkstreamNames}
+                  onSetWorkstream={(name) => setWorkstream(session.id, name)}
+                  onRemoveWorkstream={() => removeWorkstream(session.id)}
+                />
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+    );
+  };
 
   return (
     <section className="flex h-full flex-col bg-surface-primary">
@@ -222,6 +292,32 @@ export default function SessionList() {
               )}
             </div>
           </div>
+        ) : hasAnyWorkstreams ? (
+          /* ── Grouped view: sessions organized by workstream ── */
+          <div className="space-y-1">
+            {groupedSessions.groups.map((group) => (
+              <SessionGroup
+                key={group.name}
+                name={group.name}
+                count={group.sessions.length}
+                isCollapsed={collapsedGroups.has(group.name)}
+                onToggleCollapse={() => toggleCollapse(group.name)}
+              >
+                {renderGroupCards(group.sessions)}
+              </SessionGroup>
+            ))}
+
+            {groupedSessions.ungrouped.length > 0 && (
+              <SessionGroup
+                name="Ungrouped"
+                count={groupedSessions.ungrouped.length}
+                isCollapsed={collapsedGroups.has('Ungrouped')}
+                onToggleCollapse={() => toggleCollapse('Ungrouped')}
+              >
+                {renderGroupCards(groupedSessions.ungrouped)}
+              </SessionGroup>
+            )}
+          </div>
         ) : showArchived ? (
           /* ── Split view: active first, then archived ── */
           <div className="space-y-2.5">
@@ -233,6 +329,10 @@ export default function SessionList() {
                 isArchived={isArchived(session.id)}
                 onClick={() => selectSession(session.id)}
                 onArchive={(e) => { e.stopPropagation(); toggleArchive(session.id); }}
+                workstream={getWorkstream(session.id)}
+                workstreamNames={getWorkstreamNames}
+                onSetWorkstream={(name) => setWorkstream(session.id, name)}
+                onRemoveWorkstream={() => removeWorkstream(session.id)}
               />
             ))}
 
@@ -253,6 +353,10 @@ export default function SessionList() {
                       isArchived={isArchived(session.id)}
                       onClick={() => selectSession(session.id)}
                       onArchive={(e) => { e.stopPropagation(); toggleArchive(session.id); }}
+                      workstream={getWorkstream(session.id)}
+                      workstreamNames={getWorkstreamNames}
+                      onSetWorkstream={(name) => setWorkstream(session.id, name)}
+                      onRemoveWorkstream={() => removeWorkstream(session.id)}
                     />
                   </div>
                 ))}
@@ -270,6 +374,10 @@ export default function SessionList() {
                 isArchived={isArchived(session.id)}
                 onClick={() => selectSession(session.id)}
                 onArchive={(e) => { e.stopPropagation(); toggleArchive(session.id); }}
+                workstream={getWorkstream(session.id)}
+                workstreamNames={getWorkstreamNames}
+                onSetWorkstream={(name) => setWorkstream(session.id, name)}
+                onRemoveWorkstream={() => removeWorkstream(session.id)}
               />
             ))}
           </div>

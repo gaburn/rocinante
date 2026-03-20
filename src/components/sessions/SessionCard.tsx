@@ -3,6 +3,7 @@ import { getStatusBorderClass } from '../../utils/statusColors';
 import { formatRelativeTime, countAgents } from '../../utils/formatters';
 import StatusBadge from '../common/StatusBadge';
 import { Sparkline } from '../common/Sparkline';
+import WorkstreamAutocomplete from '../common/WorkstreamAutocomplete';
 
 /* ────────────────────────────────────────────────────────
  * SessionCard
@@ -34,6 +35,10 @@ interface SessionCardProps {
   isArchived: boolean;
   onClick: () => void;
   onArchive: (e: React.MouseEvent) => void;
+  workstream: string | null;
+  workstreamNames: string[];
+  onSetWorkstream: (name: string) => void;
+  onRemoveWorkstream: () => void;
 }
 
 export default function SessionCard({
@@ -42,6 +47,10 @@ export default function SessionCard({
   isArchived,
   onClick,
   onArchive,
+  workstream,
+  workstreamNames,
+  onSetWorkstream,
+  onRemoveWorkstream,
 }: SessionCardProps) {
   const agentCount = countAgents(session.rootAgent);
   const timeAgo = formatRelativeTime(session.lastActivityAt);
@@ -123,6 +132,17 @@ export default function SessionCard({
           {session.name}
         </span>
         <StatusBadge status={session.status} size="sm" />
+      </div>
+
+      {/* ── Workstream tag ────────────────────────── */}
+      <div className="mt-1" onClick={e => e.stopPropagation()}>
+        <WorkstreamAutocomplete
+          value={workstream}
+          suggestions={workstreamNames}
+          onChange={onSetWorkstream}
+          onRemove={onRemoveWorkstream}
+          size="sm"
+        />
       </div>
 
       {/* ── Intent / task description ─────────────── */}

@@ -7,6 +7,12 @@ import {
 import { useSettingsContext } from '../context/SettingsContext'
 import type { Session, SessionStatus, StatusCounts } from '../types'
 import { useArchive } from './useArchive'
+import { useWorkstreams } from './useWorkstreams'
+
+export interface SessionGroup {
+  name: string
+  sessions: Session[]
+}
 
 export interface UseSessionsResult {
   sessions: Session[]
@@ -33,11 +39,20 @@ export interface UseSessionsResult {
   archiveAllCompleted: () => void
   refreshSessions: () => void
   toggleAutoRefresh: () => void
+  // Workstream management
+  getWorkstream: (sessionId: string) => string | null
+  setWorkstream: (sessionId: string, name: string) => void
+  removeWorkstream: (sessionId: string) => void
+  getWorkstreamNames: string[]
+  renameWorkstream: (oldName: string, newName: string) => void
+  hasAnyWorkstreams: boolean
+  groupedSessions: { groups: SessionGroup[]; ungrouped: Session[] }
 }
 
 export function useSessions(): UseSessionsResult {
   const { settings } = useSettingsContext()
   const archive = useArchive()
+  const workstreams = useWorkstreams()
   const [allSessions, setAllSessions] = useState<Session[]>([])
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<SessionStatus | 'all'>('all')
@@ -58,6 +73,7 @@ export function useSessions(): UseSessionsResult {
       const sessions = await getSessions()
       setAllSessions(sessions)
       archive.pruneStaleIds(sessions.map((session) => session.id))
+      workstreams.pruneStaleIds(sessions.map((session) => session.id))
     } catch (loadError) {
       const message =
         loadError instanceof Error
@@ -67,7 +83,7 @@ export function useSessions(): UseSessionsResult {
     } finally {
       setIsLoading(false)
     }
-  }, [archive.pruneStaleIds])
+  }, [archive.pruneStaleIds, workstreams.pruneStaleIds])
 
   useEffect(() => {
     void loadSessions()
@@ -169,6 +185,28 @@ export function useSessions(): UseSessionsResult {
     [allSessions, selectedSessionId],
   )
 
+  const groupedSessions = useMemo(() => {
+    const groups = new Map<string, Session[]>()
+    const ungrouped: Session[] = []
+
+    for (const session of sessions) {
+      const ws = workstreams.getWorkstream(session.id)
+      if (ws) {
+        const list = groups.get(ws) || []
+        list.push(session)
+        groups.set(ws, list)
+      } else {
+        ungrouped.push(session)
+      }
+    }
+
+    const sortedGroups: SessionGroup[] = Array.from(groups.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([name, groupSessions]) => ({ name, sessions: groupSessions }))
+
+    return { groups: sortedGroups, ungrouped }
+  }, [sessions, workstreams.workstreamMap])
+
   useEffect(() => {
     if (sessions.length === 0) {
       setSelectedSessionId(null)
@@ -226,5 +264,12 @@ export function useSessions(): UseSessionsResult {
     archiveAllCompleted,
     refreshSessions,
     toggleAutoRefresh,
+    getWorkstream: workstreams.getWorkstream,
+    setWorkstream: workstreams.setWorkstream,
+    removeWorkstream: workstreams.removeWorkstream,
+    getWorkstreamNames: workstreams.getWorkstreamNames,
+    renameWorkstream: workstreams.renameWorkstream,
+    hasAnyWorkstreams: workstreams.hasAnyWorkstreams,
+    groupedSessions,
   }
 }
