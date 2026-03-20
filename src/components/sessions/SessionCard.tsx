@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { Session } from '../../types';
 import { getStatusBorderClass } from '../../utils/statusColors';
 import { formatRelativeTime, countAgents } from '../../utils/formatters';
@@ -52,13 +53,21 @@ export default function SessionCard({
   onSetWorkstream,
   onRemoveWorkstream,
 }: SessionCardProps) {
+  const [isDragging, setIsDragging] = useState(false);
   const agentCount = countAgents(session.rootAgent);
   const timeAgo = formatRelativeTime(session.lastActivityAt);
 
   return (
     <button
       type="button"
+      draggable="true"
       onClick={onClick}
+      onDragStart={(e) => {
+        e.dataTransfer.setData('text/plain', session.id);
+        e.dataTransfer.effectAllowed = 'move';
+        setIsDragging(true);
+      }}
+      onDragEnd={() => setIsDragging(false)}
       aria-current={isSelected ? 'true' : undefined}
       className={`
         group relative w-full text-left cursor-pointer
@@ -68,6 +77,7 @@ export default function SessionCard({
         focus-visible:outline-none
         focus-visible:ring-1 focus-visible:ring-border-active
         ${isArchived ? 'opacity-50' : ''}
+        ${isDragging ? 'opacity-40' : ''}
         ${
           isSelected
             ? 'bg-surface-tertiary border-border-active'

@@ -13,6 +13,7 @@ import { useWorkstreams } from './useWorkstreams'
 export interface SessionGroup {
   name: string
   sessions: Session[]
+  description: string | null
 }
 
 export interface UseSessionsResult {
@@ -49,6 +50,8 @@ export interface UseSessionsResult {
   removeSessionName: (sessionId: string) => void
   getWorkstreamNames: string[]
   renameWorkstream: (oldName: string, newName: string) => void
+  setWorkstreamDescription: (workstreamName: string, description: string) => void
+  removeWorkstreamDescription: (workstreamName: string) => void
   hasAnyWorkstreams: boolean
   groupedSessions: { groups: SessionGroup[]; ungrouped: Session[] }
 }
@@ -216,10 +219,14 @@ export function useSessions(): UseSessionsResult {
 
     const sortedGroups: SessionGroup[] = Array.from(groups.entries())
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([name, groupSessions]) => ({ name, sessions: groupSessions }))
+      .map(([name, groupSessions]) => ({
+        name,
+        sessions: groupSessions,
+        description: workstreams.getDescription(name),
+      }))
 
     return { groups: sortedGroups, ungrouped }
-  }, [sessions, workstreams.workstreamMap])
+  }, [sessions, workstreams.workstreamMap, workstreams.metaMap])
 
   useEffect(() => {
     if (sessions.length === 0) {
@@ -286,6 +293,8 @@ export function useSessions(): UseSessionsResult {
     removeSessionName: sessionNames.removeCustomName,
     getWorkstreamNames: workstreams.getWorkstreamNames,
     renameWorkstream: workstreams.renameWorkstream,
+    setWorkstreamDescription: workstreams.setDescription,
+    removeWorkstreamDescription: workstreams.removeDescription,
     hasAnyWorkstreams: workstreams.hasAnyWorkstreams,
     groupedSessions,
   }

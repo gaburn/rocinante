@@ -49,6 +49,8 @@ export default function SessionList() {
     archiveAllCompleted,
     archivedCount,
     getWorkstream,
+    setWorkstreamDescription,
+    removeWorkstreamDescription,
     setWorkstream,
     removeWorkstream,
     getWorkstreamNames,
@@ -302,6 +304,13 @@ export default function SessionList() {
                 count={group.sessions.length}
                 isCollapsed={collapsedGroups.has(group.name)}
                 onToggleCollapse={() => toggleCollapse(group.name)}
+                description={group.description}
+                onDescriptionChange={(text) =>
+                  text
+                    ? setWorkstreamDescription(group.name, text)
+                    : removeWorkstreamDescription(group.name)
+                }
+                onDropSession={(sessionId) => setWorkstream(sessionId, group.name)}
               >
                 {renderGroupCards(group.sessions)}
               </SessionGroup>
@@ -313,6 +322,8 @@ export default function SessionList() {
                 count={groupedSessions.ungrouped.length}
                 isCollapsed={collapsedGroups.has('Ungrouped')}
                 onToggleCollapse={() => toggleCollapse('Ungrouped')}
+                description={null}
+                onDropSession={(sessionId) => removeWorkstream(sessionId)}
               >
                 {renderGroupCards(groupedSessions.ungrouped)}
               </SessionGroup>

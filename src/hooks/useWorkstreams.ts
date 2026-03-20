@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useWorkstreamMeta } from './useWorkstreamMeta'
 
 const WORKSTREAM_STORAGE_KEY = 'rocinante-workstreams'
 
@@ -31,16 +32,21 @@ export interface UseWorkstreamsResult {
   getWorkstream: (sessionId: string) => string | null
   setWorkstream: (sessionId: string, name: string) => void
   removeWorkstream: (sessionId: string) => void
+  getDescription: (workstreamName: string) => string | null
+  setDescription: (workstreamName: string, description: string) => void
+  removeDescription: (workstreamName: string) => void
   getWorkstreamNames: string[]
   renameWorkstream: (oldName: string, newName: string) => void
   deleteWorkstream: (name: string) => void
   pruneStaleIds: (activeIds: string[]) => void
   hasAnyWorkstreams: boolean
   workstreamMap: Readonly<Record<string, string>>
+  metaMap: Readonly<Record<string, { description: string }>>
 }
 
 export function useWorkstreams(): UseWorkstreamsResult {
   const [workstreamMap, setWorkstreamMap] = useState<Record<string, string>>(loadInitialWorkstreamMap)
+  const meta = useWorkstreamMeta()
 
   useEffect(() => {
     try {
@@ -116,7 +122,8 @@ export function useWorkstreams(): UseWorkstreamsResult {
 
       return changed ? next : current
     })
-  }, [])
+    meta.renameMetaKey(oldName, newName)
+  }, [meta])
 
   const deleteWorkstream = useCallback((name: string) => {
     setWorkstreamMap((current) => {
@@ -133,7 +140,8 @@ export function useWorkstreams(): UseWorkstreamsResult {
 
       return changed ? next : current
     })
-  }, [])
+    meta.deleteMetaKey(name)
+  }, [meta])
 
   const pruneStaleIds = useCallback((activeIds: string[]) => {
     setWorkstreamMap((current) => {
@@ -165,11 +173,15 @@ export function useWorkstreams(): UseWorkstreamsResult {
     getWorkstream,
     setWorkstream,
     removeWorkstream,
+    getDescription: meta.getDescription,
+    setDescription: meta.setDescription,
+    removeDescription: meta.removeDescription,
     getWorkstreamNames,
     renameWorkstream,
     deleteWorkstream,
     pruneStaleIds,
     hasAnyWorkstreams,
     workstreamMap,
+    metaMap: meta.metaMap,
   }
 }
