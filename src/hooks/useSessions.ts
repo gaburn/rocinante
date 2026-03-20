@@ -7,6 +7,7 @@ import {
 import { useSettingsContext } from '../context/SettingsContext'
 import type { Session, SessionStatus, StatusCounts } from '../types'
 import { useArchive } from './useArchive'
+import { useSessionNames } from './useSessionNames'
 import { useWorkstreams } from './useWorkstreams'
 
 export interface SessionGroup {
@@ -43,6 +44,9 @@ export interface UseSessionsResult {
   getWorkstream: (sessionId: string) => string | null
   setWorkstream: (sessionId: string, name: string) => void
   removeWorkstream: (sessionId: string) => void
+  getCustomName: (sessionId: string) => string | null
+  setSessionName: (sessionId: string, name: string) => void
+  removeSessionName: (sessionId: string) => void
   getWorkstreamNames: string[]
   renameWorkstream: (oldName: string, newName: string) => void
   hasAnyWorkstreams: boolean
@@ -52,6 +56,7 @@ export interface UseSessionsResult {
 export function useSessions(): UseSessionsResult {
   const { settings } = useSettingsContext()
   const archive = useArchive()
+  const sessionNames = useSessionNames()
   const workstreams = useWorkstreams()
   const [allSessions, setAllSessions] = useState<Session[]>([])
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null)
@@ -72,8 +77,10 @@ export function useSessions(): UseSessionsResult {
     try {
       const sessions = await getSessions()
       setAllSessions(sessions)
-      archive.pruneStaleIds(sessions.map((session) => session.id))
-      workstreams.pruneStaleIds(sessions.map((session) => session.id))
+      const activeIds = sessions.map((session) => session.id)
+      archive.pruneStaleIds(activeIds)
+      sessionNames.pruneStaleIds(activeIds)
+      workstreams.pruneStaleIds(activeIds)
     } catch (loadError) {
       const message =
         loadError instanceof Error
@@ -83,7 +90,14 @@ export function useSessions(): UseSessionsResult {
     } finally {
       setIsLoading(false)
     }
-  }, [archive.pruneStaleIds, workstreams.pruneStaleIds])
+  }, [archive.pruneStaleIds, sessionNames.pruneStaleIds, workstreams.pruneStaleIds])
+
+  const sessionsWithNames = useMemo(() => {
+    return allSessions.map((session) => {
+      const customName = sessionNames.getCustomName(session.id)
+      return customName ? { ...session, name: customName } : session
+    })
+  }, [allSessions, sessionNames.nameMap, sessionNames.getCustomName])
 
   useEffect(() => {
     void loadSessions()
@@ -107,7 +121,7 @@ export function useSessions(): UseSessionsResult {
   }, [autoRefreshEnabled, loadSessions, settings.display.refreshInterval])
 
   const sessions = useMemo(() => {
-    let filtered = allSessions
+    let filtered = sessionsWithNames
 
     if (!showArchived) {
       filtered = filtered.filter((session) => !archive.isArchived(session.id))
@@ -151,7 +165,7 @@ export function useSessions(): UseSessionsResult {
 
     return filtered
   }, [
-    allSessions,
+    sessionsWithNames,
     showArchived,
     statusFilter,
     searchQuery,
@@ -162,11 +176,11 @@ export function useSessions(): UseSessionsResult {
 
   const statusCounts = useMemo(() => {
     const base = showArchived
-      ? allSessions
-      : allSessions.filter((session) => !archive.isArchived(session.id))
+      ? sessionsWithNames
+      : sessionsWithNames.filter((session) => !archive.isArchived(session.id))
 
     return getStatusCounts(base)
-  }, [allSessions, showArchived, archive.archivedIds])
+  }, [sessionsWithNames, showArchived, archive.archivedIds])
 
   const archiveAllCompleted = useCallback(() => {
     const completedIds = allSessions
@@ -181,8 +195,8 @@ export function useSessions(): UseSessionsResult {
   )
 
   const selectedSession = useMemo(
-    () => allSessions.find((session) => session.id === selectedSessionId) ?? null,
-    [allSessions, selectedSessionId],
+    () => sessionsWithNames.find((session) => session.id === selectedSessionId) ?? null,
+    [sessionsWithNames, selectedSessionId],
   )
 
   const groupedSessions = useMemo(() => {
@@ -241,7 +255,7 @@ export function useSessions(): UseSessionsResult {
 
   return {
     sessions,
-    allSessions,
+    allSessions: sessionsWithNames,
     selectedSession,
     statusFilter,
     searchQuery,
@@ -267,6 +281,9 @@ export function useSessions(): UseSessionsResult {
     getWorkstream: workstreams.getWorkstream,
     setWorkstream: workstreams.setWorkstream,
     removeWorkstream: workstreams.removeWorkstream,
+    getCustomName: sessionNames.getCustomName,
+    setSessionName: sessionNames.setCustomName,
+    removeSessionName: sessionNames.removeCustomName,
     getWorkstreamNames: workstreams.getWorkstreamNames,
     renameWorkstream: workstreams.renameWorkstream,
     hasAnyWorkstreams: workstreams.hasAnyWorkstreams,

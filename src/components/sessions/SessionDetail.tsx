@@ -238,10 +238,23 @@ function StatCard({ status, label, count }: StatCardProps) {
 /* ── Main component ──────────────────────────────────────────── */
 
 export default function SessionDetail() {
-  const { selectedSession, isArchived, toggleArchive, getWorkstream, setWorkstream, removeWorkstream, getWorkstreamNames } = useSessionContext();
+  const {
+    selectedSession,
+    isArchived,
+    toggleArchive,
+    getWorkstream,
+    setWorkstream,
+    removeWorkstream,
+    getWorkstreamNames,
+    getCustomName,
+    setSessionName,
+    removeSessionName,
+  } = useSessionContext();
   const { settings } = useSettingsContext();
   const { openSessionTerminal, openShellTerminal, hasTab, canOpenTab } = useTerminalContext();
   const panes = settings.display.paneVisibility;
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editNameValue, setEditNameValue] = useState('');
 
   /* ── Empty state ────────────────────────────────────────────
    *  Centred welcome screen — feels intentional, not broken.
@@ -274,6 +287,31 @@ export default function SessionDetail() {
   const agentCounts = countAgentsByStatus(session.rootAgent);
   const hasGitContext = !!(session.cwd || session.repository || session.branch);
   const [errorExpanded, setErrorExpanded] = useState(false);
+  const hasCustomName = getCustomName(session.id) !== null;
+
+  const enterNameEditMode = () => {
+    setEditNameValue(session.name);
+    setIsEditingName(true);
+  };
+
+  const cancelNameEdit = () => {
+    setIsEditingName(false);
+    setEditNameValue('');
+  };
+
+  const commitNameEdit = () => {
+    const trimmedValue = editNameValue.trim();
+    if (!trimmedValue) {
+      cancelNameEdit();
+      return;
+    }
+
+    if (trimmedValue !== session.name) {
+      setSessionName(session.id, trimmedValue);
+    }
+
+    cancelNameEdit();
+  };
 
   /* ── Populated state ── */
   return (
@@ -284,9 +322,69 @@ export default function SessionDetail() {
         <section className="space-y-3">
           {/* Name + terminal action + status badge */}
           <div className="flex items-start justify-between gap-3">
-            <h2 className="min-w-0 text-xl font-semibold leading-tight text-fg/95">
-              {session.name}
-            </h2>
+            <div className="group min-w-0 flex-1">
+              {isEditingName ? (
+                <input
+                  value={editNameValue}
+                  onChange={(event) => setEditNameValue(event.target.value)}
+                  onBlur={commitNameEdit}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
+                      commitNameEdit();
+                    }
+                    if (event.key === 'Escape') {
+                      event.preventDefault();
+                      cancelNameEdit();
+                    }
+                  }}
+                  autoFocus
+                  className="w-full bg-transparent border-b border-border-active text-fg/90 font-semibold text-lg font-mono outline-none"
+                  aria-label="Edit session name"
+                />
+              ) : (
+                <div className="flex items-center gap-2">
+                  <h2
+                    className="min-w-0 cursor-text text-xl font-semibold leading-tight text-fg/95"
+                    onClick={enterNameEditMode}
+                    title="Click to rename session"
+                  >
+                    {session.name}
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={enterNameEditMode}
+                    className="opacity-0 transition-opacity group-hover:opacity-100 text-fg/45 hover:text-fg/75"
+                    title="Rename session"
+                    aria-label="Rename session"
+                  >
+                    <svg
+                      className="h-3.5 w-3.5"
+                      viewBox="0 0 16 16"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M11.5 2.5L13.5 4.5L6 12H4V10L11.5 2.5Z" />
+                      <path d="M9.5 4.5L11.5 6.5" />
+                    </svg>
+                  </button>
+                  {hasCustomName && (
+                    <button
+                      type="button"
+                      onClick={() => removeSessionName(session.id)}
+                      className="text-xs text-fg/45 underline underline-offset-2 transition-colors hover:text-fg/75"
+                      title="Reset to original session name"
+                    >
+                      Reset
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
             <div className="flex shrink-0 items-center gap-2">
               {(() => {
                 const isResumeOpen = hasTab(session.id);
