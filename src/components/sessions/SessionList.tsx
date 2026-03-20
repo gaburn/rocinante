@@ -37,7 +37,9 @@ export default function SessionList() {
     sessions,
     allSessions,
     selectedSession,
+    selectedWorkstream,
     selectSession,
+    selectWorkstream,
     isLoading,
     error,
     searchQuery,
@@ -304,6 +306,8 @@ export default function SessionList() {
                 count={group.sessions.length}
                 isCollapsed={collapsedGroups.has(group.name)}
                 onToggleCollapse={() => toggleCollapse(group.name)}
+                onSelectWorkstream={() => selectWorkstream(group.name)}
+                isSelected={selectedWorkstream?.name === group.name}
                 description={group.description}
                 onDescriptionChange={(text) =>
                   text

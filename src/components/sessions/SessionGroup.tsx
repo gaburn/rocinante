@@ -13,6 +13,8 @@ interface SessionGroupProps {
   description: string | null;
   onDescriptionChange?: (text: string) => void;
   onDropSession?: (sessionId: string) => void;
+  onSelectWorkstream?: () => void;
+  isSelected?: boolean;
 }
 
 /** Inline chevron-right icon that rotates 90° when expanded. */
@@ -44,6 +46,8 @@ export default function SessionGroup({
   description,
   onDescriptionChange,
   onDropSession,
+  onSelectWorkstream,
+  isSelected,
 }: SessionGroupProps) {
   const isUngrouped = name === 'Ungrouped';
   const expanded = !isCollapsed;
@@ -138,19 +142,39 @@ export default function SessionGroup({
       }
     >
       {/* ---- clickable header row ---- */}
-      <div className="group flex items-center">
+      <div
+        className={
+          'group flex items-center rounded-md border-l-2 transition-colors duration-150 ' +
+          (isSelected
+            ? 'border-border-active bg-surface-tertiary/40'
+            : 'border-transparent')
+        }
+      >
+        {/* Chevron — toggles collapse */}
         <button
           type="button"
           onClick={onToggleCollapse}
           aria-expanded={expanded}
+          aria-label={expanded ? `Collapse ${name}` : `Expand ${name}`}
           className={
-            'flex flex-1 min-w-0 items-center gap-2 px-2 py-1.5 rounded-md ' +
-            'hover:bg-surface-hover cursor-pointer transition-colors ' +
+            'p-1 rounded shrink-0 cursor-pointer transition-colors ' +
+            'hover:bg-surface-hover ' +
             'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-border-active'
           }
         >
           <Chevron open={expanded} />
+        </button>
 
+        {/* Name + count — selects workstream (or falls back to collapse) */}
+        <button
+          type="button"
+          onClick={onSelectWorkstream ?? onToggleCollapse}
+          className={
+            'flex-1 min-w-0 flex items-center gap-2 px-1 py-1.5 rounded-md ' +
+            'hover:bg-surface-hover cursor-pointer transition-colors ' +
+            'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-border-active'
+          }
+        >
           <span
             className={
               'truncate text-xs ' +

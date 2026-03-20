@@ -2,6 +2,7 @@ import Layout from './components/layout/Layout'
 import { NetworkView } from './components/network'
 import SessionDetail from './components/sessions/SessionDetail'
 import SessionList from './components/sessions/SessionList'
+import WorkstreamDetail from './components/sessions/WorkstreamDetail'
 import { TerminalPanel } from './components/terminal'
 import { SettingsProvider, useSettingsContext } from './context/SettingsContext'
 import { SessionProvider, useSessionContext } from './context/SessionContext'
@@ -10,7 +11,7 @@ import { useAccentColor } from './hooks/useAccentColor'
 import { useTheme } from './hooks/useTheme'
 
 function AppContent() {
-  const { viewMode } = useSessionContext()
+  const { viewMode, selectedWorkstream } = useSessionContext()
   const { settings } = useSettingsContext()
   useAccentColor(settings.display.accentColor)
   useTheme(settings.display.theme)
@@ -18,7 +19,7 @@ function AppContent() {
   return (
     <Layout
       left={<SessionList />}
-      right={<SessionDetail />}
+      right={selectedWorkstream ? <WorkstreamDetail /> : <SessionDetail />}
       fullContent={viewMode === 'network' ? <NetworkView /> : undefined}
       bottomPanel={<TerminalPanel />}
     />

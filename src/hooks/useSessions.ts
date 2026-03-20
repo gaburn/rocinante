@@ -20,6 +20,7 @@ export interface UseSessionsResult {
   sessions: Session[]
   allSessions: Session[]
   selectedSession: Session | null
+  selectedWorkstream: SessionGroup | null
   statusFilter: SessionStatus | 'all'
   searchQuery: string
   viewMode: 'list' | 'network'
@@ -30,6 +31,8 @@ export interface UseSessionsResult {
   error: string | null
   autoRefreshEnabled: boolean
   selectSession: (id: string) => void
+  selectWorkstream: (name: string) => void
+  clearSelection: () => void
   setStatusFilter: (status: SessionStatus | 'all') => void
   setSearchQuery: (query: string) => void
   setViewMode: (mode: 'list' | 'network') => void
@@ -50,6 +53,7 @@ export interface UseSessionsResult {
   removeSessionName: (sessionId: string) => void
   getWorkstreamNames: string[]
   renameWorkstream: (oldName: string, newName: string) => void
+  deleteWorkstream: (name: string) => void
   setWorkstreamDescription: (workstreamName: string, description: string) => void
   removeWorkstreamDescription: (workstreamName: string) => void
   hasAnyWorkstreams: boolean
@@ -63,6 +67,7 @@ export function useSessions(): UseSessionsResult {
   const workstreams = useWorkstreams()
   const [allSessions, setAllSessions] = useState<Session[]>([])
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null)
+  const [selectedWorkstreamName, setSelectedWorkstreamName] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<SessionStatus | 'all'>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [viewMode, setViewMode] = useState<'list' | 'network'>(
@@ -228,7 +233,16 @@ export function useSessions(): UseSessionsResult {
     return { groups: sortedGroups, ungrouped }
   }, [sessions, workstreams.workstreamMap, workstreams.metaMap])
 
+  const selectedWorkstream = useMemo(
+    () => groupedSessions.groups.find((g) => g.name === selectedWorkstreamName) ?? null,
+    [groupedSessions.groups, selectedWorkstreamName],
+  )
+
   useEffect(() => {
+    if (selectedWorkstreamName) {
+      return
+    }
+
     if (sessions.length === 0) {
       setSelectedSessionId(null)
       return
@@ -246,11 +260,41 @@ export function useSessions(): UseSessionsResult {
     if (!selectedSessionStillVisible) {
       setSelectedSessionId(sessions[0].id)
     }
-  }, [sessions, selectedSessionId])
+  }, [sessions, selectedSessionId, selectedWorkstreamName])
+
+  useEffect(() => {
+    if (
+      selectedWorkstreamName &&
+      !groupedSessions.groups.some((g) => g.name === selectedWorkstreamName)
+    ) {
+      setSelectedWorkstreamName(null)
+    }
+  }, [selectedWorkstreamName, groupedSessions.groups])
 
   const selectSession = useCallback((id: string) => {
+    setSelectedWorkstreamName(null)
     setSelectedSessionId(id)
   }, [])
+
+  const selectWorkstream = useCallback((name: string) => {
+    setSelectedWorkstreamName(name)
+    setSelectedSessionId(null)
+  }, [])
+
+  const clearSelection = useCallback(() => {
+    setSelectedWorkstreamName(null)
+    setSelectedSessionId(null)
+  }, [])
+
+  const handleRenameWorkstream = useCallback(
+    (oldName: string, newName: string) => {
+      workstreams.renameWorkstream(oldName, newName)
+      if (selectedWorkstreamName === oldName) {
+        setSelectedWorkstreamName(newName)
+      }
+    },
+    [workstreams.renameWorkstream, selectedWorkstreamName],
+  )
 
   const refreshSessions = useCallback(() => {
     void loadSessions()
@@ -264,6 +308,7 @@ export function useSessions(): UseSessionsResult {
     sessions,
     allSessions: sessionsWithNames,
     selectedSession,
+    selectedWorkstream,
     statusFilter,
     searchQuery,
     viewMode,
@@ -274,6 +319,8 @@ export function useSessions(): UseSessionsResult {
     error,
     autoRefreshEnabled,
     selectSession,
+    selectWorkstream,
+    clearSelection,
     setStatusFilter,
     setSearchQuery,
     setViewMode,
@@ -292,7 +339,8 @@ export function useSessions(): UseSessionsResult {
     setSessionName: sessionNames.setCustomName,
     removeSessionName: sessionNames.removeCustomName,
     getWorkstreamNames: workstreams.getWorkstreamNames,
-    renameWorkstream: workstreams.renameWorkstream,
+    renameWorkstream: handleRenameWorkstream,
+    deleteWorkstream: workstreams.deleteWorkstream,
     setWorkstreamDescription: workstreams.setDescription,
     removeWorkstreamDescription: workstreams.removeDescription,
     hasAnyWorkstreams: workstreams.hasAnyWorkstreams,
