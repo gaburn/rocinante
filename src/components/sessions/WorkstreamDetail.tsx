@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useSessionContext } from '../../context/SessionContext';
+import { useAdoIntegration } from '../../hooks/useAdoIntegration';
 import type { Session, SessionStatus } from '../../types';
+import type { AdoPullRequest } from '../../types/ado';
 import {
   formatRelativeTime,
   countAgents,
@@ -146,6 +148,58 @@ function sortedByStatus(sessions: Session[]): Session[] {
   );
 }
 
+/* ── ADO styling helpers ──────────────────────────────────────
+ *  Colour-code work-item states and PR statuses so the badges
+ *  communicate intent at a glance — no legend required.         */
+
+function workItemStateBadgeClasses(state: string): string {
+  switch (state.toLowerCase()) {
+    case 'active':
+      return 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30';
+    case 'new':
+      return 'bg-blue-500/15 text-blue-400 border-blue-500/30';
+    case 'resolved':
+      return 'bg-amber-500/15 text-amber-400 border-amber-500/30';
+    case 'closed':
+      return 'bg-fg/[.08] text-fg/40 border-fg/[.12]';
+    default:
+      return 'bg-fg/[.08] text-fg/40 border-fg/[.12]';
+  }
+}
+
+function prStatusBadgeClasses(status: AdoPullRequest['status']): string {
+  switch (status) {
+    case 'active':
+      return 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30';
+    case 'draft':
+      return 'bg-amber-500/15 text-amber-400 border-amber-500/30';
+    case 'completed':
+      return 'bg-fg/[.08] text-fg/40 border-fg/[.12]';
+    case 'abandoned':
+      return 'bg-red-500/15 text-red-400 border-red-500/30';
+    default:
+      return 'bg-fg/[.08] text-fg/40 border-fg/[.12]';
+  }
+}
+
+/** Summarise a reviewer's vote as a single icon glyph. */
+function voteIcon(vote: number): string {
+  if (vote >= 5) return '✓';
+  if (vote <= -5) return '✗';
+  return '○';
+}
+
+function voteColorClass(vote: number): string {
+  if (vote >= 5) return 'text-emerald-400';
+  if (vote <= -5) return 'text-red-400';
+  return 'text-fg/30';
+}
+
+/** Strip refs/heads/ prefix for display. */
+function shortBranch(ref: string): string {
+  return ref.replace(/^refs\/heads\//, '');
+}
+
 /* ── Stat card (quick-stats grid item) ────────────────────────
  *  Mirrors SessionDetail's StatCard — compact, color-coded tile.
  *  Zero-count cards are dimmed so attention stays on what matters. */
@@ -201,8 +255,17 @@ export default function WorkstreamDetail() {
   const [notesValue, setNotesValue] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showArchiveAllConfirm, setShowArchiveAllConfirm] = useState(false);
+  const [isAddingWorkItem, setIsAddingWorkItem] = useState(false);
+  const [addWorkItemValue, setAddWorkItemValue] = useState('');
 
   const notesRef = useRef<HTMLTextAreaElement>(null);
+  const addWorkItemInputRef = useRef<HTMLInputElement>(null);
+
+  /* ── ADO integration ── */
+  const ado = useAdoIntegration(
+    selectedWorkstream?.name ?? null,
+    selectedWorkstream?.sessions ?? [],
+  );
 
   /* Sync notes textarea when the selected workstream changes. */
   const currentName = selectedWorkstream?.name ?? null;
@@ -215,7 +278,26 @@ export default function WorkstreamDetail() {
   useEffect(() => {
     setIsEditingName(false);
     setEditNameValue('');
+    setIsAddingWorkItem(false);
+    setAddWorkItemValue('');
   }, [currentName]);
+
+  /* Auto-focus the work-item input when it appears */
+  useEffect(() => {
+    if (isAddingWorkItem) {
+      addWorkItemInputRef.current?.focus();
+    }
+  }, [isAddingWorkItem]);
+
+  /* ── Work-item add handler ── */
+  const commitAddWorkItem = useCallback(() => {
+    const parsed = parseInt(addWorkItemValue, 10);
+    if (!Number.isNaN(parsed) && parsed > 0) {
+      ado.addWorkItemId(parsed);
+    }
+    setAddWorkItemValue('');
+    setIsAddingWorkItem(false);
+  }, [addWorkItemValue, ado]);
 
   /* ── Name editing handlers ── */
   const enterNameEditMode = useCallback(() => {
@@ -448,6 +530,294 @@ export default function WorkstreamDetail() {
             )}
           </div>
         </section>
+
+        {/* ── 2b · Work Items (ADO) ──────────────────────── */}
+        {ado.isAdoConfigured && (
+          <section className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <h3 className="font-mono text-[11px] font-medium uppercase tracking-widest text-fg/25">
+                  Work Items
+                </h3>
+                {ado.workItems.length > 0 && (
+                  <span className="inline-flex items-center justify-center rounded-full bg-surface-tertiary px-1.5 py-px font-mono text-[10px] tabular-nums text-fg/35">
+                    {ado.workItems.length}
+                  </span>
+                )}
+              </div>
+
+              {!isAddingWorkItem && (
+                <button
+                  type="button"
+                  onClick={() => setIsAddingWorkItem(true)}
+                  className="inline-flex items-center gap-1 rounded-md bg-surface-tertiary px-2 py-0.5 font-mono text-[11px] text-fg/45 transition-colors hover:bg-surface-hover hover:text-fg/70"
+                >
+                  <svg
+                    className="h-3 w-3"
+                    viewBox="0 0 16 16"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    aria-hidden="true"
+                  >
+                    <line x1="8" y1="3" x2="8" y2="13" />
+                    <line x1="3" y1="8" x2="13" y2="8" />
+                  </svg>
+                  Add
+                </button>
+              )}
+            </div>
+
+            {/* Inline input for adding a work item ID */}
+            {isAddingWorkItem && (
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-xs text-fg/30">#</span>
+                <input
+                  ref={addWorkItemInputRef}
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={addWorkItemValue}
+                  onChange={(e) => {
+                    // Only allow digits
+                    const v = e.target.value.replace(/\D/g, '');
+                    setAddWorkItemValue(v);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      commitAddWorkItem();
+                    }
+                    if (e.key === 'Escape') {
+                      e.preventDefault();
+                      setAddWorkItemValue('');
+                      setIsAddingWorkItem(false);
+                    }
+                  }}
+                  onBlur={commitAddWorkItem}
+                  placeholder="Work item ID"
+                  className="h-7 flex-1 rounded-md border border-border-active bg-surface-secondary px-2 font-mono text-xs text-fg/70 outline-none placeholder:text-fg/20"
+                  aria-label="Work item ID to add"
+                />
+              </div>
+            )}
+
+            {/* Work items list */}
+            <div className="rounded-lg border border-border-default bg-surface-secondary overflow-hidden">
+              {ado.isLoadingWorkItems && ado.workItems.length === 0 && (
+                <div className="flex items-center gap-2 px-3 py-3">
+                  <div className="h-3 w-3 animate-spin rounded-full border-2 border-fg/10 border-t-fg/40" />
+                  <span className="font-mono text-[11px] text-fg/30">Loading work items…</span>
+                </div>
+              )}
+
+              {ado.workItemError && (
+                <div className="flex items-start gap-2 px-3 py-2.5">
+                  <svg
+                    className="mt-px h-3.5 w-3.5 shrink-0 text-red-400"
+                    viewBox="0 0 16 16"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <circle cx="8" cy="8" r="6" />
+                    <line x1="8" y1="5" x2="8" y2="8.5" />
+                    <circle cx="8" cy="11" r="0.5" fill="currentColor" />
+                  </svg>
+                  <span className="text-xs text-red-400">{ado.workItemError}</span>
+                </div>
+              )}
+
+              {!ado.isLoadingWorkItems && !ado.workItemError && ado.workItemIds.length > 0 && ado.workItems.length === 0 && (
+                <p className="px-3 py-3 font-mono text-[11px] text-fg/25">
+                  No work items linked
+                </p>
+              )}
+
+              {ado.workItems.map((item) => (
+                <a
+                  key={item.id}
+                  href={item.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group/wi flex w-full items-center gap-3 px-3 py-2 transition-colors hover:bg-surface-hover"
+                >
+                  {/* ID */}
+                  <span className="shrink-0 font-mono text-xs tabular-nums text-fg/45">
+                    #{item.id}
+                  </span>
+
+                  {/* Title — truncated */}
+                  <span className="min-w-0 flex-1 truncate text-sm text-fg/70">
+                    {item.title}
+                  </span>
+
+                  {/* State badge */}
+                  <span
+                    className={`shrink-0 rounded-full border px-1.5 py-px font-mono text-[10px] font-medium leading-snug ${workItemStateBadgeClasses(item.state)}`}
+                  >
+                    {item.state}
+                  </span>
+
+                  {/* Remove button */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      ado.removeWorkItemId(item.id);
+                    }}
+                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-fg/20 opacity-0 transition-all hover:bg-red-500/15 hover:text-red-400 group-hover/wi:opacity-100"
+                    aria-label={`Remove work item ${item.id}`}
+                  >
+                    <svg
+                      className="h-3 w-3"
+                      viewBox="0 0 16 16"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      aria-hidden="true"
+                    >
+                      <line x1="4" y1="4" x2="12" y2="12" />
+                      <line x1="12" y1="4" x2="4" y2="12" />
+                    </svg>
+                  </button>
+                </a>
+              ))}
+
+              {/* Subtle loading overlay when refreshing with existing items */}
+              {ado.isLoadingWorkItems && ado.workItems.length > 0 && (
+                <div className="flex items-center gap-2 border-t border-border-default px-3 py-1.5">
+                  <div className="h-2.5 w-2.5 animate-spin rounded-full border border-fg/10 border-t-fg/30" />
+                  <span className="font-mono text-[10px] text-fg/20">Refreshing…</span>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* ── 2c · Pull Requests (ADO) ───────────────────── */}
+        {ado.isAdoConfigured && (
+          <section className="space-y-2">
+            <div className="flex items-center gap-2">
+              <h3 className="font-mono text-[11px] font-medium uppercase tracking-widest text-fg/25">
+                Pull Requests
+              </h3>
+              {ado.pullRequests.length > 0 && (
+                <span className="inline-flex items-center justify-center rounded-full bg-surface-tertiary px-1.5 py-px font-mono text-[10px] tabular-nums text-fg/35">
+                  {ado.pullRequests.length}
+                </span>
+              )}
+            </div>
+
+            <p className="font-mono text-[10px] text-fg/20">
+              Auto-detected from session branches
+            </p>
+
+            <div className="rounded-lg border border-border-default bg-surface-secondary overflow-hidden">
+              {ado.isLoadingPRs && ado.pullRequests.length === 0 && (
+                <div className="flex items-center gap-2 px-3 py-3">
+                  <div className="h-3 w-3 animate-spin rounded-full border-2 border-fg/10 border-t-fg/40" />
+                  <span className="font-mono text-[11px] text-fg/30">Loading pull requests…</span>
+                </div>
+              )}
+
+              {ado.prError && (
+                <div className="flex items-start gap-2 px-3 py-2.5">
+                  <svg
+                    className="mt-px h-3.5 w-3.5 shrink-0 text-red-400"
+                    viewBox="0 0 16 16"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <circle cx="8" cy="8" r="6" />
+                    <line x1="8" y1="5" x2="8" y2="8.5" />
+                    <circle cx="8" cy="11" r="0.5" fill="currentColor" />
+                  </svg>
+                  <span className="text-xs text-red-400">{ado.prError}</span>
+                </div>
+              )}
+
+              {!ado.isLoadingPRs && !ado.prError && ado.pullRequests.length === 0 && (
+                <p className="px-3 py-3 font-mono text-[11px] text-fg/25">
+                  No pull requests found
+                </p>
+              )}
+
+              {ado.pullRequests.map((pr) => (
+                <a
+                  key={pr.id}
+                  href={pr.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group/pr block w-full px-3 py-2 transition-colors hover:bg-surface-hover"
+                >
+                  {/* Top row: ID + title + status + reviewers */}
+                  <div className="flex items-center gap-3">
+                    {/* PR ID */}
+                    <span className="shrink-0 font-mono text-xs tabular-nums text-fg/45">
+                      PR #{pr.id}
+                    </span>
+
+                    {/* Title — truncated */}
+                    <span className="min-w-0 flex-1 truncate text-sm text-fg/70">
+                      {pr.title}
+                    </span>
+
+                    {/* Status badge */}
+                    <span
+                      className={`shrink-0 rounded-full border px-1.5 py-px font-mono text-[10px] font-medium capitalize leading-snug ${prStatusBadgeClasses(pr.status)}`}
+                    >
+                      {pr.status}
+                    </span>
+
+                    {/* Reviewer summary */}
+                    <span className="flex shrink-0 items-center gap-1 font-mono text-[10px] text-fg/30">
+                      {pr.reviewers.length > 0 ? (
+                        <>
+                          <span className="tabular-nums">{pr.reviewers.length}</span>
+                          <span className="flex gap-px">
+                            {pr.reviewers.map((r, i) => (
+                              <span key={i} className={voteColorClass(r.vote)} title={`${r.displayName}: ${voteIcon(r.vote)}`}>
+                                {voteIcon(r.vote)}
+                              </span>
+                            ))}
+                          </span>
+                        </>
+                      ) : (
+                        <span>0 reviewers</span>
+                      )}
+                    </span>
+                  </div>
+
+                  {/* Bottom row: branch info */}
+                  <div className="mt-1 flex items-center gap-1 font-mono text-[10px] text-fg/20">
+                    <span className="max-w-[120px] truncate">{shortBranch(pr.sourceBranch)}</span>
+                    <span aria-hidden="true">→</span>
+                    <span className="max-w-[120px] truncate">{shortBranch(pr.targetBranch)}</span>
+                  </div>
+                </a>
+              ))}
+
+              {/* Subtle loading overlay when refreshing with existing items */}
+              {ado.isLoadingPRs && ado.pullRequests.length > 0 && (
+                <div className="flex items-center gap-2 border-t border-border-default px-3 py-1.5">
+                  <div className="h-2.5 w-2.5 animate-spin rounded-full border border-fg/10 border-t-fg/30" />
+                  <span className="font-mono text-[10px] text-fg/20">Refreshing…</span>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
 
         {/* ── 3 · Aggregate stats ────────────────────────── */}
         <section className="space-y-2">

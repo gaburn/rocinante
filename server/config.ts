@@ -21,6 +21,9 @@ export interface RuntimeConfig {
   staleThresholdMs: number;
   cacheTtlMs: number;
   maxTimelineEvents: number;
+  adoOrganization: string;
+  adoProject: string;
+  adoPat: string;
 }
 
 const runtimeConfig: RuntimeConfig = {
@@ -31,6 +34,9 @@ const runtimeConfig: RuntimeConfig = {
   staleThresholdMs: parseInt(process.env.STALE_THRESHOLD_MS || '300000', 10),
   cacheTtlMs: parseInt(process.env.CACHE_TTL_MS || '10000', 10),
   maxTimelineEvents: parseInt(process.env.MAX_TIMELINE_EVENTS || '100', 10),
+  adoOrganization: process.env.ADO_ORG || '',
+  adoProject: process.env.ADO_PROJECT || '',
+  adoPat: process.env.ADO_PAT || '',
 };
 
 export function getConfig(): Readonly<RuntimeConfig> {
@@ -40,4 +46,10 @@ export function getConfig(): Readonly<RuntimeConfig> {
 export function updateConfig(partial: Partial<RuntimeConfig>): RuntimeConfig {
   Object.assign(runtimeConfig, partial);
   return { ...runtimeConfig };
+}
+
+export function isAdoConfigured(): boolean {
+  return runtimeConfig.adoOrganization !== ''
+    && runtimeConfig.adoProject !== ''
+    && runtimeConfig.adoPat !== '';
 }

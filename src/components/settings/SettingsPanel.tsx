@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSettingsContext } from '../../context/SettingsContext';
 import { useSessionContext } from '../../context/SessionContext';
+import { updateAdoConfig, testAdoConnection, getAdoStatus } from '../../services/adoService';
 import type {
   AccentColor,
   RefreshInterval,
@@ -16,7 +17,7 @@ import type {
  * SettingsPanel
  * ═══════════════════════════════════════════════════════════
  * A slide-over panel anchored to the right edge of the
- * viewport. Houses four collapsible settings sections plus
+ * viewport. Houses five collapsible settings sections plus
  * a sticky footer with a "Reset to Defaults" action.
  *
  * ┌────────────────────────────────────┐
@@ -24,6 +25,7 @@ import type {
  * ├────────────────────────────────────┤
  * │ ▸ Display Settings                 │
  * │ ▸ Data Settings                    │  ← scrollable
+ * │ ▸ Azure DevOps                     │
  * │ ▸ Network View                     │
  * │ ▸ About                            │
  * ├────────────────────────────────────┤
@@ -369,6 +371,204 @@ function Section({
         </div>
       </div>
     </div>
+  );
+}
+
+/* ── Azure DevOps settings (self-contained state) ──────── */
+
+function AdoSettings() {
+  const [organization, setOrganization] = useState('');
+  const [project, setProject] = useState('');
+  const [pat, setPat] = useState('');
+  const [isTesting, setIsTesting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [connectionResult, setConnectionResult] = useState<{
+    ok: boolean;
+    message: string;
+  } | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const resultTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Hydrate org + project from server on mount
+  useEffect(() => {
+    getAdoStatus()
+      .then((status) => {
+        setOrganization(status.organization ?? '');
+        setProject(status.project ?? '');
+      })
+      .catch(() => {
+        /* fields stay empty */
+      });
+  }, []);
+
+  // Clean up timers on unmount
+  useEffect(() => {
+    return () => {
+      if (resultTimerRef.current) clearTimeout(resultTimerRef.current);
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, []);
+
+  const handleTestConnection = async () => {
+    setIsTesting(true);
+    setConnectionResult(null);
+    try {
+      const result = await testAdoConnection();
+      setConnectionResult(result);
+    } catch (err) {
+      setConnectionResult({
+        ok: false,
+        message: err instanceof Error ? err.message : 'Connection failed',
+      });
+    } finally {
+      setIsTesting(false);
+      if (resultTimerRef.current) clearTimeout(resultTimerRef.current);
+      resultTimerRef.current = setTimeout(
+        () => setConnectionResult(null),
+        5000,
+      );
+    }
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      await updateAdoConfig({
+        organization,
+        project,
+        ...(pat ? { pat } : {}),
+      });
+      setPat('');
+    } catch (err) {
+      setSaveError(
+        err instanceof Error ? err.message : 'Failed to save configuration',
+      );
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(() => setSaveError(null), 5000);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const inputClasses = `
+    w-full
+    bg-surface-tertiary border border-border-default rounded-md
+    px-3 py-1.5
+    text-sm text-fg/80 font-mono placeholder:text-fg/20
+    transition-colors duration-150
+    hover:border-fg/20
+    focus-visible:outline-none focus-visible:ring-2
+    focus-visible:ring-border-active focus-visible:ring-offset-1
+    focus-visible:ring-offset-surface-secondary
+  `;
+
+  return (
+    <>
+      <FieldStack label="Organization">
+        <input
+          type="text"
+          value={organization}
+          onChange={(e) => setOrganization(e.target.value)}
+          placeholder="e.g., microsoft"
+          aria-label="Azure DevOps organization"
+          className={inputClasses}
+        />
+      </FieldStack>
+
+      <FieldStack label="Project">
+        <input
+          type="text"
+          value={project}
+          onChange={(e) => setProject(e.target.value)}
+          placeholder="e.g., MyProject"
+          aria-label="Azure DevOps project"
+          className={inputClasses}
+        />
+      </FieldStack>
+
+      <FieldStack label="Personal Access Token" hint="PAT is stored server-side">
+        <input
+          type="password"
+          value={pat}
+          onChange={(e) => setPat(e.target.value)}
+          placeholder="Enter PAT"
+          aria-label="Personal access token"
+          className={inputClasses}
+        />
+      </FieldStack>
+
+      {/* Action buttons */}
+      <div className="flex items-center gap-2.5 pt-2.5">
+        <button
+          type="button"
+          onClick={() => void handleTestConnection()}
+          disabled={isTesting}
+          className="
+            rounded-md px-3 py-1.5
+            text-xs font-mono
+            bg-surface-tertiary text-fg/60
+            hover:bg-surface-hover
+            transition-colors duration-150
+            cursor-pointer
+            disabled:opacity-50 disabled:cursor-not-allowed
+            focus-visible:outline-none focus-visible:ring-2
+            focus-visible:ring-border-active focus-visible:ring-offset-1
+            focus-visible:ring-offset-surface-secondary
+          "
+        >
+          {isTesting ? 'Testing…' : 'Test Connection'}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => void handleSave()}
+          disabled={isSaving}
+          className="
+            rounded-md px-3 py-1.5
+            text-xs font-mono
+            bg-border-active/15 text-border-active border border-border-active/25
+            hover:bg-border-active/25
+            transition-colors duration-150
+            cursor-pointer
+            disabled:opacity-50 disabled:cursor-not-allowed
+            focus-visible:outline-none focus-visible:ring-2
+            focus-visible:ring-border-active focus-visible:ring-offset-1
+            focus-visible:ring-offset-surface-secondary
+          "
+        >
+          {isSaving ? 'Saving…' : 'Save'}
+        </button>
+      </div>
+
+      {/* Connection test result — inline below buttons, auto-clears */}
+      {connectionResult && (
+        <p
+          role="status"
+          className={`mt-2 text-[12px] leading-snug ${
+            connectionResult.ok ? 'text-emerald-400' : 'text-red-400'
+          }`}
+        >
+          {connectionResult.ok ? '✓ Connected' : connectionResult.message}
+        </p>
+      )}
+
+      {/* Save error */}
+      {saveError && (
+        <div
+          role="alert"
+          className="mt-2 rounded-md bg-red-500/10 border border-red-500/20 px-3 py-2 text-[12px] text-red-400 leading-snug"
+        >
+          {saveError}
+        </div>
+      )}
+
+      {/* Muted security note */}
+      <p className="text-[11px] text-fg/20 leading-relaxed pt-3">
+        Configuration is stored server-side. PAT is never sent to the browser.
+      </p>
+    </>
   );
 }
 
@@ -891,7 +1091,12 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
             </div>
           </Section>
 
-          {/* ━━━━━━━━━━ Section 3: Network View ━━━━━━━━ */}
+          {/* ━━━━━━━━━━ Section 3: Azure DevOps ━━━━━━━━ */}
+          <Section title="Azure DevOps">
+            <AdoSettings />
+          </Section>
+
+          {/* ━━━━━━━━━━ Section 4: Network View ━━━━━━━━ */}
           <Section title="Network View">
 
             {/* Animation Speed */}
@@ -949,7 +1154,7 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
             </FieldRow>
           </Section>
 
-          {/* ━━━━━━━━━━ Section 4: About ━━━━━━━━━━━━━━ */}
+          {/* ━━━━━━━━━━ Section 5: About ━━━━━━━━━━━━━━ */}
           <Section title="About">
             <div className="flex flex-col gap-4 py-1">
 

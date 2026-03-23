@@ -7,6 +7,10 @@ export type PhysicsStrength = 'tight' | 'medium' | 'loose';
 export type RefreshInterval = 0 | 10000 | 30000 | 60000 | 120000;
 export type ShellType = 'pwsh' | 'powershell' | 'cmd' | 'bash' | 'custom';
 
+// ADO settings are managed server-side via /api/ado/config
+// They are NOT part of AppSettings (which is localStorage-only)
+// See src/types/ado.ts for ADO types
+
 export interface PaneVisibility {
   gitContext: boolean;
   quickStats: boolean;
