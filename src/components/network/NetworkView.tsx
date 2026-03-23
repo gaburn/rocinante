@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
+import { useSessionContext } from '../../context/SessionContext';
 import NetworkCanvas from './NetworkCanvas';
 import NetworkDetailPanel from './NetworkDetailPanel';
 import StatusFilter from '../filters/StatusFilter';
@@ -7,11 +8,20 @@ import StatusSummaryBar from '../common/StatusSummaryBar';
 
 export default function NetworkView() {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [showAllSessions, setShowAllSessions] = useState(false);
+  const { selectedSession, sessions } = useSessionContext();
+
+  const networkSessions = useMemo(() => {
+    if (showAllSessions) return sessions;
+    if (selectedSession) return [selectedSession];
+    return sessions;
+  }, [showAllSessions, selectedSession, sessions]);
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-surface-primary">
       {/* Canvas fills entire area */}
       <NetworkCanvas
+        sessions={networkSessions}
         selectedNodeId={selectedNodeId}
         onSelectNode={setSelectedNodeId}
       />
@@ -27,6 +37,14 @@ export default function NetworkView() {
         <div className="rounded-lg bg-surface-secondary/80 backdrop-blur-sm border border-border-default">
           <StatusFilter />
         </div>
+
+        <button
+          type="button"
+          className="rounded-lg bg-surface-secondary/80 backdrop-blur-sm border border-border-default px-3 py-1.5 text-xs font-mono text-fg/50 hover:text-fg/80 cursor-pointer transition-colors"
+          onClick={() => setShowAllSessions(!showAllSessions)}
+        >
+          {showAllSessions ? 'Show Selected Only' : 'Show All Sessions'}
+        </button>
 
         {/* Legend */}
         <div className="rounded-lg bg-surface-secondary/80 backdrop-blur-sm border border-border-default px-3 py-2 flex items-center gap-4 text-[10px] text-fg/40 font-mono">

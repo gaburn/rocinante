@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useSettingsContext } from '../../context/SettingsContext';
 import { useSessionContext } from '../../context/SessionContext';
 import { getNodeSizeMultiplier } from '../../types/settings';
+import type { Session } from '../../types';
 import { renderFrame, updateParticles, type NetworkRenderConfig } from './canvasRenderer';
 import { getThemeColors } from './networkColors';
 import type { GraphNode, Particle } from './networkTypes';
@@ -14,6 +15,7 @@ import { useForceGraph } from './useForceGraph';
 /* ------------------------------------------------------------------ */
 
 interface NetworkCanvasProps {
+  sessions?: Session[];
   onSelectNode: (nodeId: string | null) => void;
   selectedNodeId: string | null;
 }
@@ -23,13 +25,15 @@ interface NetworkCanvasProps {
 /* ------------------------------------------------------------------ */
 
 export default function NetworkCanvas({
+  sessions: sessionsProp,
   onSelectNode,
   selectedNodeId,
 }: NetworkCanvasProps) {
   /* ---- data ---- */
-  const { sessions, isLoading } = useSessionContext();
+  const { sessions: contextSessions, isLoading } = useSessionContext();
+  const activeSessions = sessionsProp ?? contextSessions;
   const { settings } = useSettingsContext();
-  const { nodes, edges } = useForceGraph(sessions);
+  const { nodes, edges } = useForceGraph(activeSessions);
   const renderConfig: NetworkRenderConfig = {
     animationSpeed: settings.network.animationSpeed,
     labelVisibility: settings.network.labelVisibility,
@@ -208,8 +212,8 @@ export default function NetworkCanvas({
 
   /* ---- render ---- */
 
-  const showEmpty = sessions.length === 0 && !isLoading;
-  const showLoading = isLoading && sessions.length === 0;
+  const showEmpty = activeSessions.length === 0 && !isLoading;
+  const showLoading = isLoading && activeSessions.length === 0;
   const resolvedTheme: 'dark' | 'light' = document.documentElement.classList.contains('light')
     ? 'light'
     : 'dark';
