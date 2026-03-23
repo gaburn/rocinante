@@ -155,15 +155,15 @@ adoRouter.post('/ado/test', async (req, res) => {
       res.json(result);
       return;
     }
-    if (result.message === 'Authentication failed') {
-      res.status(502).json(result);
-      return;
-    }
     res.status(502).json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const status = isLikelyUpstreamError(error) ? 502 : 500;
-    res.status(status).json({ ok: false, message });
+    res.status(status).json({
+      ok: false,
+      message,
+      rawError: error,
+    });
   }
 });
 

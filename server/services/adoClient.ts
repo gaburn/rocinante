@@ -6,11 +6,13 @@ const CACHE_TTL = 300_000;
 
 class AdoApiError extends Error {
   status?: number;
+  details?: unknown;
 
-  constructor(message: string, status?: number) {
+  constructor(message: string, status?: number, details?: unknown) {
     super(message);
     this.name = 'AdoApiError';
     this.status = status;
+    this.details = details;
   }
 }
 
@@ -59,6 +61,7 @@ async function adoFetch<T>(path: string): Promise<T> {
     throw new AdoApiError(
       `Azure DevOps request failed (${response.status}): ${apiMessage}`,
       response.status,
+      payload,
     );
   }
 
@@ -199,16 +202,35 @@ export async function getPullRequestsByBranches(branches: string[]): Promise<Ado
   return Array.from(deduped.values()).sort((a, b) => b.id - a.id);
 }
 
-export async function testAdoConnection(): Promise<{ ok: boolean; message: string }> {
+export type AdoConnectionTestResult = {
+  ok: boolean;
+  message: string;
+  checkedUrl: string;
+  status?: number;
+  details?: unknown;
+};
+
+export async function testAdoConnection(): Promise<AdoConnectionTestResult> {
+  const config = getConfig();
+  const path = `projects/${encodeURIComponent(config.adoProject)}?api-version=7.1`;
   try {
-    await adoFetch('projects?$top=1&api-version=7.1');
-    return { ok: true, message: 'Connected' };
+    await adoFetch(path);
+    return {
+      ok: true,
+      message: 'Connected',
+      checkedUrl: `https://dev.azure.com/${config.adoOrganization}/${config.adoProject}/_apis/${path}`,
+    };
   } catch (error) {
-    if (error instanceof AdoApiError && (error.status === 401 || error.status === 403)) {
-      return { ok: false, message: 'Authentication failed' };
-    }
     const message = error instanceof Error ? error.message : String(error);
-    return { ok: false, message };
+    const status = error instanceof AdoApiError ? error.status : undefined;
+    const details = error instanceof AdoApiError ? error.details : undefined;
+    return {
+      ok: false,
+      message,
+      checkedUrl: `https://dev.azure.com/${config.adoOrganization}/${config.adoProject}/_apis/${path}`,
+      status,
+      details,
+    };
   }
 }
 
