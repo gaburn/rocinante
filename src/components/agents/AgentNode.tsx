@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { SubAgent } from '../../types';
 import { getStatusDotClass } from '../../utils/statusColors';
 import { formatDuration } from '../../utils/formatters';
@@ -83,6 +83,7 @@ export default function AgentNode({
   depth = 0,
   isLast = false,
 }: AgentNodeProps) {
+  const nodeRef = useRef<HTMLDivElement>(null);
   const isRoot = depth === 0;
   const hasChildren = agent.children.length > 0;
   const isRunning = agent.status === 'running';
@@ -102,6 +103,18 @@ export default function AgentNode({
     );
 
   const [expanded, setExpanded] = useState<boolean>(false);
+
+  useEffect(() => {
+    const hasRunningTools = visibleToolCalls.some((tc) => tc.status === 'running');
+    if (
+      agent.status === 'running' &&
+      hasRunningTools &&
+      agent.children.length === 0 &&
+      nodeRef.current
+    ) {
+      nodeRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [agent.status, agent.toolCalls, agent.children.length, visibleToolCalls]);
 
   const toggle = () => {
     if (isExpandable) setExpanded((prev) => !prev);
@@ -126,7 +139,7 @@ export default function AgentNode({
   }
 
   return (
-    <div className={`relative ${isRoot ? '' : 'ml-6'}`}>
+    <div ref={nodeRef} className={`relative ${isRoot ? '' : 'ml-6'}`}>
       {/* ── Vertical continuation line ──────────────────────
        *  For every non-last sibling the line runs the FULL
        *  height of this subtree — row + all descendants —
