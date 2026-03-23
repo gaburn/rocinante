@@ -246,7 +246,7 @@ export type AdoConnectionTestResult = {
 };
 
 export async function testAdoConnection(): Promise<AdoConnectionTestResult> {
-  const path = 'wit/queries?$depth=0&api-version=7.1';
+  const path = 'wit/workitems?ids=1&api-version=7.1';
   const checkedUrl = buildAdoApiUrl(path, 'project');
   try {
     await adoFetch(path);
@@ -256,6 +256,27 @@ export async function testAdoConnection(): Promise<AdoConnectionTestResult> {
       checkedUrl,
     };
   } catch (error) {
+    if (error instanceof AdoApiError) {
+      if (error.status === 404) {
+        return {
+          ok: true,
+          message: 'Connected',
+          checkedUrl,
+          status: error.status,
+          details: error.details,
+        };
+      }
+      if (error.status === 401 || error.status === 403) {
+        return {
+          ok: false,
+          message: 'Authentication failed — check your PAT permissions',
+          checkedUrl,
+          status: error.status,
+          details: error.details,
+        };
+      }
+    }
+
     const message = error instanceof Error ? error.message : String(error);
     const status = error instanceof AdoApiError ? error.status : undefined;
     const details = error instanceof AdoApiError ? error.details : undefined;
