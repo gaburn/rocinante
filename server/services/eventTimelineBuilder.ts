@@ -202,6 +202,19 @@ function buildSummary(event: ParsedEvent): string {
       return 'Turn started';
     case 'tool.execution_start': {
       const toolName = getString(data, 'toolName') ?? 'tool';
+      if (toolName === 'report_intent') {
+        const argumentsRecord = getRecord(data, 'arguments');
+        const intentText = argumentsRecord
+          ? getString(argumentsRecord, 'intent')
+          : undefined;
+        const briefIntent = intentText
+          ? truncateSummary(toSingleLine(intentText))
+          : undefined;
+        if (briefIntent && briefIntent.length > 0) {
+          return truncateSummary(`Intent: ${briefIntent}`);
+        }
+      }
+
       const briefArgs = formatBriefArgs(data);
       if (!briefArgs) {
         return `${toolName}()`;

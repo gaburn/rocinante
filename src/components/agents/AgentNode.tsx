@@ -88,9 +88,10 @@ export default function AgentNode({
   const isRunning = agent.status === 'running';
   const duration = formatDuration(agent.startedAt, agent.completedAt);
   const taskTextClass = isRunning ? 'text-fg/50' : 'text-fg/35';
-  const toolCalls = agent.toolCalls ?? [];
-  const visibleToolCalls = toolCalls.slice(0, MAX_VISIBLE_TOOL_CALLS);
-  const hiddenToolCallCount = Math.max(0, toolCalls.length - MAX_VISIBLE_TOOL_CALLS);
+  const levelLabel = depth === 0 ? 'Orchestrator' : depth === 1 ? 'Agent' : 'Sub-agent';
+  const visibleToolCalls = agent.toolCalls?.filter((tc) => tc.name !== 'report_intent') ?? [];
+  const renderedToolCalls = visibleToolCalls.slice(0, MAX_VISIBLE_TOOL_CALLS);
+  const hiddenToolCallCount = Math.max(0, visibleToolCalls.length - MAX_VISIBLE_TOOL_CALLS);
 
   /* ── Expandability ─────────────────────────────────────── */
   const isExpandable =
@@ -190,6 +191,9 @@ export default function AgentNode({
 
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 items-center gap-2">
+              <span className="shrink-0 text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-surface-tertiary text-fg/30 mr-1.5">
+                {levelLabel}
+              </span>
               {/* Agent name */}
               <span className="shrink-0 font-mono text-sm font-semibold text-fg-heading">
                 {agent.name}
@@ -210,9 +214,9 @@ export default function AgentNode({
               {'\u2014'} &quot;{agent.task}&quot;
             </p>
 
-            {visibleToolCalls.length > 0 && (
+            {renderedToolCalls.length > 0 && (
               <div className="mt-1 pl-4 text-[10px] font-mono text-fg/30">
-                {visibleToolCalls.map((toolCall, index) => {
+                {renderedToolCalls.map((toolCall, index) => {
                   const rowClass =
                     toolCall.status === 'running'
                       ? 'text-fg/40'

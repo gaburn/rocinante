@@ -586,7 +586,11 @@ export function buildAgentTree(
 
     const data = getEventData(event);
     const toolName = getString(data, 'toolName');
-    if (!toolName || toolName === 'task') {
+    if (!toolName) {
+      continue;
+    }
+
+    if (toolName === 'task' || toolName === 'report_intent') {
       continue;
     }
 
