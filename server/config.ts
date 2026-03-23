@@ -23,7 +23,6 @@ export interface RuntimeConfig {
   maxTimelineEvents: number;
   adoOrganization: string;
   adoProject: string;
-  adoPat: string;
 }
 
 const runtimeConfig: RuntimeConfig = {
@@ -36,7 +35,6 @@ const runtimeConfig: RuntimeConfig = {
   maxTimelineEvents: parseInt(process.env.MAX_TIMELINE_EVENTS || '100', 10),
   adoOrganization: process.env.ADO_ORG || '',
   adoProject: process.env.ADO_PROJECT || '',
-  adoPat: process.env.ADO_PAT || '',
 };
 
 export function getConfig(): Readonly<RuntimeConfig> {
@@ -50,6 +48,5 @@ export function updateConfig(partial: Partial<RuntimeConfig>): RuntimeConfig {
 
 export function isAdoConfigured(): boolean {
   return runtimeConfig.adoOrganization !== ''
-    && runtimeConfig.adoProject !== ''
-    && runtimeConfig.adoPat !== '';
+    && runtimeConfig.adoProject !== '';
 }

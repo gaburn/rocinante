@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { getConfig, isAdoConfigured, updateConfig } from '../config.js';
 import {
   clearAdoCache,
+  clearTokenCache,
   getPullRequestsByBranches,
   getWorkItems,
   testAdoConnection,
@@ -96,7 +97,7 @@ adoRouter.patch('/ado/config', (req, res) => {
     return;
   }
 
-  const allowedKeys = new Set(['organization', 'project', 'pat']);
+  const allowedKeys = new Set(['organization', 'project']);
   for (const key of Object.keys(body)) {
     if (!allowedKeys.has(key)) {
       res.status(400).json({ error: `Unknown config field: ${key}` });
@@ -107,7 +108,6 @@ adoRouter.patch('/ado/config', (req, res) => {
   const patch: {
     adoOrganization?: string;
     adoProject?: string;
-    adoPat?: string;
   } = {};
 
   if ('organization' in body) {
@@ -126,16 +126,9 @@ adoRouter.patch('/ado/config', (req, res) => {
     patch.adoProject = body.project.trim();
   }
 
-  if ('pat' in body) {
-    if (typeof body.pat !== 'string') {
-      res.status(400).json({ error: 'pat must be a string.' });
-      return;
-    }
-    patch.adoPat = body.pat.trim();
-  }
-
   const updated = updateConfig(patch);
   clearAdoCache();
+  clearTokenCache();
   res.json({
     configured: isAdoConfigured(),
     organization: updated.adoOrganization,

@@ -379,7 +379,6 @@ function Section({
 function AdoSettings() {
   const [organization, setOrganization] = useState('');
   const [project, setProject] = useState('');
-  const [pat, setPat] = useState('');
   const [isTesting, setIsTesting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [connectionResult, setConnectionResult] = useState<{
@@ -438,9 +437,7 @@ function AdoSettings() {
       await updateAdoConfig({
         organization,
         project,
-        ...(pat ? { pat } : {}),
       });
-      setPat('');
     } catch (err) {
       setSaveError(
         err instanceof Error ? err.message : 'Failed to save configuration',
@@ -484,17 +481,6 @@ function AdoSettings() {
           onChange={(e) => setProject(e.target.value)}
           placeholder="e.g., MyProject"
           aria-label="Azure DevOps project"
-          className={inputClasses}
-        />
-      </FieldStack>
-
-      <FieldStack label="Personal Access Token" hint="PAT is stored server-side">
-        <input
-          type="password"
-          value={pat}
-          onChange={(e) => setPat(e.target.value)}
-          placeholder="Enter PAT"
-          aria-label="Personal access token"
           className={inputClasses}
         />
       </FieldStack>
@@ -566,7 +552,7 @@ function AdoSettings() {
 
       {/* Muted security note */}
       <p className="text-[11px] text-fg/20 leading-relaxed pt-3">
-        Configuration is stored server-side. PAT is never sent to the browser.
+        Authentication uses Azure CLI (az login). No credentials stored.
       </p>
     </>
   );

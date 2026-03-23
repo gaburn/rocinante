@@ -20,7 +20,7 @@ export async function getPullRequests(branches: string[]): Promise<AdoPullReques
   return res.json();
 }
 
-export async function updateAdoConfig(config: { organization?: string; project?: string; pat?: string }): Promise<AdoStatus> {
+export async function updateAdoConfig(config: { organization?: string; project?: string }): Promise<AdoStatus> {
   const res = await fetch('/api/ado/config', {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
@@ -35,6 +35,7 @@ export async function updateAdoConfig(config: { organization?: string; project?:
 
 export async function testAdoConnection(): Promise<{ ok: boolean; message: string }> {
   const res = await fetch('/api/ado/test', { method: 'POST' });
-  if (!res.ok) throw new Error(`Test failed: ${res.status}`);
-  return res.json();
+  const data = await res.json().catch(() => ({ ok: false, message: `Test failed: ${res.status}` }));
+  if (!res.ok) throw new Error(typeof data?.message === 'string' ? data.message : `Test failed: ${res.status}`);
+  return data;
 }

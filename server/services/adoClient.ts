@@ -3,6 +3,7 @@ import type { AdoPullRequest, AdoWorkItem } from '../../src/types/ado.js';
 
 const cache = new Map<string, { data: unknown; fetchedAt: number }>();
 const CACHE_TTL = 300_000;
+let cachedToken: { token: string; expiresAt: number } | null = null;
 
 class AdoApiError extends Error {
   status?: number;
@@ -48,20 +49,45 @@ function extractAdoErrorMessage(response: Response, payload: unknown, rawText: s
   return response.statusText || 'Unknown Azure DevOps error';
 }
 
+async function getAdoToken(): Promise<string> {
+  if (cachedToken && cachedToken.expiresAt > Date.now() + 300_000) {
+    return cachedToken.token;
+  }
+
+  const { execSync } = await import('node:child_process');
+  try {
+    const result = execSync(
+      'az account get-access-token --resource 499b84ac-1321-427f-aa17-267ca6975798 --output json',
+      { encoding: 'utf-8', timeout: 15000, stdio: ['pipe', 'pipe', 'pipe'] },
+    );
+    const parsed = JSON.parse(result) as { accessToken?: string; expiresOn?: string };
+    if (!parsed.accessToken || !parsed.expiresOn) {
+      throw new Error('Azure CLI returned an invalid token payload.');
+    }
+
+    cachedToken = {
+      token: parsed.accessToken,
+      expiresAt: new Date(parsed.expiresOn).getTime(),
+    };
+    return cachedToken.token;
+  } catch (err) {
+    throw new Error(`Failed to get Azure AD token. Run "az login" first. Error: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
 async function adoFetch<T>(path: string, scope: AdoApiScope = 'project'): Promise<T> {
   if (!isAdoConfigured()) {
     throw new AdoApiError('Azure DevOps is not configured.');
   }
 
-  const config = getConfig();
   const requestUrl = buildAdoApiUrl(path, scope);
-  const auth = Buffer.from(`:${config.adoPat}`).toString('base64');
+  const token = await getAdoToken();
 
   let response: Response;
   try {
     response = await fetch(requestUrl, {
       headers: {
-        Authorization: `Basic ${auth}`,
+        Authorization: `Bearer ${token}`,
         Accept: 'application/json',
       },
       signal: AbortSignal.timeout(15000),
@@ -248,6 +274,28 @@ export type AdoConnectionTestResult = {
 export async function testAdoConnection(): Promise<AdoConnectionTestResult> {
   const path = 'wit/workitems?ids=1&api-version=7.1';
   const checkedUrl = buildAdoApiUrl(path, 'project');
+
+  try {
+    const { execSync } = await import('node:child_process');
+    execSync('az --version', { stdio: 'pipe', timeout: 5000 });
+  } catch {
+    return {
+      ok: false,
+      message: 'Azure CLI (az) is not installed or not on PATH',
+      checkedUrl,
+    };
+  }
+
+  try {
+    await getAdoToken();
+  } catch {
+    return {
+      ok: false,
+      message: 'Not logged in. Run "az login" first.',
+      checkedUrl,
+    };
+  }
+
   try {
     await adoFetch(path);
     return {
@@ -269,7 +317,7 @@ export async function testAdoConnection(): Promise<AdoConnectionTestResult> {
       if (error.status === 401 || error.status === 403) {
         return {
           ok: false,
-          message: 'Authentication failed — check your PAT permissions',
+          message: 'Authentication failed — run "az login" and verify Azure DevOps access',
           checkedUrl,
           status: error.status,
           details: error.details,
@@ -292,5 +340,9 @@ export async function testAdoConnection(): Promise<AdoConnectionTestResult> {
 
 export function clearAdoCache(): void {
   cache.clear();
+}
+
+export function clearTokenCache(): void {
+  cachedToken = null;
 }
 
