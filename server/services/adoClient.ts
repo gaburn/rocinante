@@ -20,18 +20,46 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
-async function adoFetch<T>(path: string): Promise<T> {
+type AdoApiScope = 'project' | 'organization';
+
+function buildAdoApiUrl(path: string, scope: AdoApiScope = 'project'): string {
+  const config = getConfig();
+  const organization = encodeURIComponent(config.adoOrganization);
+  const project = encodeURIComponent(config.adoProject);
+  if (scope === 'organization') {
+    return `https://dev.azure.com/${organization}/_apis/${path}`;
+  }
+  return `https://dev.azure.com/${organization}/${project}/_apis/${path}`;
+}
+
+function extractAdoErrorMessage(response: Response, payload: unknown, rawText: string): string {
+  if (isObject(payload)) {
+    const maybeMessage = payload.message;
+    if (typeof maybeMessage === 'string' && maybeMessage.trim() !== '') {
+      return maybeMessage;
+    }
+  }
+
+  const trimmed = rawText.trim();
+  if (trimmed !== '') {
+    return trimmed.replace(/\s+/g, ' ').slice(0, 300);
+  }
+
+  return response.statusText || 'Unknown Azure DevOps error';
+}
+
+async function adoFetch<T>(path: string, scope: AdoApiScope = 'project'): Promise<T> {
   if (!isAdoConfigured()) {
     throw new AdoApiError('Azure DevOps is not configured.');
   }
 
   const config = getConfig();
-  const baseUrl = `https://dev.azure.com/${config.adoOrganization}/${config.adoProject}/_apis/${path}`;
+  const requestUrl = buildAdoApiUrl(path, scope);
   const auth = Buffer.from(`:${config.adoPat}`).toString('base64');
 
   let response: Response;
   try {
-    response = await fetch(baseUrl, {
+    response = await fetch(requestUrl, {
       headers: {
         Authorization: `Basic ${auth}`,
         Accept: 'application/json',
@@ -40,28 +68,35 @@ async function adoFetch<T>(path: string): Promise<T> {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    throw new AdoApiError(`Failed to reach Azure DevOps: ${message}`);
+    throw new AdoApiError(`Failed to reach Azure DevOps (${requestUrl}): ${message}`);
+  }
+
+  let rawText = '';
+  try {
+    rawText = await response.text();
+  } catch {
+    rawText = '';
   }
 
   let payload: unknown = null;
-  try {
-    payload = await response.json();
-  } catch {
-    payload = null;
+  if (rawText.trim() !== '') {
+    try {
+      payload = JSON.parse(rawText);
+    } catch {
+      payload = null;
+    }
   }
 
   if (!response.ok) {
-    let apiMessage = response.statusText || 'Unknown Azure DevOps error';
-    if (isObject(payload)) {
-      const maybeMessage = payload.message;
-      if (typeof maybeMessage === 'string' && maybeMessage.trim() !== '') {
-        apiMessage = maybeMessage;
-      }
-    }
+    const apiMessage = extractAdoErrorMessage(response, payload, rawText);
     throw new AdoApiError(
       `Azure DevOps request failed (${response.status}): ${apiMessage}`,
       response.status,
-      payload,
+      {
+        url: requestUrl,
+        payload,
+        rawText: rawText.slice(0, 4000),
+      },
     );
   }
 
@@ -211,14 +246,14 @@ export type AdoConnectionTestResult = {
 };
 
 export async function testAdoConnection(): Promise<AdoConnectionTestResult> {
-  const config = getConfig();
-  const path = `projects/${encodeURIComponent(config.adoProject)}?api-version=7.1`;
+  const path = 'wit/queries?$depth=0&api-version=7.1';
+  const checkedUrl = buildAdoApiUrl(path, 'project');
   try {
     await adoFetch(path);
     return {
       ok: true,
       message: 'Connected',
-      checkedUrl: `https://dev.azure.com/${config.adoOrganization}/${config.adoProject}/_apis/${path}`,
+      checkedUrl,
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -227,7 +262,7 @@ export async function testAdoConnection(): Promise<AdoConnectionTestResult> {
     return {
       ok: false,
       message,
-      checkedUrl: `https://dev.azure.com/${config.adoOrganization}/${config.adoProject}/_apis/${path}`,
+      checkedUrl,
       status,
       details,
     };
