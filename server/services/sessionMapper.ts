@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as yaml from 'js-yaml';
-import { Session } from '../../src/types/index.js';
+import { Session, SubAgent } from '../../src/types/index.js';
 import { getConfig } from '../config.js';
 import {
   SqliteSession,
@@ -103,15 +103,22 @@ export function mapToSession(sqlRow: SqliteSession, events: ParsedEvent[]): Sess
   const name = getSessionName(sqlRow, firstUserMessage);
   const intent = getSessionIntent(firstUserMessage, name);
   const derivedStatus: DerivedStatus = deriveSessionStatus(events, sqlRow.updated_at);
+  const rootAgent = buildAgentTree(events, derivedStatus.status, name, sqlRow.created_at);
+
+  // Override stale-completed sessions when any agent is still running.
+  let finalStatus = derivedStatus.status;
+  if (finalStatus === 'completed' && hasRunningAgents(rootAgent)) {
+    finalStatus = 'active';
+  }
 
   return {
     id: sqlRow.id,
     name,
     intent,
-    status: derivedStatus.status,
+    status: finalStatus,
     startedAt: sqlRow.created_at,
     lastActivityAt: derivedStatus.lastActivityAt,
-    rootAgent: buildAgentTree(events, derivedStatus.status, name, sqlRow.created_at),
+    rootAgent,
     events: buildEventTimeline(events),
     activityBuckets: buildActivityBuckets(events, sqlRow.created_at, derivedStatus.lastActivityAt),
     blockedReason: derivedStatus.blockedReason,
@@ -121,6 +128,14 @@ export function mapToSession(sqlRow: SqliteSession, events: ParsedEvent[]): Sess
     branch: sqlRow.branch ?? null,
     errorDetails: derivedStatus.errorDetails,
   };
+}
+
+function hasRunningAgents(agent: SubAgent): boolean {
+  if (agent.status === 'running') {
+    return true;
+  }
+
+  return agent.children.some((child) => hasRunningAgents(child));
 }
 
 export function mapAllSessions(): Session[] {
