@@ -105,18 +105,26 @@ function toToolCallSummary(
   return firstArgumentKey ? `${toolName} ${firstArgumentKey}` : toolName;
 }
 
-function findOwningAgentIdForToolCall(
-  startParentId: string | null,
+function attributeToolCallToAgent(
+  event: ParsedEvent,
   eventsById: Map<string, ParsedEvent>,
+  agentTimeline: Map<string, { startMs: number; endMs: number }>,
+  startEventToAgentId: Map<string, string>,
 ): string | undefined {
-  let cursor = startParentId;
+  let cursor = event.parentId;
   const visited = new Set<string>();
 
+  // Strategy 1: Walk the parentId chain when event ancestry is available.
   while (cursor && !visited.has(cursor)) {
     visited.add(cursor);
     const parentEvent = eventsById.get(cursor);
     if (!parentEvent) {
-      return undefined;
+      break;
+    }
+
+    const parentStartAgentId = startEventToAgentId.get(cursor);
+    if (parentStartAgentId) {
+      return parentStartAgentId;
     }
 
     if (parentEvent.type === 'tool.execution_start') {
@@ -129,7 +137,27 @@ function findOwningAgentIdForToolCall(
     cursor = parentEvent.parentId;
   }
 
-  return undefined;
+  // Strategy 2: Temporal attribution when ancestry is missing in a tail-read.
+  const eventMs = Date.parse(event.timestamp);
+  if (Number.isNaN(eventMs)) {
+    return undefined;
+  }
+
+  let bestAgentId: string | undefined;
+  let bestStartMs = -1;
+
+  for (const [agentId, range] of agentTimeline.entries()) {
+    if (eventMs < range.startMs || eventMs > range.endMs) {
+      continue;
+    }
+
+    if (range.startMs > bestStartMs) {
+      bestStartMs = range.startMs;
+      bestAgentId = agentId;
+    }
+  }
+
+  return bestAgentId;
 }
 
 function sanitizeArguments(
@@ -307,6 +335,7 @@ export function buildAgentTree(
   const completionTimestampByAgentId = new Map<string, string>();
   const resultByAgentId = new Map<string, { content: string; success: boolean }>();
   const eventToAgentId = new Map<string, string>();
+  const startEventToAgentId = new Map<string, string>();
   const assistantByRequestedAgentId = new Map<string, string>();
   const errorEventsWithoutToolCallId: ParsedEvent[] = [];
 
@@ -356,6 +385,7 @@ export function buildAgentTree(
       });
       orderedAgentIds.push(toolCallId);
       eventToAgentId.set(event.id, toolCallId);
+      startEventToAgentId.set(event.id, toolCallId);
       continue;
     }
 
@@ -535,6 +565,19 @@ export function buildAgentTree(
     string,
     { name: string; summary: string; status: 'running' | 'completed'; timestamp: string }[]
   >();
+  const agentTimeline = new Map<string, { startMs: number; endMs: number }>();
+  const nowMs = Date.now();
+  for (const [agentId, context] of agentById.entries()) {
+    const startMs = Date.parse(context.node.startedAt);
+    if (Number.isNaN(startMs)) {
+      continue;
+    }
+
+    const completedAt = context.node.completedAt;
+    const completedMs = completedAt ? Date.parse(completedAt) : NaN;
+    const endMs = Number.isNaN(completedMs) ? nowMs : completedMs;
+    agentTimeline.set(agentId, { startMs, endMs });
+  }
 
   for (const event of events) {
     if (event.type !== 'tool.execution_start') {
@@ -547,7 +590,12 @@ export function buildAgentTree(
       continue;
     }
 
-    const owningAgentId = findOwningAgentIdForToolCall(event.parentId, eventsById);
+    const owningAgentId = attributeToolCallToAgent(
+      event,
+      eventsById,
+      agentTimeline,
+      startEventToAgentId,
+    );
     if (!owningAgentId) {
       continue;
     }
