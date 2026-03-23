@@ -10,6 +10,8 @@ type AgentContext = {
 const MAX_TASK_LENGTH = 200;
 const MAX_ARGUMENT_STRING_LENGTH = 5000;
 const MAX_RESULT_CONTENT_LENGTH = 5000;
+const MAX_TOOL_SUMMARY_LENGTH = 150;
+const MAX_TOOL_CALLS_PER_AGENT = 5;
 
 function getEventData(
   event: ParsedEvent,
@@ -48,6 +50,86 @@ function getRecord(
   }
 
   return candidate as Record<string, unknown>;
+}
+
+function getToolCallIdFromData(
+  data: Record<string, unknown> | undefined,
+): string | undefined {
+  return getString(data, 'toolCallId') ?? getString(data, 'id');
+}
+
+function truncate(value: string, maxLength: number): string {
+  if (value.length <= maxLength) {
+    return value;
+  }
+
+  return value.slice(0, maxLength);
+}
+
+function toToolCallSummary(
+  toolName: string,
+  argumentsRecord: Record<string, unknown> | undefined,
+): string {
+  const normalizedTool = toolName.toLowerCase();
+
+  if (
+    normalizedTool === 'bash' ||
+    normalizedTool === 'powershell' ||
+    normalizedTool === 'shell'
+  ) {
+    const command = getString(argumentsRecord, 'command') ?? toolName;
+    return truncate(command, MAX_TOOL_SUMMARY_LENGTH);
+  }
+
+  if (normalizedTool === 'view') {
+    return getString(argumentsRecord, 'path') ?? toolName;
+  }
+
+  if (normalizedTool === 'grep') {
+    const pattern = getString(argumentsRecord, 'pattern') ?? '';
+    const glob = getString(argumentsRecord, 'glob') ?? '';
+    const summary = [pattern, glob].filter(Boolean).join(' ');
+    return summary || toolName;
+  }
+
+  if (normalizedTool === 'edit' || normalizedTool === 'create') {
+    return (
+      getString(argumentsRecord, 'path') ??
+      getString(argumentsRecord, 'filePath') ??
+      getString(argumentsRecord, 'file') ??
+      toolName
+    );
+  }
+
+  const firstArgumentKey = argumentsRecord ? Object.keys(argumentsRecord)[0] : undefined;
+  return firstArgumentKey ? `${toolName} ${firstArgumentKey}` : toolName;
+}
+
+function findOwningAgentIdForToolCall(
+  startParentId: string | null,
+  eventsById: Map<string, ParsedEvent>,
+): string | undefined {
+  let cursor = startParentId;
+  const visited = new Set<string>();
+
+  while (cursor && !visited.has(cursor)) {
+    visited.add(cursor);
+    const parentEvent = eventsById.get(cursor);
+    if (!parentEvent) {
+      return undefined;
+    }
+
+    if (parentEvent.type === 'tool.execution_start') {
+      const parentData = getEventData(parentEvent);
+      if (getString(parentData, 'toolName') === 'task') {
+        return getToolCallIdFromData(parentData);
+      }
+    }
+
+    cursor = parentEvent.parentId;
+  }
+
+  return undefined;
 }
 
 function sanitizeArguments(
@@ -434,6 +516,73 @@ export function buildAgentTree(
     }
 
     context.node.children = childrenByParentId.get(agentId) ?? [];
+  }
+
+  const completedToolCallIds = new Set<string>();
+  for (const event of events) {
+    if (event.type !== 'tool.execution_complete') {
+      continue;
+    }
+
+    const completeData = getEventData(event);
+    const completeId = getToolCallIdFromData(completeData);
+    if (completeId) {
+      completedToolCallIds.add(completeId);
+    }
+  }
+
+  const toolCallsByAgentId = new Map<
+    string,
+    { name: string; summary: string; status: 'running' | 'completed'; timestamp: string }[]
+  >();
+
+  for (const event of events) {
+    if (event.type !== 'tool.execution_start') {
+      continue;
+    }
+
+    const data = getEventData(event);
+    const toolName = getString(data, 'toolName');
+    if (!toolName || toolName === 'task') {
+      continue;
+    }
+
+    const owningAgentId = findOwningAgentIdForToolCall(event.parentId, eventsById);
+    if (!owningAgentId) {
+      continue;
+    }
+
+    const ownerContext = agentById.get(owningAgentId);
+    if (!ownerContext) {
+      continue;
+    }
+
+    const argumentsRecord = getRecord(data, 'arguments');
+    const executionId = getToolCallIdFromData(data);
+    const status: 'running' | 'completed' =
+      executionId && completedToolCallIds.has(executionId) ? 'completed' : 'running';
+
+    const toolCallEntry = {
+      name: toolName,
+      summary: toToolCallSummary(toolName, argumentsRecord),
+      status,
+      timestamp: event.timestamp,
+    };
+
+    const existing = toolCallsByAgentId.get(owningAgentId) ?? [];
+    existing.push(toolCallEntry);
+    toolCallsByAgentId.set(owningAgentId, existing);
+  }
+
+  for (const [agentId, toolCalls] of toolCallsByAgentId.entries()) {
+    const context = agentById.get(agentId);
+    if (!context) {
+      continue;
+    }
+
+    context.node.toolCalls = toolCalls
+      .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
+      .slice(0, MAX_TOOL_CALLS_PER_AGENT);
   }
 
   root.children = topLevel;

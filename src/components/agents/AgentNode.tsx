@@ -49,6 +49,25 @@ const KNOWN_FIELDS: { key: string; label: string }[] = [
 ];
 
 const KNOWN_KEYS = new Set([...KNOWN_FIELDS.map((f) => f.key), 'prompt']);
+const MAX_VISIBLE_TOOL_CALLS = 3;
+
+function getToolIcon(toolName: string): string {
+  const normalized = toolName.toLowerCase();
+  if (normalized === 'powershell' || normalized === 'bash' || normalized === 'shell') {
+    return '⌁';
+  }
+  if (normalized === 'view') {
+    return '◫';
+  }
+  if (normalized === 'grep') {
+    return '⌕';
+  }
+  if (normalized === 'edit' || normalized === 'create') {
+    return '✎';
+  }
+
+  return '•';
+}
 
 interface AgentNodeProps {
   /** The agent (and its children) to render. */
@@ -68,6 +87,10 @@ export default function AgentNode({
   const hasChildren = agent.children.length > 0;
   const isRunning = agent.status === 'running';
   const duration = formatDuration(agent.startedAt, agent.completedAt);
+  const taskTextClass = isRunning ? 'text-fg/50' : 'text-fg/35';
+  const toolCalls = agent.toolCalls ?? [];
+  const visibleToolCalls = toolCalls.slice(0, MAX_VISIBLE_TOOL_CALLS);
+  const hiddenToolCallCount = Math.max(0, toolCalls.length - MAX_VISIBLE_TOOL_CALLS);
 
   /* ── Expandability ─────────────────────────────────────── */
   const isExpandable =
@@ -138,7 +161,7 @@ export default function AgentNode({
         {/* ── Content capsule ── */}
         <div
           className={[
-            'flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1',
+            'flex min-w-0 flex-1 items-start gap-2 rounded-md px-2 py-1',
             'transition-colors duration-150 ease-out',
             'group-hover/row:bg-surface-hover',
             isExpandable ? 'cursor-pointer select-none' : '',
@@ -157,7 +180,7 @@ export default function AgentNode({
           <span
             aria-hidden="true"
             className={[
-              'shrink-0 size-2 rounded-full',
+              'mt-1 shrink-0 size-2 rounded-full',
               getStatusDotClass(agent.status),
               isRunning ? 'animate-pulse' : '',
             ]
@@ -165,40 +188,85 @@ export default function AgentNode({
               .join(' ')}
           />
 
-          {/* Agent name */}
-          <span className="shrink-0 font-mono text-sm font-semibold text-fg-heading">
-            {agent.name}
-          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex min-w-0 items-center gap-2">
+              {/* Agent name */}
+              <span className="shrink-0 font-mono text-sm font-semibold text-fg-heading">
+                {agent.name}
+              </span>
 
-          {/* Status badge */}
-          <StatusBadge status={agent.status} size="sm" />
+              {/* Status badge */}
+              <StatusBadge status={agent.status} size="sm" />
+            </div>
 
-          {/* Task description — truncated with title tooltip */}
-          <span
-            className="min-w-0 truncate text-xs text-fg-secondary"
-            title={agent.task}
-          >
-            {'\u2014'} &quot;{agent.task}&quot;
-          </span>
-
-          {/* Duration pill */}
-          <span className="shrink-0 rounded bg-surface-tertiary px-1.5 py-0.5 font-mono text-[11px] leading-tight tabular-nums text-fg-muted">
-            {duration}
-          </span>
-
-          {/* Expand / collapse chevron */}
-          {isExpandable && (
-            <span
-              aria-hidden="true"
+            {/* Task description — visible secondary line */}
+            <p
               className={[
-                'ml-auto shrink-0 text-[10px] leading-none text-fg/25',
-                'transition-transform duration-150 ease-out',
-                expanded ? 'rotate-90' : '',
+                'mt-0.5 min-w-0 line-clamp-2 text-xs leading-snug',
+                taskTextClass,
               ].join(' ')}
+              title={agent.task}
             >
-              ▶
+              {'\u2014'} &quot;{agent.task}&quot;
+            </p>
+
+            {visibleToolCalls.length > 0 && (
+              <div className="mt-1 pl-4 text-[10px] font-mono text-fg/30">
+                {visibleToolCalls.map((toolCall, index) => {
+                  const rowClass =
+                    toolCall.status === 'running'
+                      ? 'text-fg/40'
+                      : 'text-fg/25';
+
+                  return (
+                    <div
+                      key={`${toolCall.name}-${toolCall.timestamp}-${index}`}
+                      className={`flex min-w-0 items-center gap-1 ${rowClass}`}
+                      title={`${toolCall.name} ${toolCall.summary}`}
+                    >
+                      <span className="shrink-0">{getToolIcon(toolCall.name)}</span>
+                      <span className="text-fg/40 font-semibold">{toolCall.name}</span>
+                      <span className="min-w-0 truncate text-fg/30">
+                        {toolCall.summary}
+                      </span>
+                      {toolCall.status === 'running' ? (
+                        <span className="ml-1 inline-flex items-center gap-1 text-fg/40">
+                          <span className="inline-block size-1.5 rounded-full bg-sky-400 animate-pulse" />
+                          running
+                        </span>
+                      ) : (
+                        <span className="ml-1 text-fg/25">done</span>
+                      )}
+                    </div>
+                  );
+                })}
+                {hiddenToolCallCount > 0 && (
+                  <div className="text-fg/25">+{hiddenToolCallCount} more</div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="ml-2 flex shrink-0 items-center gap-2 self-start">
+            {/* Duration pill (always visible in row) */}
+            <span className="rounded bg-surface-tertiary px-1.5 py-0.5 font-mono text-[11px] leading-tight tabular-nums text-fg-muted">
+              {duration}
             </span>
-          )}
+
+            {/* Expand / collapse chevron */}
+            {isExpandable && (
+              <span
+                aria-hidden="true"
+                className={[
+                  'shrink-0 text-[10px] leading-none text-fg/25',
+                  'transition-transform duration-150 ease-out',
+                  expanded ? 'rotate-90' : '',
+                ].join(' ')}
+              >
+                ▶
+              </span>
+            )}
+          </div>
         </div>
       </div>
 

@@ -503,7 +503,7 @@ export default function WorkstreamDetail() {
 
         {/* ── 2 · Notes section ──────────────────────────── */}
         <section className="space-y-2">
-          <h3 className="font-mono text-[11px] font-medium uppercase tracking-widest text-fg/25">
+          <h3 className="font-mono text-[11px] font-medium uppercase tracking-widest text-fg/60">
             Notes
           </h3>
 
@@ -524,7 +524,7 @@ export default function WorkstreamDetail() {
               maxLength={NOTES_MAX_LENGTH}
             />
             {showCounter && (
-              <p className="mt-1 text-right font-mono text-[11px] tabular-nums text-fg/25">
+              <p className="mt-1 text-right font-mono text-[11px] tabular-nums text-fg/50">
                 {notesLength} / {NOTES_MAX_LENGTH}
               </p>
             )}
@@ -536,7 +536,7 @@ export default function WorkstreamDetail() {
           <section className="space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <h3 className="font-mono text-[11px] font-medium uppercase tracking-widest text-fg/25">
+                <h3 className="font-mono text-[11px] font-medium uppercase tracking-widest text-fg/60">
                   Work Items
                 </h3>
                 {ado.workItems.length > 0 && (
@@ -572,7 +572,7 @@ export default function WorkstreamDetail() {
             {/* Inline input for adding a work item ID */}
             {isAddingWorkItem && (
               <div className="flex items-center gap-2">
-                <span className="font-mono text-xs text-fg/30">#</span>
+                <span className="font-mono text-xs text-fg/50">#</span>
                 <input
                   ref={addWorkItemInputRef}
                   type="text"
@@ -608,7 +608,7 @@ export default function WorkstreamDetail() {
               {ado.isLoadingWorkItems && ado.workItems.length === 0 && (
                 <div className="flex items-center gap-2 px-3 py-3">
                   <div className="h-3 w-3 animate-spin rounded-full border-2 border-fg/10 border-t-fg/40" />
-                  <span className="font-mono text-[11px] text-fg/30">Loading work items…</span>
+                  <span className="font-mono text-[11px] text-fg/50">Loading work items…</span>
                 </div>
               )}
 
@@ -633,7 +633,7 @@ export default function WorkstreamDetail() {
               )}
 
               {!ado.isLoadingWorkItems && !ado.workItemError && ado.workItemIds.length > 0 && ado.workItems.length === 0 && (
-                <p className="px-3 py-3 font-mono text-[11px] text-fg/25">
+                <p className="px-3 py-3 font-mono text-[11px] text-fg/50">
                   No work items linked
                 </p>
               )}
@@ -694,7 +694,7 @@ export default function WorkstreamDetail() {
               {ado.isLoadingWorkItems && ado.workItems.length > 0 && (
                 <div className="flex items-center gap-2 border-t border-border-default px-3 py-1.5">
                   <div className="h-2.5 w-2.5 animate-spin rounded-full border border-fg/10 border-t-fg/30" />
-                  <span className="font-mono text-[10px] text-fg/20">Refreshing…</span>
+                  <span className="font-mono text-[10px] text-fg/50">Refreshing…</span>
                 </div>
               )}
             </div>
@@ -705,7 +705,7 @@ export default function WorkstreamDetail() {
         {ado.isAdoConfigured && (
           <section className="space-y-2">
             <div className="flex items-center gap-2">
-              <h3 className="font-mono text-[11px] font-medium uppercase tracking-widest text-fg/25">
+              <h3 className="font-mono text-[11px] font-medium uppercase tracking-widest text-fg/60">
                 Pull Requests
               </h3>
               {ado.pullRequests.length > 0 && (
@@ -715,7 +715,7 @@ export default function WorkstreamDetail() {
               )}
             </div>
 
-            <p className="font-mono text-[10px] text-fg/20">
+            <p className="font-mono text-[10px] text-fg/50">
               Auto-detected from session branches
             </p>
 
@@ -723,7 +723,7 @@ export default function WorkstreamDetail() {
               {ado.isLoadingPRs && ado.pullRequests.length === 0 && (
                 <div className="flex items-center gap-2 px-3 py-3">
                   <div className="h-3 w-3 animate-spin rounded-full border-2 border-fg/10 border-t-fg/40" />
-                  <span className="font-mono text-[11px] text-fg/30">Loading pull requests…</span>
+                  <span className="font-mono text-[11px] text-fg/50">Loading pull requests…</span>
                 </div>
               )}
 
@@ -748,7 +748,7 @@ export default function WorkstreamDetail() {
               )}
 
               {!ado.isLoadingPRs && !ado.prError && ado.pullRequests.length === 0 && (
-                <p className="px-3 py-3 font-mono text-[11px] text-fg/25">
+                <p className="px-3 py-3 font-mono text-[11px] text-fg/50">
                   No pull requests found
                 </p>
               )}
@@ -781,7 +781,7 @@ export default function WorkstreamDetail() {
                     </span>
 
                     {/* Reviewer summary */}
-                    <span className="flex shrink-0 items-center gap-1 font-mono text-[10px] text-fg/30">
+                    <span className="flex shrink-0 items-center gap-1 font-mono text-[10px] text-fg/50">
                       {pr.reviewers.length > 0 ? (
                         <>
                           <span className="tabular-nums">{pr.reviewers.length}</span>
@@ -800,7 +800,7 @@ export default function WorkstreamDetail() {
                   </div>
 
                   {/* Bottom row: branch info */}
-                  <div className="mt-1 flex items-center gap-1 font-mono text-[10px] text-fg/20">
+                  <div className="mt-1 flex items-center gap-1 font-mono text-[10px] text-fg/50">
                     <span className="max-w-[120px] truncate">{shortBranch(pr.sourceBranch)}</span>
                     <span aria-hidden="true">→</span>
                     <span className="max-w-[120px] truncate">{shortBranch(pr.targetBranch)}</span>
@@ -812,7 +812,7 @@ export default function WorkstreamDetail() {
               {ado.isLoadingPRs && ado.pullRequests.length > 0 && (
                 <div className="flex items-center gap-2 border-t border-border-default px-3 py-1.5">
                   <div className="h-2.5 w-2.5 animate-spin rounded-full border border-fg/10 border-t-fg/30" />
-                  <span className="font-mono text-[10px] text-fg/20">Refreshing…</span>
+                  <span className="font-mono text-[10px] text-fg/50">Refreshing…</span>
                 </div>
               )}
             </div>
@@ -821,7 +821,7 @@ export default function WorkstreamDetail() {
 
         {/* ── 3 · Aggregate stats ────────────────────────── */}
         <section className="space-y-2">
-          <h3 className="font-mono text-[11px] font-medium uppercase tracking-widest text-fg/25">
+          <h3 className="font-mono text-[11px] font-medium uppercase tracking-widest text-fg/60">
             Overview
           </h3>
 
@@ -846,7 +846,7 @@ export default function WorkstreamDetail() {
         {/* ── 4 · Session list (compact) ─────────────────── */}
         {sorted.length > 0 && (
           <section className="space-y-2">
-            <h3 className="font-mono text-[11px] font-medium uppercase tracking-widest text-fg/25">
+            <h3 className="font-mono text-[11px] font-medium uppercase tracking-widest text-fg/60">
               Sessions
             </h3>
 
@@ -878,12 +878,12 @@ export default function WorkstreamDetail() {
                     </span>
 
                     {/* Relative time */}
-                    <span className="shrink-0 font-mono text-[11px] tabular-nums text-fg/30">
+                    <span className="shrink-0 font-mono text-[11px] tabular-nums text-fg/50">
                       {formatRelativeTime(session.lastActivityAt)}
                     </span>
 
                     {/* Agent count */}
-                    <span className="shrink-0 font-mono text-[11px] tabular-nums text-fg/25">
+                    <span className="shrink-0 font-mono text-[11px] tabular-nums text-fg/50">
                       {agentCount} {agentCount === 1 ? 'agent' : 'agents'}
                     </span>
                   </button>

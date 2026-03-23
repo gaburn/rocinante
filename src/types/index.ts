@@ -18,6 +18,12 @@ export interface SubAgent {
   task: string;
   startedAt: string;
   completedAt?: string;
+  toolCalls?: {
+    name: string;
+    summary: string;
+    status: 'running' | 'completed';
+    timestamp: string;
+  }[];
   result?: {
     content: string;
     success: boolean;
