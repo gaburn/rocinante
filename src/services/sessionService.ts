@@ -1,4 +1,4 @@
-import type { Session, SessionStatus, StatusCounts } from '../types';
+import type { Session, SessionPlan, SessionStatus, StatusCounts } from '../types';
 
 export async function getSessions(): Promise<Session[]> {
   const response = await fetch('/api/sessions');
@@ -14,6 +14,13 @@ export async function getSessionById(id: string): Promise<Session | undefined> {
   if (!response.ok) {
     throw new Error(`Failed to fetch session: ${response.status} ${response.statusText}`);
   }
+  return response.json();
+}
+
+export async function getSessionPlan(sessionId: string): Promise<SessionPlan | null> {
+  const response = await fetch(`/api/sessions/${sessionId}/plan`);
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(`Failed to fetch plan: ${response.status}`);
   return response.json();
 }
 

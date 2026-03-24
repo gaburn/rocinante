@@ -857,6 +857,21 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                     }
                   />
                 </FieldRow>
+
+                <FieldRow label="Session Plan">
+                  <Toggle
+                    label="Show session plan pane"
+                    checked={display.paneVisibility.sessionPlan}
+                    onChange={(v) =>
+                      updateDisplaySettings({
+                        paneVisibility: {
+                          ...settings.display.paneVisibility,
+                          sessionPlan: v,
+                        },
+                      })
+                    }
+                  />
+                </FieldRow>
               </div>
             </div>
 

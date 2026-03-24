@@ -17,6 +17,7 @@ export interface PaneVisibility {
   performanceWaterfall: boolean;
   agentHierarchy: boolean;
   eventTimeline: boolean;
+  sessionPlan: boolean;
 }
 
 export interface DisplaySettings {
@@ -67,6 +68,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
       performanceWaterfall: false,
       agentHierarchy: true,
       eventTimeline: true,
+      sessionPlan: true,
     },
   },
   data: {

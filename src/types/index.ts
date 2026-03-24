@@ -71,3 +71,19 @@ export interface StatusCounts {
   completed: number;
   total: number;
 }
+
+export interface PlanTask {
+  id: string;
+  title: string;
+  description?: string;
+}
+
+export interface PlanSection {
+  title: string;
+  tasks: PlanTask[];
+}
+
+export interface SessionPlan {
+  raw: string;
+  sections: PlanSection[];
+}

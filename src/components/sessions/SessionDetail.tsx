@@ -17,6 +17,7 @@ import WorkstreamAutocomplete from '../common/WorkstreamAutocomplete';
 import SubagentTree from '../agents/SubagentTree';
 import WaterfallChart from '../waterfall/WaterfallChart';
 import EventTimeline from '../timeline/EventTimeline';
+import PlanViewer from './PlanViewer';
 
 /* ────────────────────────────────────────────────────────────────────
  *  SessionDetail — right-panel deep-dive for the selected session
@@ -720,6 +721,10 @@ export default function SessionDetail() {
               <StatCard status="completed" label="Completed" count={agentCounts.completed} />
             </div>
           </section>
+        )}
+
+        {panes.sessionPlan && (
+          <PlanViewer sessionId={session.id} />
         )}
 
         {/* ── 2b · Performance waterfall ────────────────── */}
