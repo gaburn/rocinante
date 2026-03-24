@@ -60,14 +60,14 @@ function TaskRow({
       />
       <span className="min-w-0">
         <span
-          className={`block text-xs leading-snug ${
-            checked ? 'text-fg/30 line-through' : 'text-fg/60'
+          className={`block text-sm leading-snug ${
+            checked ? 'text-fg/40 line-through' : 'text-fg/70'
           }`}
         >
           {title}
         </span>
         {description && (
-          <span className="mt-0.5 block text-[10px] leading-snug text-fg/25">
+          <span className="mt-0.5 block text-xs leading-snug text-fg/40">
             {description}
           </span>
         )}
@@ -89,7 +89,7 @@ function Section({
 }) {
   return (
     <div>
-      <h3 className="mt-3 mb-1 px-4 font-mono text-[11px] uppercase tracking-widest text-fg/40">
+      <h3 className="mt-3 mb-1 px-4 font-mono text-xs uppercase tracking-widest text-fg/55">
         {section.title}
       </h3>
       {section.tasks.map((task) => {
@@ -171,7 +171,7 @@ export default function PlanViewer({ sessionId }: PlanViewerProps) {
           </span>
           Session Plan
           {!isLoading && plan && (
-            <span className="ml-2 font-normal text-fg/40">
+            <span className="ml-2 font-normal text-fg/50">
               ({progress.checked}/{progress.total} completed)
             </span>
           )}
