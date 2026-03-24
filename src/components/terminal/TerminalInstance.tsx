@@ -70,7 +70,7 @@ export default function TerminalInstance({
       const terminal = new Terminal({
         theme: getTerminalTheme(),
         fontFamily: "'JetBrains Mono', 'Fira Code', ui-monospace, monospace",
-        fontSize: 13,
+        fontSize: settings.display.terminalFontSize,
         cursorBlink: true,
         scrollback: 5000,
       })
@@ -211,6 +211,16 @@ export default function TerminalInstance({
 
     return () => observer.disconnect()
   }, [])
+
+  useEffect(() => {
+    if (!termRef.current) return
+    termRef.current.options.fontSize = settings.display.terminalFontSize
+
+    // Refit after font size change
+    if (fitRef.current) {
+      fitRef.current.fit()
+    }
+  }, [settings.display.terminalFontSize])
 
   return (
     <div

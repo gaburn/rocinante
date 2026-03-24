@@ -28,6 +28,7 @@ export interface DisplaySettings {
   theme: ThemeMode;
   accentColor: AccentColor;
   shell: ShellType;
+  terminalFontSize: number; // default 13
   customShellPath: string;
   paneVisibility: PaneVisibility;
 }
@@ -61,6 +62,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     theme: 'dark',
     accentColor: 'emerald',
     shell: 'pwsh',
+    terminalFontSize: 13,
     customShellPath: '',
     paneVisibility: {
       gitContext: true,

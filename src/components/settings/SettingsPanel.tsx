@@ -125,6 +125,17 @@ const SHELL_OPTIONS: { value: ShellType; label: string }[] = [
   { value: 'custom', label: 'Custom path...' },
 ];
 
+const TERMINAL_FONT_SIZE_OPTIONS: { value: number; label: string }[] = [
+  { value: 11, label: '11' },
+  { value: 12, label: '12' },
+  { value: 13, label: '13' },
+  { value: 14, label: '14' },
+  { value: 15, label: '15' },
+  { value: 16, label: '16' },
+  { value: 18, label: '18' },
+  { value: 20, label: '20' },
+];
+
 /* ── Inline micro-icons ────────────────────────────────── */
 
 function ChevronIcon({ open }: { open: boolean }) {
@@ -963,6 +974,19 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                 options={SHELL_OPTIONS}
                 onChange={(value) =>
                   updateDisplaySettings({ shell: value as ShellType })
+                }
+              />
+            </FieldRow>
+
+            <FieldRow label="Terminal Font Size">
+              <Select
+                label="Terminal font size"
+                value={display.terminalFontSize}
+                options={TERMINAL_FONT_SIZE_OPTIONS}
+                onChange={(value) =>
+                  updateDisplaySettings({
+                    terminalFontSize: parseInt(String(value), 10),
+                  })
                 }
               />
             </FieldRow>
