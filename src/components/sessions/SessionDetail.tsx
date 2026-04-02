@@ -696,7 +696,7 @@ export default function SessionDetail() {
                   key={i}
                   className="rounded-md border-l-2 border-fuchsia-500/40 bg-fuchsia-500/5 px-3 py-2"
                 >
-                  <p className="text-sm leading-relaxed text-fg/70">{update}</p>
+                  <p className="text-sm leading-relaxed text-fg/70 whitespace-pre-wrap">{update}</p>
                 </div>
               ))}
             </div>
