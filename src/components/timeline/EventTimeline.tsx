@@ -31,7 +31,7 @@ export default function EventTimeline({ events }: EventTimelineProps) {
         <span
           aria-hidden="true"
           className={`
-            inline-block text-xs text-fg-secondary
+            inline-block text-base text-fg/30
             transition-transform duration-200
             ${isExpanded ? 'rotate-180' : ''}
           `}

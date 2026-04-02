@@ -793,7 +793,7 @@ export default function SessionDetail() {
                 </h2>
 
                 <span
-                  className={`text-fg/30 transition-transform duration-200 ${
+                  className={`inline-block text-base text-fg/30 transition-transform duration-200 ${
                     agentHierarchyExpanded ? 'rotate-180' : ''
                   }`}
                   aria-hidden="true"

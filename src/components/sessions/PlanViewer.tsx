@@ -176,7 +176,7 @@ export default function PlanViewer({ sessionId }: PlanViewerProps) {
 
         <span
           aria-hidden="true"
-          className={`inline-block text-xs text-fg-secondary transition-transform duration-200 ${
+          className={`inline-block text-base text-fg/30 transition-transform duration-200 ${
             isExpanded ? 'rotate-180' : ''
           }`}
         >
