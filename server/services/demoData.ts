@@ -363,3 +363,20 @@ export function generateDemoSessions(): Session[] {
   _eventCounter = 0;
   return DEFS.map(buildSession);
 }
+
+export function getDemoWorkstreams(): Record<string, string[]> {
+  return {
+    'Storefront UI': DEFS
+      .filter(d => ['Build product catalog page', 'Add shopping cart with Stripe checkout',
+        'Fix responsive layout on mobile', 'Design dark mode theme'].includes(d.name))
+      .map(d => d.id),
+    'Payments API': DEFS
+      .filter(d => ['Implement webhook handler for Stripe events', 'Add rate limiting to payment endpoints',
+        'Write integration tests for refund flow'].includes(d.name))
+      .map(d => d.id),
+    'Mobile App': DEFS
+      .filter(d => ['Set up React Native project with Expo', 'Build onboarding flow with biometric auth',
+        'Push notification service integration'].includes(d.name))
+      .map(d => d.id),
+  };
+}

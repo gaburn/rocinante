@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useWorkstreamMeta } from './useWorkstreamMeta'
 
 const WORKSTREAM_STORAGE_KEY = 'rocinante-workstreams'
+const DEMO_SEEDED_KEY = 'rocinante-demo-workstreams-seeded'
 
 function loadInitialWorkstreamMap(): Record<string, string> {
   try {
@@ -55,6 +56,48 @@ export function useWorkstreams(): UseWorkstreamsResult {
       // Ignore localStorage write errors so workstream state remains usable.
     }
   }, [workstreamMap])
+
+  // Seed demo workstreams on first load when running in demo mode
+  const demoSeeded = useRef(false)
+  useEffect(() => {
+    if (demoSeeded.current) return
+    demoSeeded.current = true
+
+    // Skip if already seeded in this browser
+    if (window.localStorage.getItem(DEMO_SEEDED_KEY) === 'true') return
+
+    fetch('/api/demo/workstreams')
+      .then((res) => {
+        if (!res.ok) return null
+        return res.json() as Promise<Record<string, string[]>>
+      })
+      .then((mapping) => {
+        if (!mapping) return
+
+        // Check if any demo workstream names already exist
+        const existingNames = new Set(Object.values(loadInitialWorkstreamMap()))
+        const alreadyHasDemoWorkstreams = Object.keys(mapping).some((name) => existingNames.has(name))
+        if (alreadyHasDemoWorkstreams) {
+          window.localStorage.setItem(DEMO_SEEDED_KEY, 'true')
+          return
+        }
+
+        setWorkstreamMap((current) => {
+          const next = { ...current }
+          for (const [workstreamName, sessionIds] of Object.entries(mapping)) {
+            for (const id of sessionIds) {
+              next[id] = workstreamName
+            }
+          }
+          return next
+        })
+
+        window.localStorage.setItem(DEMO_SEEDED_KEY, 'true')
+      })
+      .catch(() => {
+        // Non-critical: silently ignore if demo endpoint unavailable
+      })
+  }, [])
 
   const getWorkstream = useCallback(
     (sessionId: string) => {

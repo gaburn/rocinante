@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { mapAllSessions, mapSessionById } from '../services/sessionMapper.js';
 import { readSessionPlan } from '../services/planReader.js';
-import { generateDemoSessions } from '../services/demoData.js';
+import { generateDemoSessions, getDemoWorkstreams } from '../services/demoData.js';
 
 const sessionsRouter = Router();
 
@@ -44,6 +44,14 @@ sessionsRouter.get('/sessions/:id', (req, res) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     res.status(500).json({ error: message });
+  }
+});
+
+sessionsRouter.get('/demo/workstreams', (_req, res) => {
+  if (process.env.DEMO_MODE === 'true') {
+    res.json(getDemoWorkstreams());
+  } else {
+    res.status(404).json({ error: 'Demo mode is not enabled' });
   }
 });
 
