@@ -36,3 +36,10 @@
 - **Styling:** Fuchsia/magenta accent — `border-fuchsia-500/40` left border, `bg-fuchsia-500/5` item background. Matches the CLI's magenta status update text.
 - **Components:** Added `ChatBubbleIcon` inline SVG (chat bubble with text lines). Section conditionally rendered only when `assistantUpdates` is non-empty.
 - **Scroll:** `max-h-64 overflow-y-auto` with `layout-scrollable` class for styled scrollbar. Container uses `bg-surface-secondary` to match other sections like agent hierarchy.
+
+### Demo Mode Workstream Auto-Seeding (2025-07)
+- **Backend:** `getDemoWorkstreams()` in `server/services/demoData.ts` returns a `Record<string, string[]>` mapping workstream names to session IDs. Uses the existing `DEFS` array directly (no need to generate full sessions).
+- **Endpoint:** `GET /api/demo/workstreams` in `server/routes/sessions.ts` — returns the mapping when `DEMO_MODE=true`, 404 otherwise.
+- **Frontend seeding:** `useWorkstreams.ts` fetches `/api/demo/workstreams` on first mount via a `useRef` guard. Seeds workstream map into state (and localStorage) only if: (1) the `rocinante-demo-workstreams-seeded` localStorage flag is not set, and (2) none of the demo workstream names already exist. Sets the flag after seeding.
+- **Result:** Demo mode now shows 3 kanban columns (Storefront UI, Payments API, Mobile App) with 2 sessions remaining in Ungrouped (CI pipeline + npm audit).
+- **Guard pattern:** `useRef(false)` prevents double-fire in React strict mode; localStorage flag prevents re-seeding across page reloads.
