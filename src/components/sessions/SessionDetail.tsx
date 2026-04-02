@@ -277,6 +277,7 @@ export default function SessionDetail() {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editNameValue, setEditNameValue] = useState('');
   const [errorExpanded, setErrorExpanded] = useState(false);
+  const [agentHierarchyExpanded, setAgentHierarchyExpanded] = useState(false);
 
   /* ── Empty state ────────────────────────────────────────────
    *  Centred welcome screen — feels intentional, not broken.
@@ -779,13 +780,33 @@ export default function SessionDetail() {
 
         {/* ── 3 · Agent hierarchy ────────────────────────── */}
         {panes.agentHierarchy && (
-          <section className="space-y-2">
-            <h3 className="font-mono text-[11px] font-medium uppercase tracking-widest text-fg/25">
-              Agent Hierarchy
-            </h3>
+          <section>
+            <div className="rounded-lg border border-border-default bg-surface-secondary">
+              <button
+                type="button"
+                onClick={() => setAgentHierarchyExpanded(!agentHierarchyExpanded)}
+                className="flex w-full cursor-pointer items-center justify-between gap-3 px-4 pt-4 pb-3 text-left"
+                aria-expanded={agentHierarchyExpanded}
+              >
+                <h2 className="font-mono text-sm font-semibold text-fg-heading">
+                  Agent Hierarchy ({totalAgents})
+                </h2>
 
-            <div className="rounded-lg bg-surface-secondary p-3">
-              <SubagentTree rootAgent={session.rootAgent} />
+                <span
+                  className={`text-fg/30 transition-transform duration-200 ${
+                    agentHierarchyExpanded ? 'rotate-180' : ''
+                  }`}
+                  aria-hidden="true"
+                >
+                  ▾
+                </span>
+              </button>
+
+              {agentHierarchyExpanded && (
+                <div className="px-4 pb-4">
+                  <SubagentTree rootAgent={session.rootAgent} />
+                </div>
+              )}
             </div>
           </section>
         )}
