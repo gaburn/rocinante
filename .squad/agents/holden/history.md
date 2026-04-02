@@ -45,3 +45,10 @@
 - Settings persist to localStorage client-side and optionally sync to server
 - Terminal tabs tracked in `useTerminalTabs.ts` with identity bug (shell vs session tab prefix mismatch)
 - ESLint config applies browser globals to server files
+
+### 2026-04-02 Documentation Update
+
+- Updated README.md to reflect kanban board replacing session list, added @dnd-kit to tech stack, restructured Features section by view (Kanban Board / Session Detail / Other Views), updated architecture diagram to say "Kanban View" instead of "List View", updated screenshot placeholder description.
+- Updated CHANGELOG.md with [1.2.0] entry covering all session kanban board, drag-and-drop, column reorder, assistant updates, layout changes, and fixes.
+- Bumped package.json version from 1.1.0 → 1.2.0.
+- Trade-off: grouped CHANGELOG by Added/Changed/Fixed (Keep a Changelog convention) rather than the narrative "What's New" style used in 1.1.0. More scannable for consumers, slightly less personality. Both styles coexist in the file — worth unifying in a future pass.

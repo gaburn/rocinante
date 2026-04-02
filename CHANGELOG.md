@@ -2,6 +2,34 @@
 
 All notable changes to Rocinante will be documented in this file.
 
+## [1.2.0] - 2026-04-02
+
+### Added
+- **Kanban Board View** — replaced session list with a horizontal kanban board (`KanbanBoard`, `KanbanColumn`, `KanbanTile`); one column per workstream, status-coded tiles (emerald=active, red=blocked, amber=waiting, gray=completed), active/blocked sessions float to top
+- **Drag-and-drop sessions** between workstream columns to reassign (`@dnd-kit/core` + `@dnd-kit/sortable`)
+- **Column reorder** — drag workstream columns by grip handle; order persisted to localStorage via `useColumnOrder` hook
+- **"Ungrouped" column** for sessions not assigned to any workstream (sentinel key `__ungrouped__`)
+- **Latest user message** displayed on kanban tiles instead of initial prompt
+- **Magenta assistant-update bubble** on tiles — shows latest Copilot status message
+- **Session Updates section** in detail panel — fuchsia-accented scrollable list of `assistant.update` messages with `whitespace-pre-wrap`
+- **Workstream count** in status summary bar (`StatusSummaryBar`)
+- New dependencies: `@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/utilities`
+- **About section** in Settings — shows Rocinante name, version from `package.json`, GitHub repo link
+
+### Changed
+- Layout flipped — kanban board gets `1fr`, detail panel is fixed `420px` sidebar (`Layout.tsx` grid: `minmax(0,1fr)_420px`)
+- Detail panel always visible on window resize (CSS `minmax` grid prevents collapse)
+- Header tagline changed to "workhorse for workstreams" (`Header.tsx`)
+- Header icon swapped from list icon to `BoardIcon` (3-column kanban icon)
+- "Event Timeline" renamed to "Session Timeline" in detail panel
+- Agent Hierarchy collapsed by default with toggle
+- Unified collapsible arrow icons (▾) across all detail panel sections
+- Session title wrapping fixed for narrow 420px sidebar
+
+### Fixed
+- Detail panel disappearing on narrow window widths (grid `minmax` fix in `Layout.tsx`)
+- Session titles overflowing in narrow sidebar
+
 ## [1.1.0] - 2026-03-20
 
 ### 🐴 What's New
