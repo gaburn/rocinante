@@ -25,7 +25,7 @@ export default function EventTimeline({ events }: EventTimelineProps) {
         aria-expanded={isExpanded}
       >
         <h2 className="font-mono text-sm font-semibold text-fg-heading">
-          Event Timeline ({events.length})
+          Session Timeline ({events.length})
         </h2>
 
         <span
