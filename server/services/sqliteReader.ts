@@ -120,6 +120,29 @@ export function getFirstUserMessage(sessionId: string): string | null {
   }
 }
 
+export function getLastUserMessage(sessionId: string): string | null {
+  const database = getDatabase();
+  if (!database) {
+    return null;
+  }
+
+  try {
+    const statement = database.prepare(`
+      SELECT user_message
+      FROM turns
+      WHERE session_id = ?
+      ORDER BY turn_index DESC
+      LIMIT 1
+    `);
+
+    const row = statement.get(sessionId) as FirstMessageRow | undefined;
+    return row?.user_message ?? null;
+  } catch (error) {
+    console.warn(`[sqliteReader] Failed to read last user message for session: ${sessionId}`, error);
+    return null;
+  }
+}
+
 export function getTurnCount(sessionId: string): number {
   const database = getDatabase();
   if (!database) {

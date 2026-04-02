@@ -25,7 +25,7 @@ export default function KanbanTile({ session, isSelected, onSelect }: KanbanTile
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: session.id, data: { session } });
+  } = useSortable({ id: session.id, data: { type: 'tile', session } });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -72,9 +72,9 @@ export default function KanbanTile({ session, isSelected, onSelect }: KanbanTile
         </span>
       </div>
 
-      {/* Row 2: intent (truncated) */}
+      {/* Row 2: latest user request (truncated) */}
       <p className="mt-1 text-xs leading-relaxed text-fg/45 line-clamp-2">
-        {truncate(session.intent, 60)}
+        {truncate(session.latestUserMessage ?? session.intent, 60)}
       </p>
 
       {/* Row 3: meta — time, sparkline, agent count */}

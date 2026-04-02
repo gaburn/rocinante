@@ -178,7 +178,7 @@ export default function Header() {
             Rocinante
           </h1>
           <span className="font-mono text-[11px] leading-tight text-gray-500">
-            agent telemetry
+            workhorse for workstreams
           </span>
         </div>
       </div>

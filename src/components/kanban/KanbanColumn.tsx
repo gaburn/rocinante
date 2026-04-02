@@ -1,7 +1,10 @@
 import { useDroppable } from '@dnd-kit/core';
-import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { useSortable, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import type { Session, SessionStatus } from '../../types';
 import KanbanTile from './KanbanTile';
+
+export const COLUMN_SORTABLE_PREFIX = 'column:';
 
 const STATUS_SORT_ORDER: Record<SessionStatus, number> = {
   active: 0,
@@ -25,6 +28,7 @@ interface KanbanColumnProps {
   selectedSessionId: string | null;
   onSelectSession: (session: Session) => void;
   onSelectWorkstream?: () => void;
+  isSortable?: boolean;
 }
 
 export default function KanbanColumn({
@@ -34,8 +38,24 @@ export default function KanbanColumn({
   selectedSessionId,
   onSelectSession,
   onSelectWorkstream,
+  isSortable = false,
 }: KanbanColumnProps) {
-  const { setNodeRef, isOver } = useDroppable({
+  const sortableId = `${COLUMN_SORTABLE_PREFIX}${id}`;
+
+  const {
+    attributes: sortableAttrs,
+    listeners: sortableListeners,
+    setNodeRef: setSortableRef,
+    transform: sortableTransform,
+    transition: sortableTransition,
+    isDragging: isColumnDragging,
+  } = useSortable({
+    id: sortableId,
+    data: { type: 'column', columnId: id, columnName: name },
+    disabled: !isSortable,
+  });
+
+  const { setNodeRef: setDropRef, isOver } = useDroppable({
     id,
     data: { columnId: id, columnName: name },
   });
@@ -43,33 +63,55 @@ export default function KanbanColumn({
   const sorted = sortTiles(sessions);
   const sessionIds = sorted.map((s) => s.id);
 
+  const columnStyle = isSortable
+    ? {
+        transform: CSS.Transform.toString(sortableTransform),
+        transition: sortableTransition,
+      }
+    : undefined;
+
   return (
     <div
+      ref={setSortableRef}
+      style={columnStyle}
       className={`
         flex flex-col shrink-0
         w-[320px] min-h-0 rounded-lg
         bg-surface-secondary/60 border
-        transition-colors duration-150
+        transition-all duration-150
         ${isOver
           ? 'border-border-active/60 bg-surface-secondary/80 shadow-[0_0_12px_rgba(99,102,241,0.12)]'
           : 'border-border-default/40'
         }
+        ${isColumnDragging ? 'opacity-40 scale-[0.97]' : ''}
       `}
     >
       {/* Sticky header */}
       <div
         className="sticky top-0 z-10 flex items-center justify-between gap-2 rounded-t-lg border-b border-border-default/30 bg-surface-secondary/90 backdrop-blur-sm px-3 py-2"
       >
-        <button
-          type="button"
-          onClick={onSelectWorkstream}
-          className={`
-            truncate text-xs font-semibold uppercase tracking-wider text-fg/60
-            ${onSelectWorkstream ? 'cursor-pointer hover:text-fg/80 transition-colors' : 'cursor-default'}
-          `}
-        >
-          {name}
-        </button>
+        <div className="flex items-center gap-1.5 min-w-0">
+          {isSortable && (
+            <span
+              {...sortableAttrs}
+              {...sortableListeners}
+              className="shrink-0 cursor-grab active:cursor-grabbing text-fg/25 hover:text-fg/50 transition-colors select-none"
+              aria-label={`Drag to reorder ${name} column`}
+            >
+              ⠿
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={onSelectWorkstream}
+            className={`
+              truncate text-xs font-semibold uppercase tracking-wider text-fg/60
+              ${onSelectWorkstream ? 'cursor-pointer hover:text-fg/80 transition-colors' : 'cursor-default'}
+            `}
+          >
+            {name}
+          </button>
+        </div>
         <span className="shrink-0 rounded-full bg-surface-tertiary px-2 py-0.5 text-[10px] font-mono tabular-nums text-fg/40">
           {sessions.length}
         </span>
@@ -77,7 +119,7 @@ export default function KanbanColumn({
 
       {/* Scrollable tile area */}
       <div
-        ref={setNodeRef}
+        ref={setDropRef}
         className="flex-1 overflow-y-auto p-2 space-y-2 min-h-[120px] kanban-scrollable"
       >
         <SortableContext items={sessionIds} strategy={verticalListSortingStrategy}>

@@ -157,7 +157,7 @@ export default function SessionCard({
 
       {/* ── Intent / task description ─────────────── */}
       <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-fg/50">
-        {session.intent}
+        {session.latestUserMessage ?? session.intent}
       </p>
 
       {/* ── Meta row: relative time + sparkline + agent count ── */}

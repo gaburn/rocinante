@@ -9,3 +9,10 @@
 ## Learnings
 
 <!-- Append learnings below -->
+
+### latestUserMessage field (2025-07)
+- **Event types**: User messages appear as `user.message` events in `events.jsonl` with content in `data.content`.
+- **Data sources**: SQLite `turns` table (`user_message` column, ordered by `turn_index`) and event log are both reliable sources. Event log captures the tail; SQLite has the full history.
+- **Pattern**: Added `getLastUserMessage()` to `sqliteReader.ts` mirroring the existing `getFirstUserMessage()` pattern. In `sessionMapper.ts`, events are checked first (most recent data), then SQLite as fallback.
+- **Key files**: `server/services/sqliteReader.ts`, `server/services/sessionMapper.ts`, `server/services/eventTailReader.ts`, `server/services/eventTimelineBuilder.ts` (has the event type→summary mapping).
+- **Frontend consumers of intent**: `KanbanTile.tsx`, `SessionCard.tsx`, `SessionDetail.tsx`, `NetworkDetailPanel.tsx`. The first two now prefer `latestUserMessage` over `intent`.

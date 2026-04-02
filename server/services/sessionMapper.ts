@@ -8,6 +8,7 @@ import {
   getAllSessions,
   getSessionById,
   getFirstUserMessage,
+  getLastUserMessage,
 } from './sqliteReader.js';
 import { readEventsTail, ParsedEvent } from './eventTailReader.js';
 import { deriveSessionStatus, DerivedStatus } from './statusDeriver.js';
@@ -98,6 +99,43 @@ function getSessionCwd(sessionId: string, sqlCwd: string | null): string | null 
   return null;
 }
 
+function getLatestUserMessageFromEvents(events: ParsedEvent[]): string | null {
+  for (let i = events.length - 1; i >= 0; i--) {
+    const event = events[i];
+    if (event.type.toLowerCase() !== 'user.message') {
+      continue;
+    }
+    const data = event.data;
+    if (data && typeof data.content === 'string' && data.content.trim().length > 0) {
+      return data.content.trim();
+    }
+  }
+  return null;
+}
+
+function resolveLatestUserMessage(
+  sessionId: string,
+  events: ParsedEvent[],
+  firstUserMessage: string | null,
+): string | undefined {
+  // Prefer the most recent user.message event from the event log
+  const fromEvents = getLatestUserMessageFromEvents(events);
+  if (fromEvents) {
+    return truncate(fromEvents, MAX_INTENT_LENGTH);
+  }
+
+  // Fall back to the last turn in the SQLite turns table
+  const fromDb = getLastUserMessage(sessionId);
+  if (fromDb && fromDb.trim().length > 0) {
+    // Only set if it differs from the first message (otherwise it adds no value)
+    if (fromDb !== firstUserMessage) {
+      return truncate(fromDb, MAX_INTENT_LENGTH);
+    }
+  }
+
+  return undefined;
+}
+
 export function mapToSession(sqlRow: SqliteSession, events: ParsedEvent[]): Session {
   const firstUserMessage = getFirstUserMessage(sqlRow.id);
   const name = getSessionName(sqlRow, firstUserMessage);
@@ -110,6 +148,8 @@ export function mapToSession(sqlRow: SqliteSession, events: ParsedEvent[]): Sess
   if (finalStatus === 'completed' && hasRunningAgents(rootAgent)) {
     finalStatus = 'active';
   }
+
+  const latestUserMessage = resolveLatestUserMessage(sqlRow.id, events, firstUserMessage);
 
   return {
     id: sqlRow.id,
@@ -127,6 +167,7 @@ export function mapToSession(sqlRow: SqliteSession, events: ParsedEvent[]): Sess
     repository: sqlRow.repository ?? null,
     branch: sqlRow.branch ?? null,
     errorDetails: derivedStatus.errorDetails,
+    latestUserMessage,
   };
 }
 

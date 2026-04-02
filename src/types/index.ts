@@ -62,6 +62,7 @@ export interface Session {
   errorDetails?: ErrorDetail[];
   events?: TimelineEvent[];
   activityBuckets?: number[];
+  latestUserMessage?: string;
 }
 
 export interface StatusCounts {
