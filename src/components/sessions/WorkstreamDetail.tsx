@@ -411,7 +411,7 @@ export default function WorkstreamDetail() {
             ) : (
               <div className="flex items-center gap-2">
                 <h2
-                  className="min-w-0 cursor-text text-xl font-semibold leading-tight text-fg/95"
+                  className="min-w-0 flex-1 break-words cursor-text text-xl font-semibold leading-tight text-fg/95"
                   onClick={enterNameEditMode}
                   title="Click to rename workstream"
                 >
