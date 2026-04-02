@@ -409,9 +409,10 @@ export default function WorkstreamDetail() {
                 aria-label="Edit workstream name"
               />
             ) : (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 min-w-0">
                 <h2
-                  className="min-w-0 flex-1 break-words cursor-text text-xl font-semibold leading-tight text-fg/95"
+                  className="min-w-0 flex-1 cursor-text text-xl font-semibold leading-tight text-fg/95"
+                  style={{ overflowWrap: 'break-word' }}
                   onClick={enterNameEditMode}
                   title="Click to rename workstream"
                 >
