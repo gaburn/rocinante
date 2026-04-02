@@ -1,11 +1,18 @@
 import { Router } from 'express';
 import { mapAllSessions, mapSessionById } from '../services/sessionMapper.js';
 import { readSessionPlan } from '../services/planReader.js';
+import { generateDemoSessions } from '../services/demoData.js';
 
 const sessionsRouter = Router();
 
 sessionsRouter.get('/sessions', (req, res) => {
   try {
+    if (process.env.DEMO_MODE === 'true') {
+      const sessions = generateDemoSessions();
+      res.set('Cache-Control', 'no-cache');
+      return res.json(sessions);
+    }
+
     const sessions = mapAllSessions();
     res.set('Cache-Control', 'no-cache');
     res.json(sessions);
@@ -17,6 +24,15 @@ sessionsRouter.get('/sessions', (req, res) => {
 
 sessionsRouter.get('/sessions/:id', (req, res) => {
   try {
+    if (process.env.DEMO_MODE === 'true') {
+      const session = generateDemoSessions().find((s) => s.id === req.params.id);
+      if (!session) {
+        res.status(404).json({ error: 'Session not found' });
+        return;
+      }
+      return res.json(session);
+    }
+
     const session = mapSessionById(req.params.id);
 
     if (!session) {
