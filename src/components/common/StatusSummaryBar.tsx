@@ -26,7 +26,8 @@ interface StatusItem {
 }
 
 export default function StatusSummaryBar() {
-  const { statusCounts, archivedCount } = useSessionContext()
+  const { statusCounts, archivedCount, getWorkstreamNames } = useSessionContext()
+  const workstreamCount = getWorkstreamNames.length
 
   const items: StatusItem[] = [
     { status: 'active',    count: statusCounts.active,    label: 'Active'  },
@@ -49,6 +50,20 @@ export default function StatusSummaryBar() {
         select-none
       "
     >
+      {/* ── Workstream count ─────────────────────────── */}
+      <span className="flex items-center gap-1.5 shrink-0">
+        <span className="text-sm font-semibold tabular-nums text-fg/90">
+          {workstreamCount}
+        </span>
+        <span className="text-fg/40">{workstreamCount === 1 ? 'Workstream' : 'Workstreams'}</span>
+      </span>
+
+      {/* ── Divider ─────────────────────────────────── */}
+      <span
+        aria-hidden="true"
+        className="w-px self-stretch bg-fg/[0.08]"
+      />
+
       {/* ── Total count (anchor number) ─────────────── */}
       <span className="flex items-center gap-1.5 shrink-0">
         <span className="text-sm font-semibold tabular-nums text-fg/90">
