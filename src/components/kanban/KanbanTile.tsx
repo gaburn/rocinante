@@ -77,6 +77,13 @@ export default function KanbanTile({ session, isSelected, onSelect }: KanbanTile
         {truncate(session.latestUserMessage ?? session.intent, 60)}
       </p>
 
+      {/* Row 2.5: latest assistant update */}
+      {session.assistantUpdates && session.assistantUpdates.length > 0 && (
+        <p className="mt-1 text-[11px] leading-relaxed text-fuchsia-300/70 line-clamp-1 border-l-2 border-fuchsia-500/40 pl-1.5">
+          {session.assistantUpdates[session.assistantUpdates.length - 1]}
+        </p>
+      )}
+
       {/* Row 3: meta — time, sparkline, agent count */}
       <div className="mt-1.5 flex items-center gap-2 text-[11px] tabular-nums text-fg/30">
         <span>{timeAgo}</span>
