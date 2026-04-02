@@ -42,9 +42,9 @@ How to decide who handles what.
 
 | Work Type | Primary | Secondary |
 |-----------|---------|----------|
-| Architecture, code review, decisions | Homer | — |
-| React, components, styling | Bart | — |
-| Node.js, APIs, WebSockets | Lisa | — |
-| Tests, quality, edge cases | Marge | — |
-| Build, deploy, performance | Apu | — |
+| Architecture, code review, decisions | Holden | — |
+| React, components, styling | Naomi | — |
+| Node.js, APIs, WebSockets | Amos | — |
+| Tests, quality, edge cases | Bobbie | — |
+| Build, deploy, performance | Alex | — |
 
