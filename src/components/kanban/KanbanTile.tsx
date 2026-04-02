@@ -6,7 +6,7 @@ import {
   getStatusBgClass,
   getStatusDotClass,
 } from '../../utils/statusColors';
-import { formatRelativeTime, countAgents, truncate } from '../../utils/formatters';
+import { formatRelativeTime, countAgents } from '../../utils/formatters';
 import { Sparkline } from '../common/Sparkline';
 
 interface KanbanTileProps {
@@ -72,14 +72,14 @@ export default function KanbanTile({ session, isSelected, onSelect }: KanbanTile
         </span>
       </div>
 
-      {/* Row 2: latest user request (truncated) */}
+      {/* Row 2: latest user request */}
       <p className="mt-1 text-xs leading-relaxed text-fg/45 line-clamp-2">
-        {truncate(session.latestUserMessage ?? session.intent, 60)}
+        {session.latestUserMessage ?? session.intent}
       </p>
 
       {/* Row 2.5: latest assistant update */}
       {session.assistantUpdates && session.assistantUpdates.length > 0 && (
-        <p className="mt-1 text-[11px] leading-relaxed text-fuchsia-300/70 line-clamp-1 border-l-2 border-fuchsia-500/40 pl-1.5">
+        <p className="mt-1 text-[11px] leading-relaxed text-fuchsia-300/70 line-clamp-2 border-l-2 border-fuchsia-500/40 pl-1.5">
           {session.assistantUpdates[session.assistantUpdates.length - 1]}
         </p>
       )}
