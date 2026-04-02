@@ -322,8 +322,8 @@ export default function SessionDetail() {
         {/* ── 1 · Header section ─────────────────────────── */}
         <section className="space-y-3">
           {/* Name + terminal action + status badge */}
-          <div className="flex items-start justify-between gap-3">
-            <div className="group min-w-0 flex-1">
+          <div className="space-y-2">
+            <div className="group">
               {isEditingName ? (
                 <input
                   value={editNameValue}
@@ -344,15 +344,15 @@ export default function SessionDetail() {
                   aria-label="Edit session name"
                 />
               ) : (
-                <div className="flex items-center gap-2 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
                   <h2
-                    className="min-w-0 flex-1 cursor-text text-xl font-semibold leading-tight text-fg/95"
-                    style={{ overflowWrap: 'break-word' }}
+                    className="cursor-text text-xl font-semibold leading-tight text-fg/95"
                     onClick={enterNameEditMode}
                     title="Click to rename session"
                   >
                     {session.name}
                   </h2>
+                  <StatusBadge status={session.status} size="md" />
                   <button
                     type="button"
                     onClick={enterNameEditMode}
@@ -387,7 +387,7 @@ export default function SessionDetail() {
                 </div>
               )}
             </div>
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="flex flex-wrap items-center gap-1.5">
               {(() => {
                 const isResumeOpen = hasTab(session.id);
                 const shellTabId = `shell-${session.id}`;
@@ -525,7 +525,6 @@ export default function SessionDetail() {
                   </div>
                 );
               })()}
-              <StatusBadge status={session.status} size="md" />
             </div>
           </div>
 
