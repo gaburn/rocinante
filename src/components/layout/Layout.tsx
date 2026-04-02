@@ -6,11 +6,11 @@ import Header from "./Header";
 /*                                                                    */
 /*  ┌──────────────────────────────────────────────────────┐          */
 /*  │  Header                                              │          */
-/*  ├────────────┬─────────────────────────────────────────┤          */
-/*  │  left      │  right                                  │          */
-/*  │  380 px    │  1fr                                    │          */
-/*  │  (scroll)  │  (scroll)                               │          */
-/*  └────────────┴─────────────────────────────────────────┘          */
+/*  ├─────────────────────────────────────────┬────────────┤          */
+/*  │  left                                   │  right     │          */
+/*  │  1fr                                    │  420 px    │          */
+/*  │                                         │  (scroll)  │          */
+/*  └─────────────────────────────────────────┴────────────┘          */
 /*                                                                    */
 /*  Below md (768 px) the columns collapse to a vertical stack:       */
 /*   • left  panel  → 40 vh                                           */
@@ -46,13 +46,13 @@ export default function Layout({
             /* Mobile: single column, session list gets ~40 vh */
             "grid-cols-1 grid-rows-[40vh_1fr]",
             /* Desktop: side-by-side, session list is fixed-width */
-            "md:grid-cols-[380px_1fr] md:grid-rows-[1fr]",
+            "md:grid-cols-[1fr_420px] md:grid-rows-[1fr]",
           ].join(" ")}
         >
           {/* ── Left panel: session list ── */}
           <aside
             className={[
-              "layout-scrollable overflow-y-auto min-h-0",
+              "layout-scrollable min-h-0",
               /* Border: bottom on mobile, right on desktop */
               "border-b border-border-default",
               "md:border-b-0 md:border-r",
