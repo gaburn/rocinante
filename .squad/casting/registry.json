@@ -1,0 +1,46 @@
+{
+  "agents": {
+    "homer": {
+      "created_at": "2026-04-02T01:03:50.123Z",
+      "persistent_name": "Homer",
+      "universe": "The Simpsons",
+      "status": "active"
+    },
+    "bart": {
+      "created_at": "2026-04-02T01:03:50.123Z",
+      "persistent_name": "Bart",
+      "universe": "The Simpsons",
+      "status": "active"
+    },
+    "lisa": {
+      "created_at": "2026-04-02T01:03:50.123Z",
+      "persistent_name": "Lisa",
+      "universe": "The Simpsons",
+      "status": "active"
+    },
+    "marge": {
+      "created_at": "2026-04-02T01:03:50.123Z",
+      "persistent_name": "Marge",
+      "universe": "The Simpsons",
+      "status": "active"
+    },
+    "apu": {
+      "created_at": "2026-04-02T01:03:50.123Z",
+      "persistent_name": "Apu",
+      "universe": "The Simpsons",
+      "status": "active"
+    },
+    "scribe": {
+      "created_at": "2026-04-02T01:03:50.123Z",
+      "persistent_name": "Scribe",
+      "universe": "The Simpsons",
+      "status": "active"
+    },
+    "ralph": {
+      "created_at": "2026-04-02T01:03:50.123Z",
+      "persistent_name": "Ralph",
+      "universe": "The Simpsons",
+      "status": "active"
+    }
+  }
+}
