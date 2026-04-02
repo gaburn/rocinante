@@ -63,6 +63,7 @@ export interface Session {
   events?: TimelineEvent[];
   activityBuckets?: number[];
   latestUserMessage?: string;
+  assistantUpdates?: string[];
 }
 
 export interface StatusCounts {

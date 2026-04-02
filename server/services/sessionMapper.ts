@@ -99,6 +99,35 @@ function getSessionCwd(sessionId: string, sqlCwd: string | null): string | null 
   return null;
 }
 
+const MAX_ASSISTANT_UPDATES = 20;
+
+function extractAssistantUpdates(events: ParsedEvent[]): string[] | undefined {
+  const updates: string[] = [];
+  for (const event of events) {
+    if (event.type.toLowerCase() !== 'assistant.message') {
+      continue;
+    }
+    const data = event.data;
+    if (!data) {
+      continue;
+    }
+    // Skip tool-calling turns — only keep pure text responses
+    const toolRequests = data.toolRequests;
+    if (Array.isArray(toolRequests) && toolRequests.length > 0) {
+      continue;
+    }
+    const content = data.content;
+    if (typeof content === 'string' && content.trim().length > 0) {
+      updates.push(content.trim());
+    }
+  }
+  if (updates.length === 0) {
+    return undefined;
+  }
+  // Keep only the most recent updates (events are in chronological order)
+  return updates.slice(-MAX_ASSISTANT_UPDATES);
+}
+
 function getLatestUserMessageFromEvents(events: ParsedEvent[]): string | null {
   for (let i = events.length - 1; i >= 0; i--) {
     const event = events[i];
@@ -150,6 +179,7 @@ export function mapToSession(sqlRow: SqliteSession, events: ParsedEvent[]): Sess
   }
 
   const latestUserMessage = resolveLatestUserMessage(sqlRow.id, events, firstUserMessage);
+  const assistantUpdates = extractAssistantUpdates(events);
 
   return {
     id: sqlRow.id,
@@ -168,6 +198,7 @@ export function mapToSession(sqlRow: SqliteSession, events: ParsedEvent[]): Sess
     branch: sqlRow.branch ?? null,
     errorDetails: derivedStatus.errorDetails,
     latestUserMessage,
+    assistantUpdates,
   };
 }
 

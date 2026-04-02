@@ -183,6 +183,26 @@ function GitBranchIcon() {
   );
 }
 
+/** Chat bubble icon — session updates. */
+function ChatBubbleIcon() {
+  return (
+    <svg
+      className="h-3.5 w-3.5 shrink-0 text-fuchsia-400/60"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M2 3.5C2 2.67 2.67 2 3.5 2H12.5C13.33 2 14 2.67 14 3.5V9.5C14 10.33 13.33 11 12.5 11H9L6 14V11H3.5C2.67 11 2 10.33 2 9.5Z" />
+      <line x1="5" y1="5.5" x2="11" y2="5.5" />
+      <line x1="5" y1="8" x2="9" y2="8" />
+    </svg>
+  );
+}
+
 /** Folder icon — working directory. */
 function FolderIcon() {
   return (
@@ -658,6 +678,29 @@ export default function SessionDetail() {
             </div>
           )}
         </section>
+
+        {/* ── 1a · Session Updates ────────────────────────── */}
+        {session.assistantUpdates && session.assistantUpdates.length > 0 && (
+          <section className="space-y-2">
+            <div className="flex items-center gap-1.5">
+              <ChatBubbleIcon />
+              <h3 className="font-mono text-[11px] font-medium uppercase tracking-widest text-fg/25">
+                Session Updates
+              </h3>
+            </div>
+
+            <div className="layout-scrollable max-h-64 overflow-y-auto rounded-lg bg-surface-secondary p-3 space-y-2">
+              {[...session.assistantUpdates].reverse().map((update, i) => (
+                <div
+                  key={i}
+                  className="rounded-md border-l-2 border-fuchsia-500/40 bg-fuchsia-500/5 px-3 py-2"
+                >
+                  <p className="text-sm leading-relaxed text-fg/70">{update}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* ── 1b · Git context ───────────────────────────── */}
         {panes.gitContext && session.repository && hasGitContext && (

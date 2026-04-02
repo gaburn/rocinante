@@ -29,3 +29,10 @@
 - **DragOverlay:** Shows ghost tile (rotated) for tile drags, ghost column header (with session count) for column drags.
 - **Ungrouped column:** Always last, `isSortable=false`, no drag handle, not draggable/reorderable.
 - **SortableContext:** Board wraps columns in `SortableContext` with `horizontalListSortingStrategy`. Each column internally wraps tiles in its own `SortableContext` with `verticalListSortingStrategy`.
+
+### Session Updates Section (2025-07)
+- **Location:** Added between header section (§1) and git context section (§1b) in `SessionDetail.tsx`.
+- **Data:** Reads `session.assistantUpdates?: string[]` from the Session type (added by Lisa). Displays in reverse chronological order (most recent first).
+- **Styling:** Fuchsia/magenta accent — `border-fuchsia-500/40` left border, `bg-fuchsia-500/5` item background. Matches the CLI's magenta status update text.
+- **Components:** Added `ChatBubbleIcon` inline SVG (chat bubble with text lines). Section conditionally rendered only when `assistantUpdates` is non-empty.
+- **Scroll:** `max-h-64 overflow-y-auto` with `layout-scrollable` class for styled scrollbar. Container uses `bg-surface-secondary` to match other sections like agent hierarchy.
