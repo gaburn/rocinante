@@ -19,3 +19,13 @@
 - **Status colors:** Reuses `getStatusBorderClass()`, `getStatusBgClass()`, `getStatusDotClass()` from `src/utils/statusColors.ts`.
 - **Header:** `ListIcon` replaced with `BoardIcon` (3-column kanban SVG). Tooltip changed to "Board View". Network toggle unchanged.
 - **Scrollbar:** Custom `kanban-scrollable` CSS class matches existing `layout-scrollable` pattern from `Layout.tsx`.
+
+### Column Drag-and-Drop Reorder (2025-07)
+- **Hook:** `src/hooks/useColumnOrder.ts` — localStorage-backed (`rocinante-column-order`) column order state. Exposes `getOrderedNames(names)` to sort workstream names by saved order (new names appended) and `reorderColumns(activeId, overId)` for arrayMove-style reorder.
+- **Dual DnD types:** Tiles use `data: { type: 'tile', session }`, columns use `data: { type: 'column', columnId, columnName }`. `active.data.current.type` distinguishes in `onDragEnd`.
+- **Custom collision detection:** `typedCollision` wraps `closestCenter` but filters droppable containers by type — column drags only see column droppables, tile drags only see tile/column-drop-zone droppables. Prevents cross-interference with nested droppables.
+- **Column sortable:** `KanbanColumn` uses `useSortable` with `COLUMN_SORTABLE_PREFIX + id` (e.g., `column:MyWorkstream`). Separate `useDroppable` on inner tile area keeps tile drops working. `disabled: !isSortable` skips sortable behavior for Ungrouped.
+- **Drag handle:** `⠿` grip icon in column header, receives `sortableAttrs` + `sortableListeners`. `cursor-grab` / `active:cursor-grabbing`. Only shown for sortable columns.
+- **DragOverlay:** Shows ghost tile (rotated) for tile drags, ghost column header (with session count) for column drags.
+- **Ungrouped column:** Always last, `isSortable=false`, no drag handle, not draggable/reorderable.
+- **SortableContext:** Board wraps columns in `SortableContext` with `horizontalListSortingStrategy`. Each column internally wraps tiles in its own `SortableContext` with `verticalListSortingStrategy`.

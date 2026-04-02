@@ -5,15 +5,18 @@ import {
   closestCenter,
   type DragStartEvent,
   type DragEndEvent,
+  type CollisionDetection,
   PointerSensor,
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
+import { SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortable';
 import type { Session } from '../../types';
 import { useSessionContext } from '../../context/SessionContext';
+import { useColumnOrder } from '../../hooks/useColumnOrder';
 import StatusSummaryBar from '../common/StatusSummaryBar';
 import StatusFilter from '../filters/StatusFilter';
-import KanbanColumn from './KanbanColumn';
+import KanbanColumn, { COLUMN_SORTABLE_PREFIX } from './KanbanColumn';
 import KanbanTile from './KanbanTile';
 
 /* ─────────────────────────────────────────────────────────
@@ -21,17 +24,41 @@ import KanbanTile from './KanbanTile';
  * ─────────────────────────────────────────────────────────
  * Horizontal board with one column per workstream.
  * Sessions are drag-and-droppable between columns to
- * reassign their workstream.
+ * reassign their workstream. Columns themselves can be
+ * dragged to reorder via a grip handle in the header.
  * ───────────────────────────────────────────────────────── */
 
 const UNGROUPED_ID = '__ungrouped__';
+
+/* Custom collision detection that filters droppables by drag type
+   to avoid cross-interference between column and tile drags. */
+const typedCollision: CollisionDetection = (args) => {
+  const activeType = args.active.data.current?.type;
+
+  if (activeType === 'column') {
+    // Only consider column sortable droppables
+    return closestCenter({
+      ...args,
+      droppableContainers: args.droppableContainers.filter(
+        (c) => c.data.current?.type === 'column',
+      ),
+    });
+  }
+
+  // For tile drags, exclude column sortable droppables
+  return closestCenter({
+    ...args,
+    droppableContainers: args.droppableContainers.filter(
+      (c) => c.data.current?.type !== 'column',
+    ),
+  });
+};
 
 export default function KanbanBoard() {
   const {
     sessions,
     allSessions,
     selectedSession,
-    selectedWorkstream,
     selectSession,
     selectWorkstream,
     isLoading,
@@ -41,7 +68,6 @@ export default function KanbanBoard() {
     showArchived,
     setShowArchived,
     isArchived,
-    toggleArchive,
     archiveAllCompleted,
     archivedCount,
     getWorkstream,
@@ -51,7 +77,10 @@ export default function KanbanBoard() {
     groupedSessions,
   } = useSessionContext();
 
+  const { reorderColumns, getOrderedNames } = useColumnOrder();
+
   const [activeDragSession, setActiveDragSession] = useState<Session | null>(null);
+  const [activeDragColumnName, setActiveDragColumnName] = useState<string | null>(null);
 
   // Configure pointer sensor with a small activation distance to distinguish clicks from drags
   const sensors = useSensors(
@@ -64,16 +93,18 @@ export default function KanbanBoard() {
   );
   const showArchiveControls = archivedCount > 0 || hasCompletedNonArchived;
 
-  /* ── Build columns from grouped sessions ──────── */
+  /* ── Build columns from grouped sessions, respecting persisted order ──────── */
   const columns = useMemo(() => {
     const cols: { id: string; name: string; sessions: Session[] }[] = [];
 
-    for (const group of groupedSessions.groups) {
-      cols.push({
-        id: group.name,
-        name: group.name,
-        sessions: group.sessions,
-      });
+    const groupNames = groupedSessions.groups.map((g) => g.name);
+    const orderedNames = getOrderedNames(groupNames);
+
+    for (const name of orderedNames) {
+      const group = groupedSessions.groups.find((g) => g.name === name);
+      if (group) {
+        cols.push({ id: group.name, name: group.name, sessions: group.sessions });
+      }
     }
 
     // Ungrouped column always goes last
@@ -84,7 +115,7 @@ export default function KanbanBoard() {
     });
 
     return cols;
-  }, [groupedSessions]);
+  }, [groupedSessions, getOrderedNames]);
 
   // If there are no workstreams at all, put everything in a single "All Sessions" column
   const effectiveColumns = useMemo(() => {
@@ -98,12 +129,26 @@ export default function KanbanBoard() {
     return columns;
   }, [columns, sessions, hasAnyWorkstreams, searchQuery]);
 
+  // Column sortable ids for SortableContext (all columns, Ungrouped disabled via prop)
+  const columnSortableIds = useMemo(
+    () => effectiveColumns.map((col) => `${COLUMN_SORTABLE_PREFIX}${col.id}`),
+    [effectiveColumns],
+  );
+
   /* ── Drag handlers ─────────────────────────────── */
   const handleDragStart = useCallback(
     (event: DragStartEvent) => {
-      const sessionId = event.active.id as string;
-      const session = sessions.find((s) => s.id === sessionId) ?? null;
-      setActiveDragSession(session);
+      const dragType = event.active.data.current?.type as string | undefined;
+
+      if (dragType === 'column') {
+        setActiveDragColumnName(event.active.data.current?.columnName as string);
+        setActiveDragSession(null);
+      } else {
+        const sessionId = event.active.id as string;
+        const session = sessions.find((s) => s.id === sessionId) ?? null;
+        setActiveDragSession(session);
+        setActiveDragColumnName(null);
+      }
     },
     [sessions],
   );
@@ -111,36 +156,52 @@ export default function KanbanBoard() {
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       setActiveDragSession(null);
+      setActiveDragColumnName(null);
 
       const { active, over } = event;
       if (!over) return;
 
+      const activeType = active.data.current?.type;
+
+      if (activeType === 'column') {
+        // ── Column reorder ──
+        const activeColId = active.data.current?.columnId as string;
+        let overColId = over.data.current?.columnId as string | undefined;
+
+        if (!overColId) {
+          const overId = over.id as string;
+          if (overId.startsWith(COLUMN_SORTABLE_PREFIX)) {
+            overColId = overId.slice(COLUMN_SORTABLE_PREFIX.length);
+          }
+        }
+
+        if (activeColId && overColId && activeColId !== overColId) {
+          reorderColumns(activeColId, overColId);
+        }
+        return;
+      }
+
+      // ── Tile drag (existing logic) ──
       const sessionId = active.id as string;
 
-      // Determine the target column
       let targetColumnId: string | null = null;
       const overData = over.data?.current;
 
       if (overData?.columnId) {
-        // Dropped directly on a column droppable
         targetColumnId = overData.columnId as string;
       } else if (overData?.session) {
-        // Dropped on another tile — find which column the target tile belongs to
         const targetSession = overData.session as Session;
         const ws = getWorkstream(targetSession.id);
         targetColumnId = ws ?? UNGROUPED_ID;
       } else {
-        // Might have been dropped on a column identified by its id
         targetColumnId = over.id as string;
       }
 
       if (!targetColumnId) return;
 
-      // Find source column
       const sourceWorkstream = getWorkstream(sessionId);
       const sourceColumnId = sourceWorkstream ?? UNGROUPED_ID;
 
-      // Only act if the column changed
       if (sourceColumnId === targetColumnId) return;
 
       if (targetColumnId === UNGROUPED_ID) {
@@ -149,7 +210,7 @@ export default function KanbanBoard() {
         setWorkstream(sessionId, targetColumnId);
       }
     },
-    [getWorkstream, setWorkstream, removeWorkstream],
+    [getWorkstream, setWorkstream, removeWorkstream, reorderColumns],
   );
 
   const handleSelectSession = useCallback(
@@ -158,6 +219,12 @@ export default function KanbanBoard() {
     },
     [selectSession],
   );
+
+  // Column being dragged (for overlay ghost)
+  const activeDragColumn = useMemo(() => {
+    if (!activeDragColumnName) return null;
+    return effectiveColumns.find((col) => col.name === activeDragColumnName) ?? null;
+  }, [activeDragColumnName, effectiveColumns]);
 
   const showSkeletons = isLoading && sessions.length === 0;
   const showErrorState = !isLoading && Boolean(error) && sessions.length === 0;
@@ -290,29 +357,32 @@ export default function KanbanBoard() {
         ) : (
           <DndContext
             sensors={sensors}
-            collisionDetection={closestCenter}
+            collisionDetection={typedCollision}
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
           >
-            <div className="flex h-full gap-4 overflow-x-auto p-4 kanban-scrollable">
-              {effectiveColumns.map((col) => (
-                <KanbanColumn
-                  key={col.id}
-                  id={col.id}
-                  name={col.name}
-                  sessions={col.sessions}
-                  selectedSessionId={selectedSession?.id ?? null}
-                  onSelectSession={handleSelectSession}
-                  onSelectWorkstream={
-                    col.id !== UNGROUPED_ID && col.name !== 'All Sessions'
-                      ? () => selectWorkstream(col.name)
-                      : undefined
-                  }
-                />
-              ))}
-            </div>
+            <SortableContext items={columnSortableIds} strategy={horizontalListSortingStrategy}>
+              <div className="flex h-full gap-4 overflow-x-auto p-4 kanban-scrollable">
+                {effectiveColumns.map((col) => (
+                  <KanbanColumn
+                    key={col.id}
+                    id={col.id}
+                    name={col.name}
+                    sessions={col.sessions}
+                    selectedSessionId={selectedSession?.id ?? null}
+                    onSelectSession={handleSelectSession}
+                    onSelectWorkstream={
+                      col.id !== UNGROUPED_ID && col.name !== 'All Sessions'
+                        ? () => selectWorkstream(col.name)
+                        : undefined
+                    }
+                    isSortable={col.id !== UNGROUPED_ID && col.name !== 'All Sessions'}
+                  />
+                ))}
+              </div>
+            </SortableContext>
 
-            {/* Ghost tile following the cursor during drag */}
+            {/* Ghost overlay following cursor during drag */}
             <DragOverlay dropAnimation={null}>
               {activeDragSession ? (
                 <div className="w-[296px] opacity-80 rotate-[2deg] pointer-events-none">
@@ -321,6 +391,27 @@ export default function KanbanBoard() {
                     isSelected={false}
                     onSelect={() => {}}
                   />
+                </div>
+              ) : activeDragColumn ? (
+                <div className="w-[320px] opacity-85 pointer-events-none">
+                  <div className="rounded-lg border border-border-active/60 bg-surface-secondary/90 backdrop-blur-sm shadow-lg shadow-black/20">
+                    <div className="flex items-center justify-between gap-2 px-3 py-2">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="shrink-0 text-fg/40 select-none">⠿</span>
+                        <span className="truncate text-xs font-semibold uppercase tracking-wider text-fg/60">
+                          {activeDragColumn.name}
+                        </span>
+                      </div>
+                      <span className="shrink-0 rounded-full bg-surface-tertiary px-2 py-0.5 text-[10px] font-mono tabular-nums text-fg/40">
+                        {activeDragColumn.sessions.length}
+                      </span>
+                    </div>
+                    {activeDragColumn.sessions.length > 0 && (
+                      <div className="border-t border-border-default/30 px-3 py-2 text-[10px] text-fg/25 italic">
+                        {activeDragColumn.sessions.length} session{activeDragColumn.sessions.length !== 1 ? 's' : ''}
+                      </div>
+                    )}
+                  </div>
                 </div>
               ) : null}
             </DragOverlay>
