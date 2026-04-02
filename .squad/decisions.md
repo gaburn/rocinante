@@ -2,14 +2,34 @@
 
 ## Active Decisions
 
-### 1. Codebase Audit — Prioritized Improvement Backlog
+### 1. Replace SessionList with KanbanBoard
+
+**Author:** Bart (Frontend Dev)  
+**Date:** 2025-07  
+**Status:** Implemented  
+**Scope:** Frontend (left panel)
+
+**Context:** The SessionList vertical list was replaced with a horizontal kanban board (`KanbanBoard`). Each workstream becomes a column; each session becomes a draggable tile. Tiles are sorted by status priority (active → blocked → waiting → completed) then by recency.
+
+**Key Decisions:**
+1. SessionList preserved but unused — `SessionList.tsx` is still in the repo but no longer imported from `App.tsx`. Team can decide to remove it or keep it as a fallback/alternate view option.
+2. DnD via @dnd-kit — Used existing `@dnd-kit/core` + `@dnd-kit/sortable` packages. `PointerSensor` with 5px activation distance prevents accidental drags when clicking tiles.
+3. Ungrouped sentinel — Sessions without a workstream go into an "Ungrouped" column identified by `__ungrouped__`. Dropping a tile there calls `removeWorkstream()`.
+4. No data model changes — All workstream assignment still goes through the existing `useWorkstreams` hook (localStorage-backed). No backend changes.
+5. Header icon swap — The list icon was replaced with a 3-column kanban board icon (`BoardIcon`). Network toggle is unchanged.
+
+**Trade-offs:** Fixed 320px column width. Works well for typical session counts but may need virtualization if a single workstream has 100+ sessions. No cross-column reordering within a column (tiles auto-sort by status).
+
+**Files Changed:** src/App.tsx, src/components/kanban/KanbanTile.tsx, src/components/kanban/KanbanColumn.tsx, src/components/kanban/KanbanBoard.tsx, src/components/kanban/index.ts, src/components/layout/Header.tsx
+
+---
+
+### 2. Codebase Audit — Prioritized Improvement Backlog
 
 **Author:** Homer (Lead / Architect)  
 **Date:** 2025-07  
 **Status:** Proposed  
 **Scope:** Full-stack (frontend + backend)
-
-**Context:** Performed a comprehensive audit of the entire Rocinante codebase (66 frontend source files, 10 backend service files, 4 route files). Zero tests exist. No CI pipeline for build/lint. Several security and reliability gaps identified.
 
 **Prioritized Backlog:** 25 items organized by category (Tech Debt, DX, Performance, Feature, UX) and priority (P0, P1, P2, P3).
 

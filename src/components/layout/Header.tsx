@@ -26,21 +26,22 @@ function PulseDot({ active }: { active: boolean }) {
   )
 }
 
-/** Three‑line list icon — represents the "list" view mode. */
-function ListIcon() {
+/** Kanban board / columns icon — represents the "board" view mode. */
+function BoardIcon() {
   return (
     <svg
       className="h-4 w-4"
       viewBox="0 0 16 16"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.8"
+      strokeWidth="1.4"
       strokeLinecap="round"
+      strokeLinejoin="round"
       aria-hidden="true"
     >
-      <line x1="3" y1="4" x2="13" y2="4" />
-      <line x1="3" y1="8" x2="13" y2="8" />
-      <line x1="3" y1="12" x2="13" y2="12" />
+      <rect x="1" y="2" width="4" height="12" rx="1" />
+      <rect x="6" y="2" width="4" height="8" rx="1" />
+      <rect x="11" y="2" width="4" height="10" rx="1" />
     </svg>
   )
 }
@@ -190,7 +191,7 @@ export default function Header() {
             type="button"
             onClick={() => setViewMode('list')}
             aria-pressed={viewMode === 'list'}
-            title="List view"
+            title="Board View"
             className={`
               flex items-center justify-center rounded-md px-2 py-1
               transition-colors duration-150
@@ -202,7 +203,7 @@ export default function Header() {
               }
             `}
           >
-            <ListIcon />
+            <BoardIcon />
           </button>
 
           <button

@@ -1,8 +1,8 @@
 import Layout from './components/layout/Layout'
 import { NetworkView } from './components/network'
 import SessionDetail from './components/sessions/SessionDetail'
-import SessionList from './components/sessions/SessionList'
 import WorkstreamDetail from './components/sessions/WorkstreamDetail'
+import { KanbanBoard } from './components/kanban'
 import { TerminalPanel } from './components/terminal'
 import { SettingsProvider, useSettingsContext } from './context/SettingsContext'
 import { SessionProvider, useSessionContext } from './context/SessionContext'
@@ -18,7 +18,7 @@ function AppContent() {
 
   return (
     <Layout
-      left={<SessionList />}
+      left={<KanbanBoard />}
       right={selectedWorkstream ? <WorkstreamDetail /> : <SessionDetail />}
       fullContent={viewMode === 'network' ? <NetworkView /> : undefined}
       bottomPanel={<TerminalPanel />}
