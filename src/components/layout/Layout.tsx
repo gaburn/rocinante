@@ -45,14 +45,14 @@ export default function Layout({
             "flex-1 min-h-0 grid",
             /* Mobile: single column, session list gets ~40 vh */
             "grid-cols-1 grid-rows-[40vh_1fr]",
-            /* Desktop: side-by-side, session list is fixed-width */
-            "md:grid-cols-[1fr_420px] md:grid-rows-[1fr]",
+            /* Desktop: side-by-side, kanban board fills remaining space, detail panel is fixed */
+            "md:grid-cols-[minmax(0,1fr)_420px] md:grid-rows-[1fr]",
           ].join(" ")}
         >
-          {/* ── Left panel: session list ── */}
+          {/* ── Left panel: kanban board ── */}
           <aside
             className={[
-              "layout-scrollable min-h-0",
+              "layout-scrollable min-h-0 overflow-hidden",
               /* Border: bottom on mobile, right on desktop */
               "border-b border-border-default",
               "md:border-b-0 md:border-r",
