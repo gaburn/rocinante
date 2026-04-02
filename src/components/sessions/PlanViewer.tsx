@@ -166,9 +166,6 @@ export default function PlanViewer({ sessionId }: PlanViewerProps) {
         aria-expanded={isExpanded}
       >
         <h2 className="font-mono text-sm font-semibold text-fg-heading">
-          <span aria-hidden="true" className="mr-1.5">
-            📋
-          </span>
           Session Plan
           {!isLoading && plan && (
             <span className="ml-2 font-normal text-fg/50">
@@ -180,10 +177,10 @@ export default function PlanViewer({ sessionId }: PlanViewerProps) {
         <span
           aria-hidden="true"
           className={`inline-block text-xs text-fg-secondary transition-transform duration-200 ${
-            isExpanded ? 'rotate-90' : 'rotate-0'
+            isExpanded ? 'rotate-180' : ''
           }`}
         >
-          ▶
+          ▾
         </span>
       </button>
 

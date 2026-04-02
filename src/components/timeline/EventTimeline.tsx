@@ -33,10 +33,10 @@ export default function EventTimeline({ events }: EventTimelineProps) {
           className={`
             inline-block text-xs text-fg-secondary
             transition-transform duration-200
-            ${isExpanded ? 'rotate-90' : 'rotate-0'}
+            ${isExpanded ? 'rotate-180' : ''}
           `}
         >
-          ▶
+          ▾
         </span>
       </button>
 
