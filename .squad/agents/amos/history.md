@@ -23,3 +23,10 @@
 - **Stats from live data**: ~10% of `assistant.message` events are pure text (112 out of 1120 sampled). The rest carry `toolRequests`.
 - **Implementation**: `extractAssistantUpdates()` in `sessionMapper.ts` filters events chronologically, returns last 20 updates max. Returns `undefined` if none found.
 - **Key files changed**: `src/types/index.ts`, `server/services/sessionMapper.ts`.
+
+### DEMO_MODE for mock screenshots (2025-07)
+- **What**: `DEMO_MODE=true` env var makes the API serve 12 realistic fake sessions so users can take screenshots without exposing real data.
+- **Implementation**: `server/services/demoData.ts` exports `generateDemoSessions()` which builds fully-typed `Session[]` with agent trees, timelines, activity buckets, branch names, and all status variants (active/blocked/waiting/completed).
+- **Wiring**: `server/routes/sessions.ts` short-circuits both `GET /api/sessions` and `GET /api/sessions/:id` when `DEMO_MODE === 'true'`. No other routes affected.
+- **Sessions**: 12 sessions across 3 themed workstreams (Storefront UI ×4, Payments API ×3, Mobile App ×3) plus 2 ungrouped. Covers all status types including `blockedReason` and `waitingFor`.
+- **Key files**: `server/services/demoData.ts`, `server/routes/sessions.ts`, `.env.example`.
