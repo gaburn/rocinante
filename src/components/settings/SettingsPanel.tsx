@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSettingsContext } from '../../context/SettingsContext';
-import { useSessionContext } from '../../context/SessionContext';
+import packageJson from '../../../package.json';
 import { updateAdoConfig, testAdoConnection, getAdoStatus } from '../../services/adoService';
 import type {
   AccentColor,
@@ -569,15 +569,6 @@ function AdoSettings() {
   );
 }
 
-/* ── Status badge for the About section ────────────────── */
-
-const STATUS_DOT_COLORS: Record<string, string> = {
-  active: 'bg-emerald-400',
-  blocked: 'bg-red-400',
-  waiting: 'bg-amber-400',
-  completed: 'bg-gray-500',
-};
-
 /* ═══════════════════════════════════════════════════════════
  * Main export
  * ═══════════════════════════════════════════════════════════ */
@@ -592,8 +583,6 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
     isServerSyncing,
     serverSyncError,
   } = useSettingsContext();
-
-  const { allSessions, statusCounts } = useSessionContext();
 
   /* ── Reset confirmation guard ────────────────────────── */
   const [confirmReset, setConfirmReset] = useState(false);
@@ -1181,56 +1170,29 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
 
           {/* ━━━━━━━━━━ Section 5: About ━━━━━━━━━━━━━━ */}
           <Section title="About">
-            <div className="flex flex-col gap-4 py-1">
-
-              {/* App name + version */}
+            <div className="flex flex-col gap-3 py-1">
               <div className="flex items-center justify-between">
                 <div className="flex flex-col gap-0.5">
                   <span className="text-sm font-semibold text-fg/80">
-                    Copilot Session Dashboard
+                    Rocinante
                   </span>
                   <span className="text-[11px] text-fg/25 font-mono">
-                    agent telemetry viewer
+                    workhorse for workstreams
                   </span>
                 </div>
                 <span className="rounded-full bg-surface-tertiary px-2.5 py-0.5 font-mono text-[11px] text-fg/40">
-                  v1.0.0
+                  v{packageJson.version}
                 </span>
               </div>
 
-              {/* Session stats */}
-              <div className="rounded-lg bg-surface-primary/60 border border-border-default p-4">
-                <div className="flex items-baseline justify-between mb-3">
-                  <span className="text-xs text-fg/40 font-mono uppercase tracking-wider">
-                    Sessions
-                  </span>
-                  <span className="font-mono text-lg tabular-nums text-fg/70 font-semibold">
-                    {allSessions.length}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                  {(
-                    [
-                      ['active', 'Active'],
-                      ['blocked', 'Blocked'],
-                      ['waiting', 'Waiting'],
-                      ['completed', 'Completed'],
-                    ] as const
-                  ).map(([key, label]) => (
-                    <div key={key} className="flex items-center gap-2">
-                      <span
-                        className={`h-2 w-2 rounded-full ${STATUS_DOT_COLORS[key]}`}
-                        aria-hidden="true"
-                      />
-                      <span className="text-xs text-fg/40">{label}</span>
-                      <span className="ml-auto font-mono text-xs tabular-nums text-fg/60">
-                        {statusCounts[key]}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <a
+                href="https://github.com/gaburn/rocinante"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[11px] font-mono text-fg/30 hover:text-fg/50 transition-colors"
+              >
+                github.com/gaburn/rocinante
+              </a>
             </div>
           </Section>
         </div>
