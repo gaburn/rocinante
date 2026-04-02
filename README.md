@@ -1,36 +1,38 @@
 # 🐴 Rocinante
 
-*A real-time kanban dashboard for monitoring and interacting with GitHub Copilot CLI sessions — workhorse for workstreams.*
+*workhorse for workstreams*
 
-Named after the ship from *The Expanse*, which was named after Don Quixote's horse — a workhorse.
+A real-time dashboard for organizing agentic coding sessions into workstreams and interacting with them. When you have dozens of Copilot CLI sessions running across multiple projects, Rocinante gives you a kanban board to track them all, see what each session is working on, and jump into any session with a single click.
+
+Named after the ship from *The Expanse*, which was named after Don Quixote's horse.
 
 ---
 
 ## Features
 
 ### Kanban Board
-- **Workstream columns** — Sessions grouped by workstream in a horizontal kanban board; one column per workstream plus an "Ungrouped" column for unassigned sessions
-- **Drag-and-drop sessions** — Reassign sessions between workstreams by dragging tiles between columns (@dnd-kit)
-- **Column reorder** — Drag workstream columns by their grip handle to rearrange; order persisted to localStorage
-- **Status-coded tiles** — Emerald (active), red (blocked), amber (waiting), gray (completed); active and blocked sessions float to the top
-- **Latest context on tiles** — Each tile shows the most recent user message and a magenta assistant-update bubble with Copilot's latest status
-- **Workstream count** — Status summary bar includes workstream count
+- **Workstream columns**: Sessions grouped by workstream in a horizontal kanban board, one column per workstream plus an "Ungrouped" column for unassigned sessions
+- **Drag-and-drop sessions**: Reassign sessions between workstreams by dragging tiles between columns (@dnd-kit)
+- **Column reorder**: Drag workstream columns by their grip handle to rearrange, order persisted to localStorage
+- **Status-coded tiles**: Emerald (active), red (blocked), amber (waiting), gray (completed). Active and blocked sessions float to the top
+- **Latest context on tiles**: Each tile shows the most recent user message and a magenta assistant-update bubble with Copilot's latest status
+- **Workstream count**: Status summary bar includes workstream count
 
 ### Session Detail
-- **Session Updates** — Fuchsia-accented scrollable list of assistant status messages with preserved line breaks
-- **Agent Hierarchy** — Collapsible tree (collapsed by default) with unified arrow icons (▾)
-- **Git context**, event timeline (renamed from "Event Timeline" to "Session Timeline"), tool results, performance waterfall
+- **Session Updates**: Fuchsia-accented scrollable list of assistant status messages with preserved line breaks
+- **Agent Hierarchy**: Collapsible tree (collapsed by default) with unified arrow icons
+- **Git context**, Session Timeline, tool results, performance waterfall
 
 ### Other Views
-- **Neural Network View** — Animated force-directed graph visualization of all sessions and agents (d3-force + Canvas)
-- **Embedded Terminal** — Session-scoped terminals that auto-resume Copilot sessions in their working directory (xterm.js + node-pty)
-- **Settings** — 20+ configurable options with localStorage persistence + server config API; About section shows version and GitHub repo link
-- **Light/Dark Mode** — Full theme support with system preference detection
-- **Real-time Updates** — Auto-refresh with configurable interval
+- **Neural Network View**: Animated force-directed graph visualization of all sessions and agents (d3-force + Canvas)
+- **Embedded Terminal**: Session-scoped terminals that auto-resume Copilot sessions in their working directory (xterm.js + node-pty)
+- **Settings**: 20+ configurable options with localStorage persistence + server config API. About section shows version and GitHub repo link
+- **Light/Dark Mode**: Full theme support with system preference detection
+- **Real-time Updates**: Auto-refresh with configurable interval
 
 ## Screenshots
 
-*(placeholder — the main view is a horizontal kanban board with color-coded session tiles organized by workstream, and a fixed 420px detail sidebar on the right)*
+*(placeholder: the main view is a horizontal kanban board with color-coded session tiles organized by workstream, and a fixed 420px detail sidebar on the right)*
 
 ---
 
@@ -85,20 +87,20 @@ Create a `.env` file from `.env.example` as needed.
 
 ```text
 Frontend (Vite + React + TypeScript + Tailwind CSS v4)
-├── Kanban View — horizontal board (workstream columns + 420px detail sidebar)
-├── Network View — animated force-directed graph (d3-force + Canvas)
-├── Terminal — session-scoped xterm.js terminals
-└── Settings — configurable preferences
+├── Kanban View: horizontal board (workstream columns + 420px detail sidebar)
+├── Network View: animated force-directed graph (d3-force + Canvas)
+├── Terminal: session-scoped xterm.js terminals
+└── Settings: configurable preferences
 
 Backend (Express + TypeScript)
-├── /api/sessions — session data from SQLite + events.jsonl
-├── /api/config — runtime configuration
-└── /ws/terminal — WebSocket PTY bridge (node-pty)
+├── /api/sessions: session data from SQLite + events.jsonl
+├── /api/config: runtime configuration
+└── /ws/terminal: WebSocket PTY bridge (node-pty)
 
 Data Sources
-├── ~/.copilot/session-store.db — SQLite (session metadata)
-├── ~/.copilot/session-state/{id}/events.jsonl — event logs
-└── ~/.copilot/session-state/{id}/workspace.yaml — session config
+├── ~/.copilot/session-store.db: SQLite (session metadata)
+├── ~/.copilot/session-state/{id}/events.jsonl: event logs
+└── ~/.copilot/session-state/{id}/workspace.yaml: session config
 ```
 
 ### Runtime Flow (high-level)
@@ -215,4 +217,4 @@ Terminal bridge over WebSocket.
 
 ## License
 
-MIT — see [LICENSE](./LICENSE).
+MIT. See [LICENSE](./LICENSE).
