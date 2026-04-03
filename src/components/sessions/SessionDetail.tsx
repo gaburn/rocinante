@@ -256,6 +256,32 @@ function StatCard({ status, label, count }: StatCardProps) {
   );
 }
 
+function ExpandablePrompt({ text }: { text: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const isLong = text.length > 200;
+
+  return (
+    <div className="rounded-lg border-l-2 border-border-active bg-surface-secondary px-3.5 py-3">
+      <p
+        className={`text-sm leading-relaxed text-fg/70 whitespace-pre-wrap ${
+          !expanded && isLong ? 'line-clamp-3' : ''
+        }`}
+      >
+        {text}
+      </p>
+      {isLong && (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="mt-1.5 text-[11px] font-mono text-border-active hover:text-fg/60 transition-colors cursor-pointer"
+        >
+          {expanded ? '▲ Collapse' : '▼ Show more…'}
+        </button>
+      )}
+    </div>
+  );
+}
+
 /* ── Main component ──────────────────────────────────────────── */
 
 export default function SessionDetail() {
@@ -623,15 +649,11 @@ export default function SessionDetail() {
             />
           </div>
 
-          {/* Latest user message — full text, never truncated */}
+          {/* Latest user message — truncated with expand option */}
           <h3 className="font-mono text-[11px] font-medium uppercase tracking-widest text-fg/25">
             Latest Prompt
           </h3>
-          <div className="rounded-lg border-l-2 border-border-active bg-surface-secondary px-3.5 py-3">
-            <p className="text-sm leading-relaxed text-fg/70">
-              {session.latestUserMessage || session.intent}
-            </p>
-          </div>
+          <ExpandablePrompt text={session.latestUserMessage || session.intent} />
 
           {/* ── Blocked banner (with expandable error details) ── */}
           {session.status === 'blocked' && session.blockedReason && (
