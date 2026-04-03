@@ -15,10 +15,11 @@ See `screenshot.png` in the project root for an example of the kanban board.
 3. [Search](#search)
 4. [Auto-group by Repository](#auto-group-by-repository)
 5. [Session Detail Panel](#session-detail-panel)
-6. [Settings](#settings)
-7. [Demo Mode](#demo-mode)
-8. [Status Filters](#status-filters)
-9. [Tips](#tips)
+6. [Auto-Archive Rules](#auto-archive-rules)
+7. [Settings](#settings)
+8. [Demo Mode](#demo-mode)
+9. [Status Filters](#status-filters)
+10. [Tips](#tips)
 
 ---
 
@@ -73,11 +74,13 @@ Each tile on the board shows:
 |---|---|
 | **Status dot** | Color-coded circle: emerald (active), red (blocked), amber (waiting), gray (completed). Active sessions pulse. |
 | **Session name** | The name or intent of the session, shown in bold at the top of the tile. |
+| **Repo path** | The working directory path, shown in small monospace text below the name. Hover to see the full path. |
 | **Latest user message** | The most recent prompt you sent to Copilot, shown in muted text below the name. |
 | **Assistant update** | A fuchsia-accented snippet showing Copilot's latest status message, with a left border highlight. |
 | **Sparkline** | A tiny activity chart showing recent event density. |
 | **Agent count** | A pill badge showing how many agents are working in the session. |
 | **Time** | How long ago the session was last active (e.g., "3m ago"). |
+| **Archive button** | A small archive icon appears on hover — click to archive the session directly from the tile. |
 
 ### Drag and Drop
 
@@ -114,9 +117,10 @@ The status line below the search box shows how many conversation matches were fo
 
 The **Auto-group** button sits next to the status filter bar. Clicking it:
 
-1. Scans all sessions for repository information (from git context)
-2. Creates a workstream column for each unique repository name
-3. Assigns unassigned sessions to the matching workstream
+1. Scans all sessions for their working directory path (falls back to git remote URL if available)
+2. Extracts the last path segment as the workstream name (e.g., `C:\data\src\my-project` → "my-project")
+3. Creates a workstream column for each unique name
+4. Assigns unassigned sessions to the matching workstream
 
 **Important**: Auto-group only assigns sessions that are currently unassigned (in the Ungrouped column). It never moves sessions that already belong to a workstream. This means you can safely run it multiple times without disrupting your existing organization.
 
@@ -124,7 +128,7 @@ The **Auto-group** button sits next to the status filter bar. Clicking it:
 
 ## Session Detail Panel
 
-Click any session tile to open the detail panel on the right side. The panel shows the full context for that session.
+Click any session tile to open the detail panel on the right side. The panel shows the full context for that session. **The panel is resizable** — drag the thin vertical handle between the kanban board and the detail panel to adjust the width (320–800px). Your preferred width is saved automatically.
 
 ### Session Header
 
@@ -133,9 +137,14 @@ Click any session tile to open the detail panel on the right side. The panel sho
 - **Action buttons**:
   - **Resume**: Opens a terminal tab that resumes the Copilot session.
   - **Shell**: Opens a plain shell terminal in the session's working directory.
-  - **Archive / Unarchive**: Moves the session to or from the archive.
+  - **Archive / Unarchive**: Moves the session to or from the archive. When archiving, the next session in the same workstream is automatically selected.
+  - **Auto-archive**: Creates a rule to automatically archive future sessions with the same name (keeps the newest visible, archives older duplicates).
 
-### Time Stats
+### Session ID & Repo Path
+
+Below the header:
+- **Session ID**: The full UUID, styled for select-all (click to copy).
+- **Repo path**: The working directory path (📂), also select-all for easy copying.
 
 Shown as a compact row below the header:
 
@@ -149,7 +158,7 @@ An autocomplete input field where you can assign or change the session's workstr
 
 ### Latest Prompt
 
-The most recent user message sent to Copilot, shown in full (never truncated). Displayed in a highlighted block with a left border accent.
+The most recent user message sent to Copilot. Long prompts are truncated to 3 lines — click **"▼ Show more…"** to expand the full text, or **"▲ Collapse"** to shrink it back.
 
 ### Session Updates
 
@@ -175,11 +184,42 @@ A collapsible tree view showing the hierarchy of agents in the session. Each age
 
 ---
 
+## Auto-Archive Rules
+
+Auto-archive rules let you automatically hide repetitive sessions that clutter the board (e.g., work-loop sessions that always have the same name).
+
+### Creating a Rule
+
+There are two ways to create a rule:
+
+1. **From Session Detail**: Click the **Auto-archive** button in the session header. This creates a rule from the session's name.
+2. **From Settings**: Open Settings → Auto-Archive Rules → type a pattern → click "Add Rule".
+
+### How Rules Work
+
+- Rules match by **substring** — any session whose name contains the pattern will match
+- Matching sessions are **automatically archived** on each data refresh
+- The **newest session** per matching name is always kept visible; only older duplicates are archived
+- Archived sessions are never deleted — toggle "Show Archived" to see them
+
+### Managing Rules
+
+In Settings → Auto-Archive Rules:
+- **Toggle** individual rules on/off with the switch
+- **Delete** rules with the ✕ button
+- **Add** new rules with the text input
+
+### Toolbar Indicator
+
+When auto-archive rules are active, a "🔕 N rules active" indicator appears in the kanban toolbar below the archive controls.
+
+---
+
 ## Settings
 
 Open Settings from the gear icon in the top-right corner of the header.
 
-The settings panel has five collapsible sections:
+The settings panel has six collapsible sections:
 
 ### Display Settings
 
@@ -188,6 +228,11 @@ The settings panel has five collapsible sections:
 - Refresh interval (Off, 10s, 30s, 60s, 120s)
 - Sort order (Most Recent, Alphabetical, Status Grouped)
 - Pane visibility toggles for detail panel sections
+
+### Auto-Archive Rules
+
+- Add, remove, and toggle substring-based rules that automatically archive matching sessions
+- See [Auto-Archive Rules](#auto-archive-rules) for details
 
 ### Data Settings
 
@@ -291,6 +336,8 @@ Archived sessions are hidden by default but never deleted. Toggle "Show Archived
 
 ## Tips
 
+- **Resize the detail panel**: Drag the thin vertical handle between the kanban board and the detail panel to adjust width.
+- **Archive from tiles**: Hover over any session tile and click the archive icon to archive it without opening the detail panel.
 - **Loading indicator**: The wireframe horse logo in the header pulses when data is loading.
 - **Column order**: Workstream column order is saved to localStorage and persists across page refreshes.
 - **Deselect a session**: Press **Escape** to close the detail panel and deselect the current session.
@@ -299,3 +346,4 @@ Archived sessions are hidden by default but never deleted. Toggle "Show Archived
 - **Terminal tabs**: You can have up to 5 terminal tabs open at once. The Resume button opens Copilot in resume mode; the Shell button opens a plain terminal.
 - **Keyboard shortcut**: Press `Ctrl+`` ` to toggle the terminal panel.
 - **Theme follows system**: Set the theme to "System" in Settings to match your OS light/dark preference automatically.
+- **Archive flow**: When you archive a session from the detail panel, the next session in the same workstream is automatically selected so you can quickly triage.
