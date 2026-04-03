@@ -554,25 +554,6 @@ export default function SessionDetail() {
             {session.id}
           </p>
 
-          {/* Workstream assignment */}
-          <div className="mt-1">
-            <WorkstreamAutocomplete
-              value={getWorkstream(session.id)}
-              suggestions={getWorkstreamNames}
-              onChange={(name) => setWorkstream(session.id, name)}
-              onRemove={() => removeWorkstream(session.id)}
-              size="md"
-              placeholder="Assign workstream…"
-            />
-          </div>
-
-          {/* Intent block — full text, never truncated */}
-          <div className="rounded-lg border-l-2 border-border-active bg-surface-secondary px-3.5 py-3">
-            <p className="text-sm leading-relaxed text-fg/70">
-              {session.intent}
-            </p>
-          </div>
-
           {/* Metadata row */}
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-xs tabular-nums text-fg/35">
             <span>Started {formatRelativeTime(session.startedAt)}</span>
@@ -586,6 +567,25 @@ export default function SessionDetail() {
                 session.status === 'completed' ? session.lastActivityAt : undefined,
               )}
             </span>
+          </div>
+
+          {/* Workstream assignment */}
+          <div className="mt-1">
+            <WorkstreamAutocomplete
+              value={getWorkstream(session.id)}
+              suggestions={getWorkstreamNames}
+              onChange={(name) => setWorkstream(session.id, name)}
+              onRemove={() => removeWorkstream(session.id)}
+              size="md"
+              placeholder="Assign workstream…"
+            />
+          </div>
+
+          {/* Latest user message — full text, never truncated */}
+          <div className="rounded-lg border-l-2 border-border-active bg-surface-secondary px-3.5 py-3">
+            <p className="text-sm leading-relaxed text-fg/70">
+              {session.latestUserMessage || session.intent}
+            </p>
           </div>
 
           {/* ── Blocked banner (with expandable error details) ── */}
