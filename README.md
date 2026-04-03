@@ -34,6 +34,10 @@ Named after the ship from *The Expanse*, which was named after Don Quixote's hor
 - **Light/Dark Mode**: Full theme support with system preference detection
 - **Real-time Updates**: Auto-refresh with configurable interval
 
+## User Guide
+
+For a comprehensive guide on using the dashboard, see **[docs/user-guide.md](./docs/user-guide.md)**. It covers the kanban board, search, auto-grouping, session details, settings, demo mode, and more.
+
 ## Screenshots
 
 *(placeholder: the main view is a horizontal kanban board with color-coded session tiles organized by workstream, and a fixed 420px detail sidebar on the right)*
