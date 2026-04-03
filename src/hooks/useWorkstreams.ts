@@ -225,10 +225,11 @@ export function useWorkstreams(): UseWorkstreamsResult {
         // Skip sessions that already have a workstream assignment
         if (next[session.id]) continue
 
-        const repo = session.repository
-        if (!repo || !repo.trim()) continue
+        // Use repository if available, fall back to cwd
+        const source = session.repository?.trim() || session.cwd?.trim()
+        if (!source) continue
 
-        const name = repoDisplayName(repo)
+        const name = repoDisplayName(source)
         next[session.id] = name
         changed = true
       }
