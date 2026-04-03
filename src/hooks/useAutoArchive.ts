@@ -82,17 +82,42 @@ export function useAutoArchive(): UseAutoArchiveResult {
   )
 
   const getMatchingSessionIds = useCallback(
-    (sessions: { id: string; name: string }[]): string[] => {
+    (sessions: { id: string; name: string; lastActivityAt: string }[]): string[] => {
       const enabledRules = rules.filter((r) => r.enabled && r.pattern.length > 0)
       if (enabledRules.length === 0) return []
 
       const patterns = enabledRules.map((r) => r.pattern.toLowerCase())
-      return sessions
-        .filter((s) => {
-          const name = s.name.toLowerCase()
-          return patterns.some((p) => name.includes(p))
-        })
-        .map((s) => s.id)
+      const matching = sessions.filter((s) => {
+        const name = s.name.toLowerCase()
+        return patterns.some((p) => name.includes(p))
+      })
+
+      // Group by name — keep the most recent session in each group visible
+      const byName = new Map<string, typeof matching>()
+      for (const s of matching) {
+        const key = s.name.toLowerCase()
+        const group = byName.get(key)
+        if (group) {
+          group.push(s)
+        } else {
+          byName.set(key, [s])
+        }
+      }
+
+      const idsToArchive: string[] = []
+      for (const group of byName.values()) {
+        if (group.length <= 1) continue
+        // Sort newest first, archive everything except the newest
+        group.sort(
+          (a, b) =>
+            new Date(b.lastActivityAt).getTime() - new Date(a.lastActivityAt).getTime(),
+        )
+        for (let i = 1; i < group.length; i++) {
+          idsToArchive.push(group[i].id)
+        }
+      }
+
+      return idsToArchive
     },
     [rules],
   )

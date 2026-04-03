@@ -125,8 +125,9 @@ export default function KanbanTile({ session, isSelected, onSelect, onArchiveLik
             "
           >
             <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M18.36 6.64a9 9 0 1 1-12.73 0" />
-              <line x1="12" y1="2" x2="12" y2="12" />
+              <rect x="2" y="3" width="20" height="6" rx="1" />
+              <path d="M2 9v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9" />
+              <path d="M10 13h4" />
             </svg>
           </button>
         )}
