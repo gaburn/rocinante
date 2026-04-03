@@ -169,7 +169,7 @@ export default function Header() {
         <img
           src="/rocinante-logo-green.png"
           alt="Rocinante"
-          className="h-8 w-8 drop-shadow-[0_0_6px_#00ff41]"
+          className="h-8 w-8"
         />
 
         <div className="flex flex-col justify-center">

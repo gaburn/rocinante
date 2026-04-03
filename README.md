@@ -1,4 +1,6 @@
-# 🐴 Rocinante
+<img src="rocinante-logo-green.png" alt="Rocinante" width="80" />
+
+# Rocinante
 
 *workhorse for workstreams*
 
