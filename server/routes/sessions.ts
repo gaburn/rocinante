@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { mapAllSessions, mapSessionById } from '../services/sessionMapper.js';
 import { readSessionPlan } from '../services/planReader.js';
 import { generateDemoSessions, getDemoWorkstreams } from '../services/demoData.js';
+import { searchConversations } from '../services/sqliteReader.js';
 
 const sessionsRouter = Router();
 
@@ -16,6 +17,23 @@ sessionsRouter.get('/sessions', (req, res) => {
     const sessions = mapAllSessions();
     res.set('Cache-Control', 'no-cache');
     res.json(sessions);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    res.status(500).json({ error: message });
+  }
+});
+
+sessionsRouter.get('/sessions/search', (req, res) => {
+  const q = req.query.q as string;
+  if (!q || q.length < 2) {
+    return res.json([]);
+  }
+  if (process.env.DEMO_MODE === 'true') {
+    return res.json([]);
+  }
+  try {
+    const results = searchConversations(q);
+    res.json(results);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     res.status(500).json({ error: message });

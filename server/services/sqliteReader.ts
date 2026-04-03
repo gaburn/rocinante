@@ -14,6 +14,13 @@ export interface SqliteSession {
   updated_at: string;
 }
 
+export interface SearchResult {
+  sessionId: string;
+  matchType: 'user_message' | 'assistant_response' | 'fts';
+  snippet: string;
+  turnIndex: number;
+}
+
 interface CountRow {
   count: number;
 }
@@ -162,6 +169,91 @@ export function getTurnCount(sessionId: string): number {
     console.warn(`[sqliteReader] Failed to read turn count for session: ${sessionId}`, error);
     return 0;
   }
+}
+
+function extractSnippet(text: string, query: string): string {
+  const lower = text.toLowerCase();
+  const pos = lower.indexOf(query.toLowerCase());
+  if (pos === -1) {
+    return text.slice(0, 100) + (text.length > 100 ? '...' : '');
+  }
+  const start = Math.max(0, pos - 50);
+  const end = Math.min(text.length, pos + query.length + 50);
+  let snippet = text.slice(start, end);
+  if (start > 0) snippet = '...' + snippet;
+  if (end < text.length) snippet = snippet + '...';
+  return snippet;
+}
+
+export function searchConversations(query: string): SearchResult[] {
+  const database = getDatabase();
+  if (!database) {
+    return [];
+  }
+
+  const seen = new Map<string, SearchResult>();
+
+  // 1. Try FTS5 search_index
+  try {
+    const ftsQuery = query.includes(' ') ? `"${query.replace(/"/g, '""')}"` : query.replace(/[^\w\s]/g, '');
+    if (ftsQuery.length > 0) {
+      const ftsStmt = database.prepare(`
+        SELECT session_id, content, source_type
+        FROM search_index
+        WHERE search_index MATCH ?
+        LIMIT 50
+      `);
+      const ftsRows = ftsStmt.all(ftsQuery) as Array<{ session_id: string; content: string; source_type: string }>;
+      for (const row of ftsRows) {
+        if (!seen.has(row.session_id)) {
+          seen.set(row.session_id, {
+            sessionId: row.session_id,
+            matchType: 'fts',
+            snippet: extractSnippet(row.content, query),
+            turnIndex: 0,
+          });
+        }
+      }
+    }
+  } catch {
+    // FTS5 table may not exist in all databases — fall through to LIKE search
+  }
+
+  // 2. Direct turns search via LIKE
+  try {
+    const likePattern = `%${query}%`;
+    const turnsStmt = database.prepare(`
+      SELECT session_id, turn_index, user_message, assistant_response
+      FROM turns
+      WHERE user_message LIKE ? OR assistant_response LIKE ?
+      LIMIT 50
+    `);
+    const turnRows = turnsStmt.all(likePattern, likePattern) as Array<{
+      session_id: string;
+      turn_index: number;
+      user_message: string | null;
+      assistant_response: string | null;
+    }>;
+
+    for (const row of turnRows) {
+      if (seen.has(row.session_id)) continue;
+
+      const userMatch = row.user_message && row.user_message.toLowerCase().includes(query.toLowerCase());
+      const matchType: SearchResult['matchType'] = userMatch ? 'user_message' : 'assistant_response';
+      const matchText = userMatch ? row.user_message! : row.assistant_response!;
+
+      seen.set(row.session_id, {
+        sessionId: row.session_id,
+        matchType,
+        snippet: extractSnippet(matchText, query),
+        turnIndex: row.turn_index,
+      });
+    }
+  } catch (error) {
+    console.warn('[sqliteReader] Failed to search turns.', error);
+  }
+
+  return Array.from(seen.values()).sort((a, b) => a.sessionId.localeCompare(b.sessionId));
 }
 
 export function closeDatabase(): void {
