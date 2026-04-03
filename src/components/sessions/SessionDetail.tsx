@@ -289,6 +289,7 @@ export default function SessionDetail() {
     selectedSession,
     isArchived,
     toggleArchive,
+    archiveAndSelectNext,
     getWorkstream,
     setWorkstream,
     removeWorkstream,
@@ -527,7 +528,11 @@ export default function SessionDetail() {
                     {/* Archive / Unarchive toggle */}
                     <button
                       type="button"
-                      onClick={() => toggleArchive(session.id)}
+                      onClick={() =>
+                        isArchived(session.id)
+                          ? toggleArchive(session.id)
+                          : archiveAndSelectNext(session.id)
+                      }
                       title={isArchived(session.id) ? 'Unarchive this session' : 'Archive this session'}
                       className={`
                         inline-flex items-center gap-1.5

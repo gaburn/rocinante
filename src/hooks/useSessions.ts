@@ -47,6 +47,7 @@ export interface UseSessionsResult {
   archiveSession: (id: string) => void
   unarchiveSession: (id: string) => void
   toggleArchive: (id: string) => void
+  archiveAndSelectNext: (id: string) => void
   archiveAllCompleted: () => void
   refreshSessions: () => void
   toggleAutoRefresh: () => void
@@ -285,6 +286,26 @@ export function useSessions(): UseSessionsResult {
     archive.archiveByIds(completedIds)
   }, [allSessions, archive])
 
+  const archiveAndSelectNext = useCallback(
+    (id: string) => {
+      // Find sibling sessions in the same workstream (or ungrouped)
+      const ws = workstreams.getWorkstream(id)
+      const siblings = sessions.filter((s) => {
+        const sWs = workstreams.getWorkstream(s.id)
+        return ws ? sWs === ws : !sWs
+      })
+      const idx = siblings.findIndex((s) => s.id === id)
+      // Pick next sibling, or previous, or null
+      const next =
+        siblings[idx + 1] ?? siblings[idx - 1] ?? null
+      archive.archiveSession(id)
+      if (next && next.id !== id) {
+        setSelectedSessionId(next.id)
+      }
+    },
+    [sessions, workstreams.getWorkstream, archive.archiveSession],
+  )
+
   const archivedCount = useMemo(
     () => allSessions.filter((session) => archive.isArchived(session.id)).length,
     [allSessions, archive.archivedIds],
@@ -421,6 +442,7 @@ export function useSessions(): UseSessionsResult {
     archiveSession: archive.archiveSession,
     unarchiveSession: archive.unarchiveSession,
     toggleArchive: archive.toggleArchive,
+    archiveAndSelectNext,
     archiveAllCompleted,
     refreshSessions,
     toggleAutoRefresh,
