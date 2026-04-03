@@ -28,3 +28,5 @@ dist-server
 # Squad and Copilot config (private, lives on dev branch)
 .squad/
 .copilot/
+.agents/
+.github/agents/
