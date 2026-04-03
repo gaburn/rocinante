@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   filterSessionsByStatus,
   getSessions,
@@ -9,6 +9,11 @@ import type { Session, SessionStatus, StatusCounts } from '../types'
 import { useArchive } from './useArchive'
 import { useSessionNames } from './useSessionNames'
 import { useWorkstreams } from './useWorkstreams'
+
+export interface ConversationMatch {
+  snippet: string
+  matchType: string
+}
 
 export interface SessionGroup {
   name: string
@@ -59,6 +64,8 @@ export interface UseSessionsResult {
   autoGroupByRepository: () => void
   hasAnyWorkstreams: boolean
   groupedSessions: { groups: SessionGroup[]; ungrouped: Session[] }
+  conversationSearchResults: Map<string, ConversationMatch>
+  isSearchingConversations: boolean
 }
 
 export function useSessions(): UseSessionsResult {
@@ -78,6 +85,10 @@ export function useSessions(): UseSessionsResult {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true)
+  const [conversationSearchResults, setConversationSearchResults] = useState<Map<string, ConversationMatch>>(new Map())
+  const [isSearchingConversations, setIsSearchingConversations] = useState(false)
+  const searchAbortRef = useRef<AbortController | null>(null)
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const loadSessions = useCallback(async () => {
     setIsLoading(true)
@@ -129,6 +140,63 @@ export function useSessions(): UseSessionsResult {
     }
   }, [autoRefreshEnabled, loadSessions, settings.display.refreshInterval])
 
+  // Debounced conversation search via API
+  useEffect(() => {
+    if (searchTimerRef.current) {
+      clearTimeout(searchTimerRef.current)
+      searchTimerRef.current = null
+    }
+    if (searchAbortRef.current) {
+      searchAbortRef.current.abort()
+      searchAbortRef.current = null
+    }
+
+    if (searchQuery.trim().length < 3) {
+      setConversationSearchResults(new Map())
+      setIsSearchingConversations(false)
+      return
+    }
+
+    setIsSearchingConversations(true)
+
+    searchTimerRef.current = setTimeout(() => {
+      const controller = new AbortController()
+      searchAbortRef.current = controller
+
+      fetch(`/api/sessions/search?q=${encodeURIComponent(searchQuery.trim())}`, {
+        signal: controller.signal,
+      })
+        .then((res) => {
+          if (!res.ok) throw new Error(`Search failed: ${res.status}`)
+          return res.json()
+        })
+        .then((results: { sessionId: string; matchType: string; snippet: string }[]) => {
+          const map = new Map<string, ConversationMatch>()
+          for (const r of results) {
+            // Keep first (best) match per session
+            if (!map.has(r.sessionId)) {
+              map.set(r.sessionId, { snippet: r.snippet, matchType: r.matchType })
+            }
+          }
+          setConversationSearchResults(map)
+          setIsSearchingConversations(false)
+        })
+        .catch((err) => {
+          if (err instanceof DOMException && err.name === 'AbortError') return
+          setIsSearchingConversations(false)
+        })
+    }, 300)
+
+    return () => {
+      if (searchTimerRef.current) {
+        clearTimeout(searchTimerRef.current)
+      }
+      if (searchAbortRef.current) {
+        searchAbortRef.current.abort()
+      }
+    }
+  }, [searchQuery])
+
   const sessions = useMemo(() => {
     let filtered = sessionsWithNames
 
@@ -145,7 +213,10 @@ export function useSessions(): UseSessionsResult {
     if (searchQuery.trim()) {
       const query = searchQuery.trim().toLowerCase()
       filtered = filtered.filter(
-        (s) => s.name.toLowerCase().includes(query) || s.intent.toLowerCase().includes(query),
+        (s) =>
+          s.name.toLowerCase().includes(query) ||
+          s.intent.toLowerCase().includes(query) ||
+          conversationSearchResults.has(s.id),
       )
     }
 
@@ -178,6 +249,7 @@ export function useSessions(): UseSessionsResult {
     showArchived,
     statusFilter,
     searchQuery,
+    conversationSearchResults,
     settings.display.showCompletedSessions,
     settings.display.sortOrder,
     archive.archivedIds,
@@ -351,5 +423,7 @@ export function useSessions(): UseSessionsResult {
     autoGroupByRepository: handleAutoGroupByRepository,
     hasAnyWorkstreams: workstreams.hasAnyWorkstreams,
     groupedSessions,
+    conversationSearchResults,
+    isSearchingConversations,
   }
 }

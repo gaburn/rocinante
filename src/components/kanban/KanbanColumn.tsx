@@ -2,6 +2,7 @@ import { useDroppable } from '@dnd-kit/core';
 import { useSortable, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { Session, SessionStatus } from '../../types';
+import type { ConversationMatch } from '../../hooks/useSessions';
 import KanbanTile from './KanbanTile';
 
 export const COLUMN_SORTABLE_PREFIX = 'column:';
@@ -29,6 +30,8 @@ interface KanbanColumnProps {
   onSelectSession: (session: Session) => void;
   onSelectWorkstream?: () => void;
   isSortable?: boolean;
+  conversationSearchResults?: Map<string, ConversationMatch>;
+  searchQuery?: string;
 }
 
 export default function KanbanColumn({
@@ -39,6 +42,8 @@ export default function KanbanColumn({
   onSelectSession,
   onSelectWorkstream,
   isSortable = false,
+  conversationSearchResults,
+  searchQuery,
 }: KanbanColumnProps) {
   const sortableId = `${COLUMN_SORTABLE_PREFIX}${id}`;
 
@@ -130,6 +135,8 @@ export default function KanbanColumn({
                 session={session}
                 isSelected={session.id === selectedSessionId}
                 onSelect={onSelectSession}
+                conversationMatch={conversationSearchResults?.get(session.id)}
+                searchActive={Boolean(searchQuery?.trim())}
               />
             ))
           ) : (

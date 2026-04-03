@@ -76,6 +76,8 @@ export default function KanbanBoard() {
     autoGroupByRepository,
     hasAnyWorkstreams,
     groupedSessions,
+    conversationSearchResults,
+    isSearchingConversations,
   } = useSessionContext();
 
   const { reorderColumns, getOrderedNames } = useColumnOrder();
@@ -270,6 +272,22 @@ export default function KanbanBoard() {
           ) : null}
         </div>
 
+        {/* Conversation search indicator */}
+        {isSearchingConversations && (
+          <div className="flex items-center gap-1.5 px-1 text-[11px] text-fg/35">
+            <svg className="h-3 w-3 animate-spin" viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" opacity="0.3" />
+              <path d="M14 8a6 6 0 0 0-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+            Searching conversations…
+          </div>
+        )}
+        {!isSearchingConversations && searchQuery.trim().length >= 3 && conversationSearchResults.size > 0 && (
+          <div className="px-1 text-[11px] text-amber-400/60">
+            💬 {conversationSearchResults.size} conversation {conversationSearchResults.size === 1 ? 'match' : 'matches'}
+          </div>
+        )}
+
         <div className="flex items-center gap-2">
           <div className="flex-1 rounded-lg bg-surface-secondary">
             <StatusFilter />
@@ -409,6 +427,8 @@ export default function KanbanBoard() {
                         : undefined
                     }
                     isSortable={col.id !== UNGROUPED_ID && col.name !== 'All Sessions'}
+                    conversationSearchResults={conversationSearchResults}
+                    searchQuery={searchQuery}
                   />
                 ))}
               </div>

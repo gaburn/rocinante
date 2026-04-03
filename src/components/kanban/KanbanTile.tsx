@@ -1,6 +1,7 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { Session, SessionStatus } from '../../types';
+import type { ConversationMatch } from '../../hooks/useSessions';
 import {
   getStatusBorderClass,
   getStatusBgClass,
@@ -13,11 +14,13 @@ interface KanbanTileProps {
   session: Session;
   isSelected: boolean;
   onSelect: (session: Session) => void;
+  conversationMatch?: ConversationMatch;
+  searchActive?: boolean;
 }
 
 const PULSING_STATUSES = new Set<SessionStatus>(['active']);
 
-export default function KanbanTile({ session, isSelected, onSelect }: KanbanTileProps) {
+export default function KanbanTile({ session, isSelected, onSelect, conversationMatch, searchActive }: KanbanTileProps) {
   const {
     attributes,
     listeners,
@@ -82,6 +85,16 @@ export default function KanbanTile({ session, isSelected, onSelect }: KanbanTile
         <p className="mt-1 text-[11px] leading-relaxed text-fuchsia-300/70 line-clamp-2 border-l-2 border-fuchsia-500/40 pl-1.5">
           {session.assistantUpdates[session.assistantUpdates.length - 1]}
         </p>
+      )}
+
+      {/* Row 2.75: conversation search match snippet */}
+      {searchActive && conversationMatch && (
+        <div className="mt-1 rounded bg-amber-500/10 px-1.5 py-1">
+          <p className="text-[10px] leading-snug text-amber-300/80 line-clamp-2">
+            <span className="mr-1" aria-label="Conversation match">💬</span>
+            {conversationMatch.snippet}
+          </p>
+        </div>
       )}
 
       {/* Row 3: meta — time, sparkline, agent count */}
