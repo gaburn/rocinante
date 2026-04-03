@@ -51,3 +51,12 @@
 - **Frontend seeding:** `useWorkstreams.ts` fetches `/api/demo/workstreams` on first mount via a `useRef` guard. Seeds workstream map into state (and localStorage) only if: (1) the `rocinante-demo-workstreams-seeded` localStorage flag is not set, and (2) none of the demo workstream names already exist. Sets the flag after seeding.
 - **Result:** Demo mode now shows 3 kanban columns (Storefront UI, Payments API, Mobile App) with 2 sessions remaining in Ungrouped (CI pipeline + npm audit).
 - **Guard pattern:** `useRef(false)` prevents double-fire in React strict mode; localStorage flag prevents re-seeding across page reloads.
+
+### Conversation History Search Integration (2025-07)
+- **API:** `GET /api/sessions/search?q=<query>` — backend FTS5 search over user messages + assistant responses. Returns `{ sessionId, matchType, snippet, turnIndex }[]`.
+- **Hook changes (`useSessions.ts`):** Added `conversationSearchResults` state (`Map<string, ConversationMatch>`), `isSearchingConversations` flag, debounced 300ms fetch effect with `AbortController` for cancellation. Exported `ConversationMatch` type.
+- **Filter merge:** Search filter now includes sessions matching name/intent OR whose ID is in `conversationSearchResults`. Only first (best) match per session is kept in the map.
+- **Debounce pattern:** `setTimeout` + `AbortController` refs in a `useEffect` — timer cleared on re-run, previous fetch aborted. Query must be >= 3 chars to trigger API call.
+- **KanbanBoard:** Shows spinner with "Searching conversations…" while API is in flight. Shows "💬 N conversation matches" badge when results arrive. Passes `conversationSearchResults` and `searchQuery` through `KanbanColumn` to `KanbanTile`.
+- **KanbanTile:** New optional `conversationMatch` and `searchActive` props. When both present, renders snippet in `bg-amber-500/10` rounded box with 💬 prefix, `text-[10px]`, `line-clamp-2`. Placed between assistant updates and meta row.
+- **Props chain:** `useSessions` → `SessionContext` → `KanbanBoard` → `KanbanColumn` (new optional props) → `KanbanTile` (new optional props). No breaking changes to existing call sites.
