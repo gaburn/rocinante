@@ -135,6 +135,66 @@ function MoonIcon() {
   )
 }
 
+/** Wireframe horse logo — geometric Tron-style galloping horse with neon glow. */
+function RocinanteIcon() {
+  return (
+    <svg
+      className="h-7 w-7 rocinante-icon"
+      viewBox="0 0 32 32"
+      fill="none"
+      stroke="#00ff41"
+      strokeWidth="1.3"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <style>{`
+        .rocinante-icon {
+          filter: drop-shadow(0 0 3px #00ff41) drop-shadow(0 0 6px rgba(0,255,65,0.35));
+          animation: rocinante-glow-pulse 3.5s ease-in-out infinite;
+        }
+        @keyframes rocinante-glow-pulse {
+          0%, 100% {
+            filter: drop-shadow(0 0 2px #00ff41) drop-shadow(0 0 4px rgba(0,255,65,0.25));
+          }
+          50% {
+            filter: drop-shadow(0 0 4px #00ff41) drop-shadow(0 0 10px rgba(0,255,65,0.5));
+          }
+        }
+      `}</style>
+
+      {/* Head — angular triangle pointing right */}
+      <polygon points="24,4 28,7 25,10" />
+
+      {/* Ear */}
+      <line x1="24" y1="4" x2="22" y2="2" />
+
+      {/* Neck — two lines connecting head to body */}
+      <line x1="24" y1="4" x2="16" y2="8" />
+      <line x1="25" y1="10" x2="19" y2="14" />
+
+      {/* Body — angular hexagon (withers → back → hip → belly → chest) */}
+      <polygon points="16,8 7,9 6,13 7,17 18,17 19,14" />
+
+      {/* Internal wireframe mesh — triangulation lines */}
+      <line x1="16" y1="8" x2="7" y2="17" />
+      <line x1="7" y1="9" x2="18" y2="17" />
+      <line x1="12" y1="8.5" x2="12" y2="17" />
+
+      {/* Front legs — reaching forward in gallop */}
+      <polyline points="18,17 22,22 25,28" />
+      <polyline points="15,17 14,23 15,28" />
+
+      {/* Back legs — pushing off */}
+      <polyline points="8,17 4,22 2,28" />
+      <polyline points="10,17 11,23 12,28" />
+
+      {/* Tail — streaming behind */}
+      <polyline points="7,9 4,6 2,4" />
+    </svg>
+  )
+}
+
 // ---------------------------------------------------------------------------
 // Header
 // ---------------------------------------------------------------------------
@@ -165,13 +225,8 @@ export default function Header() {
     <header className="flex h-14 shrink-0 items-center justify-between border-b border-border-default bg-surface-secondary px-4 select-none">
       {/* ── Left: brand / title ───────────────────────────────────── */}
       <div className="flex items-center gap-3">
-        {/* Terminal prompt glyph */}
-        <span
-          className="flex h-8 w-8 items-center justify-center rounded-md bg-surface-tertiary font-mono text-sm leading-none text-emerald-400"
-          aria-hidden="true"
-        >
-          &gt;_
-        </span>
+        {/* Rocinante wireframe horse logo */}
+        <RocinanteIcon />
 
         <div className="flex flex-col justify-center">
           <h1 className="font-mono text-sm font-semibold tracking-wide text-gray-100">
