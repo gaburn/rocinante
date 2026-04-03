@@ -2,11 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useWorkstreamMeta } from './useWorkstreamMeta'
 
 const WORKSTREAM_STORAGE_KEY = 'rocinante-workstreams'
-const DEMO_SEEDED_KEY = 'rocinante-demo-workstreams-seeded'
+const DEMO_WORKSTREAM_STORAGE_KEY = 'rocinante-workstreams-demo'
 
-function loadInitialWorkstreamMap(): Record<string, string> {
+function loadWorkstreamMap(key: string): Record<string, string> {
   try {
-    const raw = window.localStorage.getItem(WORKSTREAM_STORAGE_KEY)
+    const raw = window.localStorage.getItem(key)
     if (!raw) {
       return {}
     }
@@ -17,9 +17,9 @@ function loadInitialWorkstreamMap(): Record<string, string> {
     }
 
     const next: Record<string, string> = {}
-    for (const [key, value] of Object.entries(parsed)) {
+    for (const [k, value] of Object.entries(parsed)) {
       if (typeof value === 'string') {
-        next[key] = value
+        next[k] = value
       }
     }
 
@@ -46,25 +46,25 @@ export interface UseWorkstreamsResult {
 }
 
 export function useWorkstreams(): UseWorkstreamsResult {
-  const [workstreamMap, setWorkstreamMap] = useState<Record<string, string>>(loadInitialWorkstreamMap)
+  const [workstreamMap, setWorkstreamMap] = useState<Record<string, string>>(
+    () => loadWorkstreamMap(WORKSTREAM_STORAGE_KEY),
+  )
+  const storageKeyRef = useRef(WORKSTREAM_STORAGE_KEY)
   const meta = useWorkstreamMeta()
 
   useEffect(() => {
     try {
-      window.localStorage.setItem(WORKSTREAM_STORAGE_KEY, JSON.stringify(workstreamMap))
+      window.localStorage.setItem(storageKeyRef.current, JSON.stringify(workstreamMap))
     } catch {
       // Ignore localStorage write errors so workstream state remains usable.
     }
   }, [workstreamMap])
 
-  // Seed demo workstreams on first load when running in demo mode
-  const demoSeeded = useRef(false)
+  // Detect demo mode and use isolated storage so real workstreams stay untouched
+  const demoChecked = useRef(false)
   useEffect(() => {
-    if (demoSeeded.current) return
-    demoSeeded.current = true
-
-    // Skip if already seeded in this browser
-    if (window.localStorage.getItem(DEMO_SEEDED_KEY) === 'true') return
+    if (demoChecked.current) return
+    demoChecked.current = true
 
     fetch('/api/demo/workstreams')
       .then((res) => {
@@ -74,25 +74,23 @@ export function useWorkstreams(): UseWorkstreamsResult {
       .then((mapping) => {
         if (!mapping) return
 
-        // Check if any demo workstream names already exist
-        const existingNames = new Set(Object.values(loadInitialWorkstreamMap()))
-        const alreadyHasDemoWorkstreams = Object.keys(mapping).some((name) => existingNames.has(name))
-        if (alreadyHasDemoWorkstreams) {
-          window.localStorage.setItem(DEMO_SEEDED_KEY, 'true')
-          return
-        }
+        // Switch to demo-specific storage key
+        storageKeyRef.current = DEMO_WORKSTREAM_STORAGE_KEY
 
-        setWorkstreamMap((current) => {
-          const next = { ...current }
+        const existing = loadWorkstreamMap(DEMO_WORKSTREAM_STORAGE_KEY)
+        if (Object.keys(existing).length > 0) {
+          // Restore previously-saved demo workstreams
+          setWorkstreamMap(existing)
+        } else {
+          // Seed demo workstreams from API response
+          const seeded: Record<string, string> = {}
           for (const [workstreamName, sessionIds] of Object.entries(mapping)) {
             for (const id of sessionIds) {
-              next[id] = workstreamName
+              seeded[id] = workstreamName
             }
           }
-          return next
-        })
-
-        window.localStorage.setItem(DEMO_SEEDED_KEY, 'true')
+          setWorkstreamMap(seeded)
+        }
       })
       .catch(() => {
         // Non-critical: silently ignore if demo endpoint unavailable
