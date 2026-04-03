@@ -10,6 +10,14 @@
 
 <!-- Append learnings below -->
 
+### Rocinante Wireframe Horse Logo (2025-07)
+- **Component:** `RocinanteIcon` — inline SVG in `Header.tsx` (lines ~138-196), placed alongside other micro-icon components (`PulseDot`, `BoardIcon`, etc.).
+- **SVG geometry:** viewBox `0 0 32 32`, rendered at `h-7 w-7`. Horse built from: angular head triangle, ear line, two neck lines, hexagonal body polygon, 3 internal wireframe mesh lines (two diagonals + vertical bisector), 4 polyline legs in galloping pose (front pair reaching forward, back pair pushing), and a 3-point tail polyline.
+- **Glow effect:** CSS `drop-shadow` with neon green `#00ff41`. Pulse animation via `@keyframes rocinante-glow-pulse` (3.5s ease-in-out infinite) embedded in SVG `<style>` block. Alternates between subtle and bright glow intensity.
+- **Styling:** Pure wireframe — `fill="none"`, `stroke="#00ff41"`, `strokeWidth="1.3"`. No background container (removed old `bg-surface-tertiary` rounded-md box). Glow provides visual weight.
+- **Replaced:** The `>_` terminal prompt `<span>` (old lines 168-174) with `<RocinanteIcon />`. Same parent flex layout (`gap-3`) preserved.
+- **Settings panel:** Checked `SettingsPanel.tsx` About section — no references to the old logo style, so no changes needed there.
+
 ### Kanban Board Feature (2025-07)
 - **Architecture:** Replaced `SessionList` with `KanbanBoard` as the left panel in `App.tsx`. `SessionList.tsx` is preserved but no longer imported — can be removed or kept as fallback.
 - **Components:** `src/components/kanban/` contains `KanbanTile.tsx` (draggable card), `KanbanColumn.tsx` (droppable column with sticky header), `KanbanBoard.tsx` (main board with DndContext), `index.ts` (barrel export).
