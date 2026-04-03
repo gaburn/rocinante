@@ -135,52 +135,6 @@ function MoonIcon() {
   )
 }
 
-/** Wireframe horse-head logo — angular chess-knight profile with neon glow. */
-function RocinanteIcon() {
-  return (
-    <svg
-      className="h-8 w-8 rocinante-icon"
-      viewBox="0 0 32 32"
-      fill="none"
-      stroke="#00ff41"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <style>{`
-        .rocinante-icon {
-          filter: drop-shadow(0 0 3px #00ff41) drop-shadow(0 0 6px rgba(0,255,65,0.35));
-          animation: rocinante-glow-pulse 3.5s ease-in-out infinite;
-        }
-        @keyframes rocinante-glow-pulse {
-          0%, 100% {
-            filter: drop-shadow(0 0 2px #00ff41) drop-shadow(0 0 4px rgba(0,255,65,0.25));
-          }
-          50% {
-            filter: drop-shadow(0 0 4px #00ff41) drop-shadow(0 0 10px rgba(0,255,65,0.5));
-          }
-        }
-      `}</style>
-
-      {/* Head outline — angular horse head profile facing right */}
-      <polygon points="4,30 6,22 8,16 10,10 12,5 14,2 17,6 19,9 22,12 26,16 29,18 29,21 26,23 22,25 17,27 12,29 7,30" />
-
-      {/* Mane — angular spikes along the crest of the neck */}
-      <polyline points="10,10 7,6 8,16" />
-      <polyline points="8,16 4,12 6,22" />
-
-      {/* Eye — small filled diamond for contrast */}
-      <polygon points="21,14 22,13 23,14 22,15" fill="#00ff41" />
-
-      {/* Internal wireframe — triangulated mesh lines */}
-      <line x1="14" y1="2" x2="22" y2="25" />
-      <line x1="10" y1="10" x2="29" y2="21" />
-      <line x1="19" y1="9" x2="12" y2="29" />
-    </svg>
-  )
-}
-
 // ---------------------------------------------------------------------------
 // Header
 // ---------------------------------------------------------------------------
@@ -211,8 +165,12 @@ export default function Header() {
     <header className="flex h-14 shrink-0 items-center justify-between border-b border-border-default bg-surface-secondary px-4 select-none">
       {/* ── Left: brand / title ───────────────────────────────────── */}
       <div className="flex items-center gap-3">
-        {/* Rocinante wireframe horse logo */}
-        <RocinanteIcon />
+        {/* Rocinante horse logo */}
+        <img
+          src="/rocinante-logo-green.png"
+          alt="Rocinante"
+          className="h-8 w-8 drop-shadow-[0_0_6px_#00ff41]"
+        />
 
         <div className="flex flex-col justify-center">
           <h1 className="font-mono text-sm font-semibold tracking-wide text-gray-100">
