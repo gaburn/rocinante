@@ -30,3 +30,10 @@
 - **Wiring**: `server/routes/sessions.ts` short-circuits both `GET /api/sessions` and `GET /api/sessions/:id` when `DEMO_MODE === 'true'`. No other routes affected.
 - **Sessions**: 12 sessions across 3 themed workstreams (Storefront UI ×4, Payments API ×3, Mobile App ×3) plus 2 ungrouped. Covers all status types including `blockedReason` and `waitingFor`.
 - **Key files**: `server/services/demoData.ts`, `server/routes/sessions.ts`, `.env.example`.
+
+### Conversation search API (2025-07)
+- **What**: Added `GET /api/sessions/search?q=<query>` endpoint for server-side full-text search over conversation history.
+- **Implementation**: `searchConversations()` in `sqliteReader.ts` uses a two-pass strategy: (1) FTS5 `search_index` table with phrase quoting for multi-word queries, (2) direct `LIKE` search on `turns.user_message` and `turns.assistant_response`. Results are deduplicated by session (first match wins), snippets show ~100 chars around the match.
+- **Route placement**: Search route registered BEFORE `/sessions/:id` to prevent Express matching "search" as an `:id` param. Returns empty array in DEMO_MODE or for queries shorter than 2 chars.
+- **Error handling**: FTS5 failure is silently caught (table may not exist in all DBs), falls through to LIKE search. Turns search errors are logged.
+- **Key files**: `server/services/sqliteReader.ts`, `server/routes/sessions.ts`.
