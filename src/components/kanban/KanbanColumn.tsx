@@ -29,7 +29,7 @@ interface KanbanColumnProps {
   selectedSessionId: string | null;
   onSelectSession: (session: Session) => void;
   onSelectWorkstream?: () => void;
-  onArchiveLikeThis?: (sessionName: string) => void;
+  onArchive?: (sessionId: string) => void;
   isSortable?: boolean;
   conversationSearchResults?: Map<string, ConversationMatch>;
   searchQuery?: string;
@@ -42,7 +42,7 @@ export default function KanbanColumn({
   selectedSessionId,
   onSelectSession,
   onSelectWorkstream,
-  onArchiveLikeThis,
+  onArchive,
   isSortable = false,
   conversationSearchResults,
   searchQuery,
@@ -137,7 +137,7 @@ export default function KanbanColumn({
                 session={session}
                 isSelected={session.id === selectedSessionId}
                 onSelect={onSelectSession}
-                onArchiveLikeThis={onArchiveLikeThis}
+                onArchive={onArchive}
                 conversationMatch={conversationSearchResults?.get(session.id)}
                 searchActive={Boolean(searchQuery?.trim())}
               />

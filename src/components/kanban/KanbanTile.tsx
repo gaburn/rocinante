@@ -14,14 +14,14 @@ interface KanbanTileProps {
   session: Session;
   isSelected: boolean;
   onSelect: (session: Session) => void;
-  onArchiveLikeThis?: (sessionName: string) => void;
+  onArchive?: (sessionId: string) => void;
   conversationMatch?: ConversationMatch;
   searchActive?: boolean;
 }
 
 const PULSING_STATUSES = new Set<SessionStatus>(['active']);
 
-export default function KanbanTile({ session, isSelected, onSelect, onArchiveLikeThis, conversationMatch, searchActive }: KanbanTileProps) {
+export default function KanbanTile({ session, isSelected, onSelect, onArchive, conversationMatch, searchActive }: KanbanTileProps) {
   const {
     attributes,
     listeners,
@@ -109,15 +109,15 @@ export default function KanbanTile({ session, isSelected, onSelect, onArchiveLik
             className="text-fg/20 flex-1"
           />
         )}
-        {/* Archive like this — visible on hover */}
-        {onArchiveLikeThis && (
+        {/* Archive session — visible on hover */}
+        {onArchive && (
           <button
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              onArchiveLikeThis(session.name);
+              onArchive(session.id);
             }}
-            title="Auto-archive sessions with this name"
+            title="Archive this session"
             className="
               ml-auto opacity-0 group-hover:opacity-100
               rounded p-0.5 text-fg/25 transition-all duration-150
@@ -131,7 +131,7 @@ export default function KanbanTile({ session, isSelected, onSelect, onArchiveLik
             </svg>
           </button>
         )}
-        <span className={`${onArchiveLikeThis ? '' : 'ml-auto'} whitespace-nowrap rounded-full bg-surface-tertiary px-1.5 py-0.5 text-[10px] text-fg/40`}>
+        <span className={`${onArchive ? '' : 'ml-auto'} whitespace-nowrap rounded-full bg-surface-tertiary px-1.5 py-0.5 text-[10px] text-fg/40`}>
           {agentCount} {agentCount === 1 ? 'agent' : 'agents'}
         </span>
       </div>

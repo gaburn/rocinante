@@ -270,6 +270,7 @@ export default function SessionDetail() {
     getCustomName,
     setSessionName,
     removeSessionName,
+    autoArchive,
   } = useSessionContext();
   const { settings } = useSettingsContext();
   const { openSessionTerminal, openShellTerminal, hasTab, canOpenTab } = useTerminalContext();
@@ -542,6 +543,40 @@ export default function SessionDetail() {
                         </svg>
                       )}
                       {isArchived(session.id) ? 'Unarchive' : 'Archive'}
+                    </button>
+
+                    {/* Auto-archive sessions like this */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const pattern = session.name.slice(0, 60).trim();
+                        if (pattern) autoArchive.addRule(pattern);
+                      }}
+                      title="Create an auto-archive rule for sessions with this name"
+                      className="
+                        inline-flex items-center gap-1.5
+                        px-2.5 py-1 rounded-md text-xs font-mono
+                        bg-surface-tertiary text-fg/50
+                        hover:bg-surface-hover hover:text-fg/80
+                        transition-colors
+                      "
+                    >
+                      <svg
+                        className="h-3 w-3"
+                        viewBox="0 0 16 16"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <rect x="1.5" y="2" width="13" height="4" rx="0.5" />
+                        <path d="M1.5 6v6.5a1.5 1.5 0 0 0 1.5 1.5h10a1.5 1.5 0 0 0 1.5-1.5V6" />
+                        <path d="M6.5 9h3" />
+                        <circle cx="13" cy="3" r="2.5" fill="currentColor" stroke="none" opacity="0.5" />
+                      </svg>
+                      Auto-archive
                     </button>
                   </div>
                 );

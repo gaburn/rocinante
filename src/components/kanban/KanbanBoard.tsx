@@ -68,6 +68,7 @@ export default function KanbanBoard() {
     showArchived,
     setShowArchived,
     isArchived,
+    archiveSession,
     archiveAllCompleted,
     archivedCount,
     getWorkstream,
@@ -97,14 +98,6 @@ export default function KanbanBoard() {
   );
   const showArchiveControls = archivedCount > 0 || hasCompletedNonArchived;
   const activeRuleCount = autoArchive.rules.filter((r) => r.enabled).length;
-
-  const handleArchiveLikeThis = useCallback((sessionName: string) => {
-    // Use first ~60 chars as the pattern
-    const pattern = sessionName.slice(0, 60).trim();
-    if (pattern) {
-      autoArchive.addRule(pattern);
-    }
-  }, [autoArchive.addRule]);
 
   /* ── Build columns from grouped sessions, respecting persisted order ──────── */
   const columns = useMemo(() => {
@@ -446,7 +439,7 @@ export default function KanbanBoard() {
                         ? () => selectWorkstream(col.name)
                         : undefined
                     }
-                    onArchiveLikeThis={handleArchiveLikeThis}
+                    onArchive={archiveSession}
                     isSortable={col.id !== UNGROUPED_ID && col.name !== 'All Sessions'}
                     conversationSearchResults={conversationSearchResults}
                     searchQuery={searchQuery}
