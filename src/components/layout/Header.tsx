@@ -135,15 +135,15 @@ function MoonIcon() {
   )
 }
 
-/** Wireframe horse logo — geometric Tron-style galloping horse with neon glow. */
+/** Wireframe horse-head logo — angular chess-knight profile with neon glow. */
 function RocinanteIcon() {
   return (
     <svg
-      className="h-7 w-7 rocinante-icon"
+      className="h-8 w-8 rocinante-icon"
       viewBox="0 0 32 32"
       fill="none"
       stroke="#00ff41"
-      strokeWidth="1.3"
+      strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
@@ -163,34 +163,20 @@ function RocinanteIcon() {
         }
       `}</style>
 
-      {/* Head — angular triangle pointing right */}
-      <polygon points="24,4 28,7 25,10" />
+      {/* Head outline — angular horse head profile facing right */}
+      <polygon points="4,30 6,22 8,16 10,10 12,5 14,2 17,6 19,9 22,12 26,16 29,18 29,21 26,23 22,25 17,27 12,29 7,30" />
 
-      {/* Ear */}
-      <line x1="24" y1="4" x2="22" y2="2" />
+      {/* Mane — angular spikes along the crest of the neck */}
+      <polyline points="10,10 7,6 8,16" />
+      <polyline points="8,16 4,12 6,22" />
 
-      {/* Neck — two lines connecting head to body */}
-      <line x1="24" y1="4" x2="16" y2="8" />
-      <line x1="25" y1="10" x2="19" y2="14" />
+      {/* Eye — small filled diamond for contrast */}
+      <polygon points="21,14 22,13 23,14 22,15" fill="#00ff41" />
 
-      {/* Body — angular hexagon (withers → back → hip → belly → chest) */}
-      <polygon points="16,8 7,9 6,13 7,17 18,17 19,14" />
-
-      {/* Internal wireframe mesh — triangulation lines */}
-      <line x1="16" y1="8" x2="7" y2="17" />
-      <line x1="7" y1="9" x2="18" y2="17" />
-      <line x1="12" y1="8.5" x2="12" y2="17" />
-
-      {/* Front legs — reaching forward in gallop */}
-      <polyline points="18,17 22,22 25,28" />
-      <polyline points="15,17 14,23 15,28" />
-
-      {/* Back legs — pushing off */}
-      <polyline points="8,17 4,22 2,28" />
-      <polyline points="10,17 11,23 12,28" />
-
-      {/* Tail — streaming behind */}
-      <polyline points="7,9 4,6 2,4" />
+      {/* Internal wireframe — triangulated mesh lines */}
+      <line x1="14" y1="2" x2="22" y2="25" />
+      <line x1="10" y1="10" x2="29" y2="21" />
+      <line x1="19" y1="9" x2="12" y2="29" />
     </svg>
   )
 }
