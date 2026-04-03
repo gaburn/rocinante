@@ -20,6 +20,13 @@ export interface PaneVisibility {
   sessionPlan: boolean;
 }
 
+export interface AutoArchiveRule {
+  id: string;
+  pattern: string;
+  enabled: boolean;
+  createdAt: string;
+}
+
 export interface DisplaySettings {
   refreshInterval: RefreshInterval;
   defaultViewMode: 'list' | 'network';
@@ -31,6 +38,7 @@ export interface DisplaySettings {
   terminalFontSize: number; // default 13
   customShellPath: string;
   paneVisibility: PaneVisibility;
+  autoArchiveRules: AutoArchiveRule[];
 }
 
 export interface DataSettings {
@@ -72,6 +80,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
       eventTimeline: true,
       sessionPlan: true,
     },
+    autoArchiveRules: [],
   },
   data: {
     sessionStateDir: '', // empty = use server default

@@ -7,6 +7,7 @@ import {
 import { useSettingsContext } from '../context/SettingsContext'
 import type { Session, SessionStatus, StatusCounts } from '../types'
 import { useArchive } from './useArchive'
+import { useAutoArchive, type UseAutoArchiveResult } from './useAutoArchive'
 import { useSessionNames } from './useSessionNames'
 import { useWorkstreams } from './useWorkstreams'
 
@@ -66,11 +67,14 @@ export interface UseSessionsResult {
   groupedSessions: { groups: SessionGroup[]; ungrouped: Session[] }
   conversationSearchResults: Map<string, ConversationMatch>
   isSearchingConversations: boolean
+  // Auto-archive rules
+  autoArchive: UseAutoArchiveResult
 }
 
 export function useSessions(): UseSessionsResult {
   const { settings } = useSettingsContext()
   const archive = useArchive()
+  const autoArchive = useAutoArchive()
   const sessionNames = useSessionNames()
   const workstreams = useWorkstreams()
   const [allSessions, setAllSessions] = useState<Session[]>([])
@@ -118,6 +122,17 @@ export function useSessions(): UseSessionsResult {
       return customName ? { ...session, name: customName } : session
     })
   }, [allSessions, sessionNames.nameMap, sessionNames.getCustomName])
+
+  // Auto-archive: apply rules to newly loaded sessions
+  useEffect(() => {
+    if (autoArchive.rules.length === 0 || sessionsWithNames.length === 0) return
+    const toArchive = autoArchive
+      .getMatchingSessionIds(sessionsWithNames)
+      .filter((id) => !archive.isArchived(id))
+    if (toArchive.length > 0) {
+      archive.archiveByIds(toArchive)
+    }
+  }, [sessionsWithNames, autoArchive.rules, archive.isArchived, archive.archiveByIds, autoArchive.getMatchingSessionIds])
 
   useEffect(() => {
     void loadSessions()
@@ -425,5 +440,6 @@ export function useSessions(): UseSessionsResult {
     groupedSessions,
     conversationSearchResults,
     isSearchingConversations,
+    autoArchive,
   }
 }

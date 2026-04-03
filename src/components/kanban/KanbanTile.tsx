@@ -14,13 +14,14 @@ interface KanbanTileProps {
   session: Session;
   isSelected: boolean;
   onSelect: (session: Session) => void;
+  onArchiveLikeThis?: (sessionName: string) => void;
   conversationMatch?: ConversationMatch;
   searchActive?: boolean;
 }
 
 const PULSING_STATUSES = new Set<SessionStatus>(['active']);
 
-export default function KanbanTile({ session, isSelected, onSelect, conversationMatch, searchActive }: KanbanTileProps) {
+export default function KanbanTile({ session, isSelected, onSelect, onArchiveLikeThis, conversationMatch, searchActive }: KanbanTileProps) {
   const {
     attributes,
     listeners,
@@ -108,7 +109,28 @@ export default function KanbanTile({ session, isSelected, onSelect, conversation
             className="text-fg/20 flex-1"
           />
         )}
-        <span className="ml-auto whitespace-nowrap rounded-full bg-surface-tertiary px-1.5 py-0.5 text-[10px] text-fg/40">
+        {/* Archive like this — visible on hover */}
+        {onArchiveLikeThis && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onArchiveLikeThis(session.name);
+            }}
+            title="Auto-archive sessions with this name"
+            className="
+              ml-auto opacity-0 group-hover:opacity-100
+              rounded p-0.5 text-fg/25 transition-all duration-150
+              hover:text-amber-400 cursor-pointer
+            "
+          >
+            <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M18.36 6.64a9 9 0 1 1-12.73 0" />
+              <line x1="12" y1="2" x2="12" y2="12" />
+            </svg>
+          </button>
+        )}
+        <span className={`${onArchiveLikeThis ? '' : 'ml-auto'} whitespace-nowrap rounded-full bg-surface-tertiary px-1.5 py-0.5 text-[10px] text-fg/40`}>
           {agentCount} {agentCount === 1 ? 'agent' : 'agents'}
         </span>
       </div>

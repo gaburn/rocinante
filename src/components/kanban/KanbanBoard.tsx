@@ -78,6 +78,7 @@ export default function KanbanBoard() {
     groupedSessions,
     conversationSearchResults,
     isSearchingConversations,
+    autoArchive,
   } = useSessionContext();
 
   const { reorderColumns, getOrderedNames } = useColumnOrder();
@@ -95,6 +96,15 @@ export default function KanbanBoard() {
     (s) => s.status === 'completed' && !isArchived(s.id),
   );
   const showArchiveControls = archivedCount > 0 || hasCompletedNonArchived;
+  const activeRuleCount = autoArchive.rules.filter((r) => r.enabled).length;
+
+  const handleArchiveLikeThis = useCallback((sessionName: string) => {
+    // Use first ~60 chars as the pattern
+    const pattern = sessionName.slice(0, 60).trim();
+    if (pattern) {
+      autoArchive.addRule(pattern);
+    }
+  }, [autoArchive.addRule]);
 
   /* ── Build columns from grouped sessions, respecting persisted order ──────── */
   const columns = useMemo(() => {
@@ -386,6 +396,16 @@ export default function KanbanBoard() {
         </div>
       )}
 
+      {/* ── Auto-archive rules indicator ── */}
+      {activeRuleCount > 0 && (
+        <div className="flex shrink-0 items-center border-b border-border-default/60 px-3 py-1 text-xs">
+          <span className="flex items-center gap-1.5 text-fg/35" title="Auto-archive rules are filtering sessions">
+            <span aria-hidden="true">🔕</span>
+            <span>{activeRuleCount} auto-archive {activeRuleCount === 1 ? 'rule' : 'rules'} active</span>
+          </span>
+        </div>
+      )}
+
       {/* ── Board area ── */}
       <div className="flex-1 overflow-hidden min-h-0">
         {showSkeletons ? (
@@ -426,6 +446,7 @@ export default function KanbanBoard() {
                         ? () => selectWorkstream(col.name)
                         : undefined
                     }
+                    onArchiveLikeThis={handleArchiveLikeThis}
                     isSortable={col.id !== UNGROUPED_ID && col.name !== 'All Sessions'}
                     conversationSearchResults={conversationSearchResults}
                     searchQuery={searchQuery}

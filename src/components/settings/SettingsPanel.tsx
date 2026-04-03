@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSettingsContext } from '../../context/SettingsContext';
+import { useSessionContext } from '../../context/SessionContext';
 import packageJson from '../../../package.json';
 import { updateAdoConfig, testAdoConnection, getAdoStatus } from '../../services/adoService';
 import type {
@@ -584,6 +585,9 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
     serverSyncError,
   } = useSettingsContext();
 
+  const { autoArchive } = useSessionContext();
+  const [newRulePattern, setNewRulePattern] = useState('');
+
   /* ── Reset confirmation guard ────────────────────────── */
   const [confirmReset, setConfirmReset] = useState(false);
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1004,6 +1008,120 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                 />
               </FieldStack>
             )}
+          </Section>
+
+          {/* ━━━━━━━━━━ Section: Auto-Archive Rules ━━━━━━━━━━━━━━━ */}
+          <Section title="Auto-Archive Rules">
+            <div className="space-y-3">
+              <p className="text-xs text-fg/40">
+                Sessions whose name contains a rule pattern will be automatically archived.
+              </p>
+
+              {/* Add new rule */}
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newRulePattern}
+                  onChange={(e) => setNewRulePattern(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && newRulePattern.trim()) {
+                      autoArchive.addRule(newRulePattern.trim());
+                      setNewRulePattern('');
+                    }
+                  }}
+                  placeholder="Enter name pattern…"
+                  aria-label="Auto-archive rule pattern"
+                  className="
+                    flex-1 bg-surface-tertiary border border-border-default rounded-md
+                    px-3 py-1.5 text-sm text-fg/80 placeholder:text-fg/20
+                    transition-colors duration-150 hover:border-fg/20
+                    focus-visible:outline-none focus-visible:ring-2
+                    focus-visible:ring-border-active focus-visible:ring-offset-1
+                    focus-visible:ring-offset-surface-secondary
+                  "
+                />
+                <button
+                  type="button"
+                  disabled={!newRulePattern.trim()}
+                  onClick={() => {
+                    if (newRulePattern.trim()) {
+                      autoArchive.addRule(newRulePattern.trim());
+                      setNewRulePattern('');
+                    }
+                  }}
+                  className="
+                    shrink-0 rounded-md bg-border-active/20 px-3 py-1.5 text-xs
+                    font-medium text-border-active transition-colors duration-150
+                    enabled:hover:bg-border-active/30 enabled:cursor-pointer
+                    disabled:opacity-40 disabled:cursor-not-allowed
+                  "
+                >
+                  Add Rule
+                </button>
+              </div>
+
+              {/* Rule list */}
+              {autoArchive.rules.length === 0 ? (
+                <p className="py-2 text-center text-xs text-fg/25 italic">
+                  No rules configured
+                </p>
+              ) : (
+                <ul className="space-y-1.5">
+                  {autoArchive.rules.map((rule) => (
+                    <li
+                      key={rule.id}
+                      className="flex items-center gap-2 rounded-md bg-surface-tertiary/50 px-3 py-2"
+                    >
+                      {/* Enable/disable toggle */}
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={rule.enabled}
+                        aria-label={`${rule.enabled ? 'Disable' : 'Enable'} rule: ${rule.pattern}`}
+                        onClick={() => autoArchive.toggleRule(rule.id)}
+                        className={`
+                          relative inline-flex h-[14px] w-[24px] shrink-0 cursor-pointer items-center
+                          rounded-full transition-colors duration-200 ease-in-out
+                          ${rule.enabled ? 'bg-border-active' : 'bg-surface-tertiary'}
+                        `}
+                      >
+                        <span
+                          aria-hidden="true"
+                          className={`
+                            pointer-events-none inline-block h-[8px] w-[8px] rounded-full bg-fg/80
+                            shadow-sm transition-transform duration-200 ease-in-out
+                            ${rule.enabled ? 'translate-x-[12px]' : 'translate-x-[3px]'}
+                          `}
+                        />
+                      </button>
+
+                      {/* Pattern text */}
+                      <span
+                        className={`flex-1 truncate font-mono text-xs ${
+                          rule.enabled ? 'text-fg/70' : 'text-fg/30 line-through'
+                        }`}
+                        title={rule.pattern}
+                      >
+                        {rule.pattern}
+                      </span>
+
+                      {/* Delete button */}
+                      <button
+                        type="button"
+                        onClick={() => autoArchive.removeRule(rule.id)}
+                        className="shrink-0 rounded p-0.5 text-fg/25 transition-colors hover:text-red-400 cursor-pointer"
+                        aria-label={`Remove rule: ${rule.pattern}`}
+                      >
+                        <svg className="h-3 w-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                          <line x1="4" y1="4" x2="12" y2="12" />
+                          <line x1="12" y1="4" x2="4" y2="12" />
+                        </svg>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </Section>
 
           {/* ━━━━━━━━━━ Section 2: Data ━━━━━━━━━━━━━━━ */}
