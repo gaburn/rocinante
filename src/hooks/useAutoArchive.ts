@@ -40,7 +40,7 @@ export interface UseAutoArchiveResult {
   removeRule: (id: string) => void
   toggleRule: (id: string) => void
   matchesAnyRule: (sessionName: string) => boolean
-  getMatchingSessionIds: (sessions: { id: string; name: string }[]) => string[]
+  getMatchingSessionIds: (sessions: { id: string; name: string; lastActivityAt: string }[]) => string[]
 }
 
 export function useAutoArchive(): UseAutoArchiveResult {

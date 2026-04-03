@@ -52,7 +52,25 @@ function hasToolRequests(event: ParsedEvent): boolean {
   return Array.isArray(toolRequests) && toolRequests.length > 0;
 }
 
+function isUserCancellation(event: ParsedEvent): boolean {
+  const type = event.type.toLowerCase();
+  if (type.includes('cancel')) return true;
+
+  const data = getEventData(event);
+  if (!data) return false;
+
+  for (const field of [data.message, data.reason, data.error]) {
+    if (typeof field === 'string' && field.toLowerCase().includes('cancelled by user')) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function isErrorLikeEvent(event: ParsedEvent): boolean {
+  // User cancellations are intentional, not errors
+  if (isUserCancellation(event)) return false;
+
   const type = event.type.toLowerCase();
   if (type.includes('error') || type.includes('failed')) {
     return true;
@@ -193,15 +211,21 @@ export function deriveSessionStatus(
     };
   }
 
-  // 2. Blocked (error-like/failure-like signal in the newest events)
+  // 2. Blocked (error-like/failure-like signal — only if the error IS the most recent meaningful event)
+  const lastMeaningful = getLastMeaningfulEvent(sortedEvents);
   const mostRecentErrorEvent = sortedEvents.find(isErrorLikeEvent);
-  if (mostRecentErrorEvent) {
-    return {
-      status: 'blocked',
-      lastActivityAt: mostRecentTimestamp,
-      blockedReason: getBlockedReason(mostRecentErrorEvent),
-      errorDetails: collectErrorDetails(events),
-    };
+  if (mostRecentErrorEvent && lastMeaningful) {
+    const errorTime = toEpochMs(getEventTimestamp(mostRecentErrorEvent));
+    const lastMeaningfulTime = toEpochMs(getEventTimestamp(lastMeaningful));
+    // Only blocked if the error is the most recent meaningful event (or newer)
+    if (errorTime >= lastMeaningfulTime) {
+      return {
+        status: 'blocked',
+        lastActivityAt: mostRecentTimestamp,
+        blockedReason: getBlockedReason(mostRecentErrorEvent),
+        errorDetails: collectErrorDetails(events),
+      };
+    }
   }
 
   const fresh = isWithinThreshold(mostRecentTimestamp);
@@ -228,11 +252,10 @@ export function deriveSessionStatus(
 
   // 4. Waiting (fresh but assistant appears to have finished its turn)
   if (fresh) {
-    const lastMeaningfulEvent = getLastMeaningfulEvent(sortedEvents);
     const isAssistantMessageWithoutToolRequests =
       normalizedRecentType === 'assistant.message' && !hasToolRequests(mostRecentEvent);
     const hasWaitingSignal =
-      (lastMeaningfulEvent !== null && isWaitingSignalEvent(lastMeaningfulEvent)) ||
+      (lastMeaningful !== null && isWaitingSignalEvent(lastMeaningful)) ||
       isAssistantMessageWithoutToolRequests;
 
     if (hasWaitingSignal) {
