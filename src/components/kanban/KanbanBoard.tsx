@@ -73,6 +73,7 @@ export default function KanbanBoard() {
     getWorkstream,
     setWorkstream,
     removeWorkstream,
+    autoGroupByRepository,
     hasAnyWorkstreams,
     groupedSessions,
   } = useSessionContext();
@@ -269,8 +270,39 @@ export default function KanbanBoard() {
           ) : null}
         </div>
 
-        <div className="rounded-lg bg-surface-secondary">
-          <StatusFilter />
+        <div className="flex items-center gap-2">
+          <div className="flex-1 rounded-lg bg-surface-secondary">
+            <StatusFilter />
+          </div>
+
+          <button
+            type="button"
+            title="Auto-group sessions by repository"
+            onClick={autoGroupByRepository}
+            className="
+              inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border-default
+              bg-surface-secondary px-2.5 py-1.5 text-xs text-fg/55
+              transition-colors duration-150
+              hover:border-border-active hover:text-fg/80
+            "
+          >
+            <svg
+              aria-hidden="true"
+              className="h-3.5 w-3.5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <rect x="3" y="3" width="7" height="7" rx="1" />
+              <rect x="14" y="3" width="7" height="7" rx="1" />
+              <rect x="3" y="14" width="7" height="7" rx="1" />
+              <rect x="14" y="14" width="7" height="7" rx="1" />
+            </svg>
+            Auto-group
+          </button>
         </div>
       </div>
 

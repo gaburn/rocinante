@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useWorkstreamMeta } from './useWorkstreamMeta'
+import type { Session } from '../types'
 
 const WORKSTREAM_STORAGE_KEY = 'rocinante-workstreams'
 const DEMO_WORKSTREAM_STORAGE_KEY = 'rocinante-workstreams-demo'
@@ -29,6 +30,14 @@ function loadWorkstreamMap(key: string): Record<string, string> {
   }
 }
 
+/** Extract a short display name from a repository string (last path segment). */
+function repoDisplayName(repo: string): string {
+  const trimmed = repo.trim().replace(/\/+$/, '')
+  if (!trimmed) return repo
+  const segments = trimmed.split('/')
+  return segments[segments.length - 1] || repo
+}
+
 export interface UseWorkstreamsResult {
   getWorkstream: (sessionId: string) => string | null
   setWorkstream: (sessionId: string, name: string) => void
@@ -40,6 +49,7 @@ export interface UseWorkstreamsResult {
   renameWorkstream: (oldName: string, newName: string) => void
   deleteWorkstream: (name: string) => void
   pruneStaleIds: (activeIds: string[]) => void
+  autoGroupByRepository: (sessions: Session[]) => void
   hasAnyWorkstreams: boolean
   workstreamMap: Readonly<Record<string, string>>
   metaMap: Readonly<Record<string, { description: string }>>
@@ -206,6 +216,27 @@ export function useWorkstreams(): UseWorkstreamsResult {
     })
   }, [])
 
+  const autoGroupByRepository = useCallback((sessions: Session[]) => {
+    setWorkstreamMap((current) => {
+      const next = { ...current }
+      let changed = false
+
+      for (const session of sessions) {
+        // Skip sessions that already have a workstream assignment
+        if (next[session.id]) continue
+
+        const repo = session.repository
+        if (!repo || !repo.trim()) continue
+
+        const name = repoDisplayName(repo)
+        next[session.id] = name
+        changed = true
+      }
+
+      return changed ? next : current
+    })
+  }, [])
+
   const hasAnyWorkstreams = useMemo(() => {
     return Object.keys(workstreamMap).length > 0
   }, [workstreamMap])
@@ -221,6 +252,7 @@ export function useWorkstreams(): UseWorkstreamsResult {
     renameWorkstream,
     deleteWorkstream,
     pruneStaleIds,
+    autoGroupByRepository,
     hasAnyWorkstreams,
     workstreamMap,
     metaMap: meta.metaMap,

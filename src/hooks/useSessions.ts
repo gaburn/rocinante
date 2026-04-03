@@ -56,6 +56,7 @@ export interface UseSessionsResult {
   deleteWorkstream: (name: string) => void
   setWorkstreamDescription: (workstreamName: string, description: string) => void
   removeWorkstreamDescription: (workstreamName: string) => void
+  autoGroupByRepository: () => void
   hasAnyWorkstreams: boolean
   groupedSessions: { groups: SessionGroup[]; ungrouped: Session[] }
 }
@@ -304,6 +305,10 @@ export function useSessions(): UseSessionsResult {
     setAutoRefreshEnabled((enabled) => !enabled)
   }, [])
 
+  const handleAutoGroupByRepository = useCallback(() => {
+    workstreams.autoGroupByRepository(allSessions)
+  }, [workstreams.autoGroupByRepository, allSessions])
+
   return {
     sessions,
     allSessions: sessionsWithNames,
@@ -343,6 +348,7 @@ export function useSessions(): UseSessionsResult {
     deleteWorkstream: workstreams.deleteWorkstream,
     setWorkstreamDescription: workstreams.setDescription,
     removeWorkstreamDescription: workstreams.removeDescription,
+    autoGroupByRepository: handleAutoGroupByRepository,
     hasAnyWorkstreams: workstreams.hasAnyWorkstreams,
     groupedSessions,
   }
