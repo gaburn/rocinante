@@ -582,6 +582,9 @@ export default function SessionDetail() {
           </div>
 
           {/* Latest user message — full text, never truncated */}
+          <h3 className="font-mono text-[11px] font-medium uppercase tracking-widest text-fg/25">
+            Latest Prompt
+          </h3>
           <div className="rounded-lg border-l-2 border-border-active bg-surface-secondary px-3.5 py-3">
             <p className="text-sm leading-relaxed text-fg/70">
               {session.latestUserMessage || session.intent}
