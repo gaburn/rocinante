@@ -6,6 +6,8 @@ A real-time dashboard for organizing agentic coding sessions into workstreams an
 
 Named after the ship from *The Expanse*, which was named after Don Quixote's horse.
 
+![Rocinante Dashboard](screenshot.png)
+
 ---
 
 ## Features
