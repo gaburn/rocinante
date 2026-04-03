@@ -46,7 +46,7 @@ export default function Layout({
             /* Mobile: single column, session list gets ~40 vh */
             "grid-cols-1 grid-rows-[40vh_1fr]",
             /* Desktop: side-by-side, kanban board fills remaining space, detail panel is fixed */
-            "md:grid-cols-[minmax(0,1fr)_420px] md:grid-rows-[1fr]",
+            "md:grid-cols-[minmax(0,1fr)_480px] md:grid-rows-[1fr]",
           ].join(" ")}
         >
           {/* ── Left panel: kanban board ── */}
