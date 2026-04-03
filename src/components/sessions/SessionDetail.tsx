@@ -589,6 +589,13 @@ export default function SessionDetail() {
             {session.id}
           </p>
 
+          {/* Repo path */}
+          {session.cwd && (
+            <p className="font-mono text-[11px] leading-none text-fg/25 select-all truncate" title={session.cwd}>
+              📂 {session.cwd}
+            </p>
+          )}
+
           {/* Metadata row */}
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-xs tabular-nums text-fg/35">
             <span>Started {formatRelativeTime(session.startedAt)}</span>

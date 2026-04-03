@@ -76,6 +76,13 @@ export default function KanbanTile({ session, isSelected, onSelect, onArchive, c
         </span>
       </div>
 
+      {/* Row 1.5: repo path */}
+      {session.cwd && (
+        <p className="mt-0.5 truncate font-mono text-[10px] text-fg/25" title={session.cwd}>
+          {session.cwd}
+        </p>
+      )}
+
       {/* Row 2: latest user request */}
       <p className="mt-1 text-xs leading-relaxed text-fg/45 line-clamp-2">
         {session.latestUserMessage ?? session.intent}
