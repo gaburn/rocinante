@@ -68,3 +68,10 @@
 - **KanbanBoard:** Shows spinner with "Searching conversations…" while API is in flight. Shows "💬 N conversation matches" badge when results arrive. Passes `conversationSearchResults` and `searchQuery` through `KanbanColumn` to `KanbanTile`.
 - **KanbanTile:** New optional `conversationMatch` and `searchActive` props. When both present, renders snippet in `bg-amber-500/10` rounded box with 💬 prefix, `text-[10px]`, `line-clamp-2`. Placed between assistant updates and meta row.
 - **Props chain:** `useSessions` → `SessionContext` → `KanbanBoard` → `KanbanColumn` (new optional props) → `KanbanTile` (new optional props). No breaking changes to existing call sites.
+
+### Session ID Search (2026-04)
+- **Location:** `src/hooks/useSessions.ts`, lines 231-237 — the `searchQuery` filter inside the `sessions` useMemo.
+- **Change:** Added `s.id.toLowerCase().includes(query)` as the first condition in the filter chain, before name/intent/conversation checks.
+- **Behavior:** Case-insensitive partial match on `session.id`. Typing a UUID fragment (e.g. `1828`) finds sessions whose ID contains that substring. Same priority as name/intent — no separate category.
+- **Pattern:** All local search fields (id, name, intent) use `.toLowerCase().includes(query)`. Conversation search is async via API (`conversationSearchResults.has(s.id)`).
+- **Outcome:** Build and lint clean. Feature enables quick session lookup by ID substring. No performance impact on existing searches.
