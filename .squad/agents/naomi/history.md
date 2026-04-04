@@ -10,6 +10,14 @@
 
 <!-- Append learnings below -->
 
+### Amber Glow Animation for Waiting Sessions (2025-07)
+- **Purpose:** Visual indicator for sessions with `status === 'waiting'` that need user input (questions/choices).
+- **CSS Animation:** `@keyframes glow-amber` pulses box-shadow between `rgba(245, 158, 11, 0.15)` and `rgba(245, 158, 11, 0.3)`, 2s ease-in-out infinite. Utility class `.animate-glow-amber` applies animation.
+- **Applied to:** KanbanTile button, SessionCard button, SessionDetail waiting banner — but only when NOT selected (selection state is already visually distinct).
+- **Pulsing status dots:** Added `'waiting'` to PULSING_STATUSES in KanbanTile (line 22), StatusBadge (line 15).
+- **Enhanced waiting banner:** SessionDetail now shows `waitingQuestion` text + `waitingChoices` as amber pill badges when available. Falls back to legacy `waitingFor` display. Banner itself glows.
+- **Design principle:** Subtle amber glow draws attention without distraction. Works on both dark and light modes (rgba values compatible).
+
 ### Rocinante Wireframe Horse Logo (2025-07)
 - **Component:** `RocinanteIcon` — inline SVG in `Header.tsx` (lines ~138-196), placed alongside other micro-icon components (`PulseDot`, `BoardIcon`, etc.).
 - **SVG geometry:** viewBox `0 0 32 32`, rendered at `h-7 w-7`. Horse built from: angular head triangle, ear line, two neck lines, hexagonal body polygon, 3 internal wireframe mesh lines (two diagonals + vertical bisector), 4 polyline legs in galloping pose (front pair reaching forward, back pair pushing), and a 3-point tail polyline.

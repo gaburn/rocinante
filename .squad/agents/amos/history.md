@@ -37,3 +37,11 @@
 - **Route placement**: Search route registered BEFORE `/sessions/:id` to prevent Express matching "search" as an `:id` param. Returns empty array in DEMO_MODE or for queries shorter than 2 chars.
 - **Error handling**: FTS5 failure is silently caught (table may not exist in all DBs), falls through to LIKE search. Turns search errors are logged.
 - **Key files**: `server/services/sqliteReader.ts`, `server/routes/sessions.ts`.
+
+### ask_user tool detection (2025-07)
+- **What**: Sessions now detect when the assistant is waiting on an `ask_user` tool call and expose the question text and choices to the frontend.
+- **Type schema**: Added `waitingQuestion?: string` and `waitingChoices?: string[]` to both `Session` interface (`src/types/index.ts`) and `DerivedStatus` interface (`server/services/statusDeriver.ts`).
+- **Detection logic**: New `getAskUserRequest()` helper in `statusDeriver.ts` inspects `toolRequests` array for items with `name`, `toolName`, or `tool_name` matching `ask_user` (normalized to handle `askUser`, `ask-user` variants). Extracts `question` and `choices` from tool parameters (checks `parameters`, `arguments`, `args`, `input` fields for robustness across Copilot versions).
+- **Status classification**: `ask_user` tool requests are NOT classified as active (they're waiting for user input). In the active-detection step, ask_user calls are filtered out. In the waiting-detection step, ask_user is detected early and sets `waitingFor: 'user input'` plus the extracted question/choices.
+- **Data flow**: `statusDeriver.ts` populates `waitingQuestion`/`waitingChoices` → `sessionMapper.ts` passes them through to the `Session` object → frontend can now display the specific question the assistant is asking.
+- **Key files**: `src/types/index.ts`, `server/services/statusDeriver.ts`, `server/services/sessionMapper.ts`.
