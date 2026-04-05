@@ -75,3 +75,10 @@
 - **Behavior:** Case-insensitive partial match on `session.id`. Typing a UUID fragment (e.g. `1828`) finds sessions whose ID contains that substring. Same priority as name/intent — no separate category.
 - **Pattern:** All local search fields (id, name, intent) use `.toLowerCase().includes(query)`. Conversation search is async via API (`conversationSearchResults.has(s.id)`).
 - **Outcome:** Build and lint clean. Feature enables quick session lookup by ID substring. No performance impact on existing searches.
+
+### Question Mark Icon for Waiting Sessions (2025-07)
+- **Purpose:** Adds a visible `?` icon on session tiles when `status === 'waiting'`, complementing the subtle amber glow animation with a clear visual indicator.
+- **KanbanTile:** Small amber circle (`size-4 rounded-full bg-amber-500/20 text-amber-400 text-[10px] font-bold`) placed inline in Row 1 between the status dot and session name. Includes `title` and `aria-label` for accessibility.
+- **SessionCard:** Same amber circle element placed in the top row between the session name and `StatusBadge`. Wrapped name + icon in a flex container to preserve `justify-between` layout with the badge.
+- **Conditional:** Only rendered when `session.status === 'waiting'`. No new props or dependencies added.
+- **Outcome:** Build (`tsc --noEmit`) and lint (`eslint`) both clean. Icon is small but unmissable — pairs with the pulsing dot and glow to make waiting sessions obvious.

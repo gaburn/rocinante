@@ -45,3 +45,16 @@
 - **Status classification**: `ask_user` tool requests are NOT classified as active (they're waiting for user input). In the active-detection step, ask_user calls are filtered out. In the waiting-detection step, ask_user is detected early and sets `waitingFor: 'user input'` plus the extracted question/choices.
 - **Data flow**: `statusDeriver.ts` populates `waitingQuestion`/`waitingChoices` → `sessionMapper.ts` passes them through to the `Session` object → frontend can now display the specific question the assistant is asking.
 - **Key files**: `src/types/index.ts`, `server/services/statusDeriver.ts`, `server/services/sessionMapper.ts`.
+
+### ask_user tool execution bypass fix (2025-07)
+- **Bug**: When `ask_user` is pending, subsequent `tool.execution_start`/`tool.execution_complete` events for `ask_user` (and `report_intent`) caused `hasRecentExecutionActivity` to return `true`, misclassifying sessions as `active` instead of `waiting`.
+- **Root cause**: The active-detection `sortedEvents.some()` matched `tool.execution_start` and `tool.execution_complete` by type alone, without checking whether the tool was `ask_user`.
+- **Fix**: Added `isAskUserToolExecution()` helper that reads `data.toolName` / `data.tool_name` / `data.name` from execution events and normalizes the name. In the active-detection callback, `tool.execution_start` and `tool.execution_complete` events for `ask_user` now return `false`. In waiting detection (step 4), a new block checks if the last meaningful event is a `tool.execution_start`/`tool.execution_complete` for `ask_user` and classifies as `waiting`.
+- **Question extraction**: Added `getToolCallId()` and `findAskUserFromToolExecution()` helpers to trace back from a tool execution event to its parent `assistant.message` event via matching `toolCallId`, extracting `question`/`choices` from the original tool request parameters.
+- **Key files**: `server/services/statusDeriver.ts`.
+
+### assistantUpdates toolRequests filter fix (2025-07)
+- **Bug**: `extractAssistantUpdates()` in `sessionMapper.ts` skipped `assistant.message` events that had both `content` and `toolRequests`. The coordinator often sends user-facing text AND tool calls in the same message, so these were dropped — leaving only sub-agent result messages (pure text, no toolRequests) as the visible updates.
+- **Fix**: Removed the `toolRequests` skip filter. Now all `assistant.message` events with non-empty `content` are included, regardless of whether they also carry `toolRequests`. The `content` field is always the user-facing text.
+- **Verification**: Confirmed `tool.execution_complete` events are not referenced in this function, so sub-agent raw results cannot leak into updates.
+- **Key files**: `server/services/sessionMapper.ts`.
