@@ -56,6 +56,8 @@ export interface Session {
   rootAgent: SubAgent;
   blockedReason?: string;
   waitingFor?: string;
+  waitingQuestion?: string;
+  waitingChoices?: string[];
   cwd?: string | null;
   repository?: string | null;
   branch?: string | null;

@@ -1,0 +1,283 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - img "Rocinante" [ref=e6]
+        - generic [ref=e7]:
+          - heading "Rocinante" [level=1] [ref=e8]
+          - generic [ref=e9]: workhorse for workstreams
+      - generic [ref=e10]:
+        - generic [ref=e11]:
+          - button "Board View" [pressed] [ref=e12]:
+            - img [ref=e13]
+          - button "Network view" [ref=e17]:
+            - img [ref=e18]
+        - button "Settings" [ref=e24]:
+          - img [ref=e25]
+        - button "Switch to light mode" [ref=e29]:
+          - img [ref=e30]
+        - 'button "Toggle terminal (Ctrl+`)" [ref=e37]':
+          - img [ref=e38]
+        - button "Auto-refresh:ON 30s" [pressed] [ref=e42]:
+          - generic [ref=e46]: Auto-refresh:ON
+          - generic [ref=e47]: 30s
+        - button "Refreshing…" [disabled]:
+          - img
+          - generic: Refreshing…
+    - generic [ref=e49]:
+      - complementary [ref=e50]:
+        - generic [ref=e52]:
+          - 'status "0 sessions: 0 Active, 0 Blocked, 0 Waiting, 0 Done" [ref=e53]':
+            - generic [ref=e54]:
+              - generic [ref=e55]: "0"
+              - generic [ref=e56]: Workstreams
+            - generic [ref=e58]:
+              - generic [ref=e59]: "0"
+              - generic [ref=e60]: Sessions
+            - generic [ref=e62]:
+              - generic [ref=e63]:
+                - generic [ref=e65]: "0"
+                - generic [ref=e66]: Active
+              - generic [ref=e67]:
+                - generic [ref=e68]: ·
+                - generic [ref=e70]: "0"
+                - generic [ref=e71]: Blocked
+              - generic [ref=e72]:
+                - generic [ref=e73]: ·
+                - generic [ref=e75]: "0"
+                - generic [ref=e76]: Waiting
+              - generic [ref=e77]:
+                - generic [ref=e78]: ·
+                - generic [ref=e80]: "0"
+                - generic [ref=e81]: Done
+          - generic [ref=e82]:
+            - img
+            - textbox "Search sessions…" [ref=e83]
+          - generic [ref=e84]:
+            - tablist "Filter sessions by status" [ref=e86]:
+              - 'tab "All: 0 sessions" [selected] [ref=e87] [cursor=pointer]':
+                - text: All
+                - generic [ref=e88]: (0)
+              - 'tab "Active: 0 sessions" [ref=e89] [cursor=pointer]':
+                - text: Active
+                - generic [ref=e90]: (0)
+              - 'tab "Blocked: 0 sessions" [ref=e91] [cursor=pointer]':
+                - text: Blocked
+                - generic [ref=e92]: (0)
+              - 'tab "Waiting: 0 sessions" [ref=e93] [cursor=pointer]':
+                - text: Waiting
+                - generic [ref=e94]: (0)
+              - 'tab "Completed: 0 sessions" [ref=e95] [cursor=pointer]':
+                - text: Completed
+                - generic [ref=e96]: (0)
+            - button "Auto-group" [ref=e97]:
+              - img [ref=e98]
+              - text: Auto-group
+      - separator "Resize detail panel" [ref=e109]
+      - main [ref=e111]:
+        - generic [ref=e113]:
+          - img [ref=e115]
+          - generic [ref=e117]:
+            - paragraph [ref=e118]: Select a session to view details
+            - paragraph [ref=e119]: Choose a session from the list to inspect its agents, progress, and activity.
+  - dialog "Settings" [ref=e120]:
+    - generic [ref=e121]:
+      - heading "Settings" [level=2] [ref=e122]
+      - button "Close settings" [ref=e123] [cursor=pointer]:
+        - img [ref=e124]
+    - generic [ref=e127]:
+      - generic [ref=e128]:
+        - button "Display Settings" [expanded] [ref=e129] [cursor=pointer]:
+          - img [ref=e130]
+          - generic [ref=e132]: Display Settings
+        - generic [ref=e135]:
+          - generic [ref=e136]:
+            - generic [ref=e138]: Refresh Interval
+            - combobox "Refresh interval" [ref=e140] [cursor=pointer]:
+              - option "Off"
+              - option "10 s"
+              - option "30 s" [selected]
+              - option "60 s"
+              - option "120 s"
+          - generic [ref=e141]:
+            - generic [ref=e143]: Default View
+            - generic [ref=e145]:
+              - button "list" [pressed] [ref=e146] [cursor=pointer]
+              - button "network" [ref=e147] [cursor=pointer]
+          - generic [ref=e148]:
+            - generic [ref=e150]: Sort Order
+            - combobox "Sort order" [ref=e152] [cursor=pointer]:
+              - option "Most Recent" [selected]
+              - option "Alphabetical"
+              - option "Status Grouped"
+          - generic [ref=e153]:
+            - generic [ref=e155]: Show Completed
+            - switch "Show completed sessions" [checked] [ref=e157] [cursor=pointer]
+          - generic [ref=e158]:
+            - generic [ref=e159]:
+              - paragraph [ref=e160]: Visible Panes
+              - paragraph [ref=e161]: Toggle detail panel sections
+            - generic [ref=e162]:
+              - generic [ref=e163]:
+                - generic [ref=e165]: Git Context
+                - switch "Show Git context pane" [checked] [ref=e167] [cursor=pointer]
+              - generic [ref=e168]:
+                - generic [ref=e170]: Quick Stats
+                - switch "Show quick stats pane" [checked] [ref=e172] [cursor=pointer]
+              - generic [ref=e173]:
+                - generic [ref=e175]: Performance Waterfall
+                - switch "Show performance waterfall pane" [ref=e177] [cursor=pointer]
+              - generic [ref=e178]:
+                - generic [ref=e180]: Agent Hierarchy
+                - switch "Show agent hierarchy pane" [checked] [ref=e182] [cursor=pointer]
+              - generic [ref=e183]:
+                - generic [ref=e185]: Event Timeline
+                - switch "Show event timeline pane" [checked] [ref=e187] [cursor=pointer]
+              - generic [ref=e188]:
+                - generic [ref=e190]: Session Plan
+                - switch "Show session plan pane" [checked] [ref=e192] [cursor=pointer]
+          - generic [ref=e193]:
+            - generic [ref=e195]: Theme
+            - radiogroup "Theme" [ref=e197]:
+              - radio "Dark theme" [checked] [ref=e198] [cursor=pointer]:
+                - img [ref=e199]
+                - text: Dark
+              - radio "Light theme" [ref=e202] [cursor=pointer]:
+                - img [ref=e203]
+                - text: Light
+              - radio "System theme" [ref=e205] [cursor=pointer]:
+                - img [ref=e206]
+                - text: System
+          - generic [ref=e209]:
+            - generic [ref=e211]: Accent Color
+            - radiogroup "Accent color" [ref=e213]:
+              - radio "emerald" [checked] [ref=e214] [cursor=pointer]
+              - radio "blue" [ref=e215] [cursor=pointer]
+              - radio "purple" [ref=e216] [cursor=pointer]
+              - radio "amber" [ref=e217] [cursor=pointer]
+          - generic [ref=e218]:
+            - generic [ref=e220]: Terminal Shell
+            - combobox "Terminal shell" [ref=e222] [cursor=pointer]:
+              - option "PowerShell 7+ (pwsh)" [selected]
+              - option "Windows PowerShell (powershell.exe)"
+              - option "Command Prompt (cmd.exe)"
+              - option "Bash"
+              - option "Custom path..."
+          - generic [ref=e223]:
+            - generic [ref=e225]: Terminal Font Size
+            - combobox "Terminal font size" [ref=e227] [cursor=pointer]:
+              - option "11"
+              - option "12"
+              - option "13" [selected]
+              - option "14"
+              - option "15"
+              - option "16"
+              - option "18"
+              - option "20"
+      - generic [ref=e228]:
+        - button "Auto-Archive Rules" [ref=e229] [cursor=pointer]:
+          - img [ref=e230]
+          - generic [ref=e232]: Auto-Archive Rules
+        - generic [ref=e234]:
+          - paragraph [ref=e235]: Sessions whose name contains a rule pattern will be automatically archived.
+          - generic [ref=e236]:
+            - textbox "Auto-archive rule pattern" [ref=e237]:
+              - /placeholder: Enter name pattern…
+            - button "Add Rule" [disabled] [ref=e238]
+          - paragraph [ref=e239]: No rules configured
+      - generic [ref=e240]:
+        - button "Data Settings" [ref=e241] [cursor=pointer]:
+          - img [ref=e242]
+          - generic [ref=e244]: Data Settings
+        - generic [ref=e245]:
+          - generic [ref=e246]:
+            - generic [ref=e247]: Session State Dir
+            - generic [ref=e248]:
+              - textbox "Session state directory path" [ref=e249]:
+                - /placeholder: Use server default
+              - img "Syncing with server" [ref=e251]
+          - generic [ref=e254]:
+            - generic [ref=e256]: Max Timeline Events
+            - combobox "Max timeline events" [ref=e258] [cursor=pointer]:
+              - option "50"
+              - option "100" [selected]
+              - option "200"
+              - option "500"
+          - generic [ref=e259]:
+            - generic [ref=e261]: Stale Threshold
+            - combobox "Stale threshold" [ref=e263] [cursor=pointer]:
+              - option "1 min"
+              - option "5 min" [selected]
+              - option "15 min"
+              - option "30 min"
+          - generic [ref=e264]:
+            - generic [ref=e266]: Tail Read Size
+            - combobox "Tail read size" [ref=e268] [cursor=pointer]:
+              - option "256 KB"
+              - option "512 KB" [selected]
+              - option "1 MB"
+              - option "2 MB"
+          - generic [ref=e269]:
+            - generic [ref=e270]:
+              - img "Syncing with server" [ref=e271]
+              - generic [ref=e274]: Syncing with server…
+            - paragraph [ref=e275]: Changes affect server-side data processing
+      - generic [ref=e276]:
+        - button "Azure DevOps" [ref=e277] [cursor=pointer]:
+          - img [ref=e278]
+          - generic [ref=e280]: Azure DevOps
+        - generic [ref=e281]:
+          - generic [ref=e282]:
+            - generic [ref=e283]: Organization
+            - textbox "Azure DevOps organization" [ref=e284]:
+              - /placeholder: e.g., microsoft
+          - generic [ref=e285]:
+            - generic [ref=e286]: Project
+            - textbox "Azure DevOps project" [ref=e287]:
+              - /placeholder: e.g., MyProject
+          - generic [ref=e288]:
+            - button "Test Connection" [ref=e289] [cursor=pointer]
+            - button "Save" [ref=e290] [cursor=pointer]
+          - paragraph [ref=e291]: Authentication uses Azure CLI (az login). No credentials stored.
+      - generic [ref=e292]:
+        - button "Network View" [ref=e293] [cursor=pointer]:
+          - img [ref=e294]
+          - generic [ref=e296]: Network View
+        - generic [ref=e297]:
+          - generic [ref=e298]:
+            - generic [ref=e300]: Animation Speed
+            - combobox "Animation speed" [ref=e302] [cursor=pointer]:
+              - option "Slow (0.5×)"
+              - option "Normal (1×)" [selected]
+              - option "Fast (2×)"
+          - generic [ref=e303]:
+            - generic [ref=e305]: Label Visibility
+            - combobox "Label visibility" [ref=e307] [cursor=pointer]:
+              - option "Always"
+              - option "Zoom-dependent" [selected]
+              - option "Never"
+          - generic [ref=e308]:
+            - generic [ref=e310]: Node Size
+            - combobox "Node size" [ref=e312] [cursor=pointer]:
+              - option "Small"
+              - option "Medium" [selected]
+              - option "Large"
+          - generic [ref=e313]:
+            - generic [ref=e315]: Physics Strength
+            - combobox "Physics strength" [ref=e317] [cursor=pointer]:
+              - option "Tight"
+              - option "Medium" [selected]
+              - option "Loose"
+      - generic [ref=e318]:
+        - button "About" [ref=e319] [cursor=pointer]:
+          - img [ref=e320]
+          - generic [ref=e322]: About
+        - generic [ref=e324]:
+          - generic [ref=e325]:
+            - generic [ref=e326]:
+              - generic [ref=e327]: Rocinante
+              - generic [ref=e328]: workhorse for workstreams
+            - generic [ref=e329]: v1.2.0
+          - link "github.com/gaburn/rocinante" [ref=e330] [cursor=pointer]:
+            - /url: https://github.com/gaburn/rocinante
+    - button "Reset to Defaults" [ref=e332] [cursor=pointer]

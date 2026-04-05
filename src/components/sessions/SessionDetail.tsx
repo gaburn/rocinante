@@ -718,19 +718,41 @@ export default function SessionDetail() {
           )}
 
           {/* ── Waiting banner ─────────────────────────── */}
-          {session.status === 'waiting' && session.waitingFor && (
+          {session.status === 'waiting' && (session.waitingFor || session.waitingQuestion) && (
             <div
               role="status"
-              className="flex items-start gap-2.5 rounded-lg border border-amber-500/25 bg-amber-500/10 px-3.5 py-2.5 text-amber-400"
+              className="flex items-start gap-2.5 rounded-lg border border-amber-500/25 bg-amber-500/10 px-3.5 py-2.5 text-amber-400 animate-glow-amber"
             >
               <InfoCircleIcon />
               <div className="min-w-0 space-y-0.5">
-                <p className="text-xs font-medium uppercase tracking-wider text-amber-400/70">
-                  Waiting for
-                </p>
-                <p className="text-sm leading-relaxed text-amber-300/90">
-                  {session.waitingFor}
-                </p>
+                {session.waitingQuestion ? (
+                  <>
+                    <p className="text-xs font-medium uppercase tracking-wider text-amber-400/70">
+                      Waiting for Input
+                    </p>
+                    <p className="text-sm leading-relaxed text-amber-300/90">
+                      {session.waitingQuestion}
+                    </p>
+                    {session.waitingChoices && session.waitingChoices.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-1.5">
+                        {session.waitingChoices.map((choice, i) => (
+                          <span key={i} className="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/15 px-2 py-0.5 text-xs text-amber-300/90">
+                            {choice}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xs font-medium uppercase tracking-wider text-amber-400/70">
+                      Waiting for
+                    </p>
+                    <p className="text-sm leading-relaxed text-amber-300/90">
+                      {session.waitingFor}
+                    </p>
+                  </>
+                )}
               </div>
             </div>
           )}

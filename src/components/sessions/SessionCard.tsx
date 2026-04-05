@@ -83,6 +83,7 @@ export default function SessionCard({
             ? 'bg-surface-tertiary border-border-active'
             : `bg-surface-secondary hover:bg-surface-hover ${getStatusBorderClass(session.status)}`
         }
+        ${!isSelected && session.status === 'waiting' ? 'animate-glow-amber' : ''}
       `}
     >
       {/* ── Archive / Unarchive button ────────────── */}
@@ -138,9 +139,20 @@ export default function SessionCard({
       </span>
       {/* ── Top row: name + status badge ──────────── */}
       <div className="flex items-center justify-between gap-2 min-w-0">
-        <span className="truncate text-sm font-semibold text-fg/90">
-          {session.name}
-        </span>
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="truncate text-sm font-semibold text-fg/90">
+            {session.name}
+          </span>
+          {session.status === 'waiting' && (
+            <span
+              className="shrink-0 inline-flex items-center justify-center size-4 rounded-full bg-amber-500/20 text-amber-400 text-[10px] font-bold"
+              title="Waiting for user input"
+              aria-label="Waiting for user input"
+            >
+              ?
+            </span>
+          )}
+        </div>
         <StatusBadge status={session.status} size="sm" />
       </div>
 

@@ -19,7 +19,7 @@ interface KanbanTileProps {
   searchActive?: boolean;
 }
 
-const PULSING_STATUSES = new Set<SessionStatus>(['active']);
+const PULSING_STATUSES = new Set<SessionStatus>(['active', 'waiting']);
 
 export default function KanbanTile({ session, isSelected, onSelect, onArchive, conversationMatch, searchActive }: KanbanTileProps) {
   const {
@@ -59,6 +59,7 @@ export default function KanbanTile({ session, isSelected, onSelect, onArchive, c
           ? 'bg-surface-tertiary border-border-active ring-1 ring-border-active/30'
           : `${getStatusBgClass(session.status)} ${getStatusBorderClass(session.status)}`
         }
+        ${!isSelected && session.status === 'waiting' ? 'animate-glow-amber' : ''}
       `}
     >
       {/* Row 1: name + status dot */}
@@ -71,6 +72,15 @@ export default function KanbanTile({ session, isSelected, onSelect, onArchive, c
             ${shouldPulse ? 'animate-pulse' : ''}
           `}
         />
+        {session.status === 'waiting' && (
+          <span
+            className="shrink-0 inline-flex items-center justify-center size-4 rounded-full bg-amber-500/20 text-amber-400 text-[10px] font-bold"
+            title="Waiting for user input"
+            aria-label="Waiting for user input"
+          >
+            ?
+          </span>
+        )}
         <span className="truncate text-sm font-semibold text-fg/90">
           {session.name}
         </span>

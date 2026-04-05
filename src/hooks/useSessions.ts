@@ -230,6 +230,7 @@ export function useSessions(): UseSessionsResult {
       const query = searchQuery.trim().toLowerCase()
       filtered = filtered.filter(
         (s) =>
+          s.id.toLowerCase().includes(query) ||
           s.name.toLowerCase().includes(query) ||
           s.intent.toLowerCase().includes(query) ||
           conversationSearchResults.has(s.id),

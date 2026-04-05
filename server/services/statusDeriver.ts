@@ -8,6 +8,8 @@ export interface DerivedStatus {
   blockedReason?: string;
   errorDetails?: ErrorDetail[];
   waitingFor?: string;
+  waitingQuestion?: string;
+  waitingChoices?: string[];
 }
 
 function toEpochMs(timestamp: string): number {
@@ -50,6 +52,58 @@ function hasToolRequests(event: ParsedEvent): boolean {
   const data = getEventData(event);
   const toolRequests = data?.toolRequests;
   return Array.isArray(toolRequests) && toolRequests.length > 0;
+}
+
+interface AskUserToolRequest {
+  question?: string;
+  choices?: string[];
+}
+
+function getAskUserRequest(event: ParsedEvent): AskUserToolRequest | null {
+  const data = getEventData(event);
+  const toolRequests = data?.toolRequests;
+  
+  if (!Array.isArray(toolRequests)) {
+    return null;
+  }
+
+  for (const toolRequest of toolRequests) {
+    if (!toolRequest || typeof toolRequest !== 'object') {
+      continue;
+    }
+
+    // Check for ask_user, askUser, or ask-user tool names
+    const toolName = 
+      (toolRequest as { name?: unknown }).name ??
+      (toolRequest as { toolName?: unknown }).toolName ??
+      (toolRequest as { tool_name?: unknown }).tool_name;
+
+    if (typeof toolName === 'string') {
+      const normalized = toolName.toLowerCase().replace(/[-_]/g, '');
+      if (normalized === 'askuser') {
+        // Extract question and choices from parameters/arguments/args/input
+        const params = 
+          (toolRequest as { parameters?: unknown }).parameters ??
+          (toolRequest as { arguments?: unknown }).arguments ??
+          (toolRequest as { args?: unknown }).args ??
+          (toolRequest as { input?: unknown }).input;
+
+        if (params && typeof params === 'object') {
+          const question = (params as { question?: unknown }).question;
+          const choices = (params as { choices?: unknown }).choices;
+
+          return {
+            question: typeof question === 'string' ? question : undefined,
+            choices: Array.isArray(choices) ? choices.filter((c): c is string => typeof c === 'string') : undefined,
+          };
+        }
+
+        return {};
+      }
+    }
+  }
+
+  return null;
 }
 
 function isUserCancellation(event: ParsedEvent): boolean {
@@ -109,6 +163,97 @@ function collectErrorDetails(events: ParsedEvent[]): ErrorDetail[] {
   return errorDetails.slice(0, 10);
 }
 
+function isAskUserToolExecution(event: ParsedEvent): boolean {
+  const data = getEventData(event);
+  if (!data) return false;
+  const toolName = data.toolName ?? data.tool_name ?? data.name;
+  if (typeof toolName !== 'string') return false;
+  const normalized = toolName.toLowerCase().replace(/[-_]/g, '');
+  return normalized === 'askuser';
+}
+
+function getToolCallId(event: ParsedEvent): string | undefined {
+  const data = getEventData(event);
+  if (!data) return undefined;
+  const id = data.toolCallId ?? data.tool_call_id;
+  return typeof id === 'string' ? id : undefined;
+}
+
+function findAskUserFromToolExecution(
+  toolEvent: ParsedEvent,
+  allEvents: ParsedEvent[],
+): AskUserToolRequest | null {
+  const toolCallId = getToolCallId(toolEvent);
+
+  // Search the parent assistant.message event for matching toolCallId
+  for (const event of allEvents) {
+    if (event.type.toLowerCase() !== 'assistant.message') continue;
+    const data = getEventData(event);
+    const toolRequests = data?.toolRequests;
+    if (!Array.isArray(toolRequests)) continue;
+
+    for (const tr of toolRequests) {
+      if (!tr || typeof tr !== 'object') continue;
+      const trId =
+        (tr as { id?: unknown }).id ??
+        (tr as { toolCallId?: unknown }).toolCallId ??
+        (tr as { tool_call_id?: unknown }).tool_call_id;
+
+      const matchById = toolCallId && typeof trId === 'string' && trId === toolCallId;
+      if (!matchById) continue;
+
+      // Found the matching tool request — extract question/choices
+      const params =
+        (tr as { parameters?: unknown }).parameters ??
+        (tr as { arguments?: unknown }).arguments ??
+        (tr as { args?: unknown }).args ??
+        (tr as { input?: unknown }).input;
+
+      if (params && typeof params === 'object') {
+        const question = (params as { question?: unknown }).question;
+        const choices = (params as { choices?: unknown }).choices;
+        return {
+          question: typeof question === 'string' ? question : undefined,
+          choices: Array.isArray(choices)
+            ? choices.filter((c): c is string => typeof c === 'string')
+            : undefined,
+        };
+      }
+      return {};
+    }
+  }
+
+  // Fallback: no matching parent found, still return empty ask_user info
+  return {};
+}
+
+function findAskUserParentMessage(
+  sortedEvents: ParsedEvent[],
+  toolExecEvent: ParsedEvent,
+): ParsedEvent | null {
+  const data = getEventData(toolExecEvent);
+  const toolCallId = data?.toolCallId ?? data?.tool_call_id;
+  if (typeof toolCallId !== 'string') return null;
+
+  for (const event of sortedEvents) {
+    if (event.type.toLowerCase() !== 'assistant.message') continue;
+    const msgData = getEventData(event);
+    const toolRequests = msgData?.toolRequests;
+    if (!Array.isArray(toolRequests)) continue;
+    for (const req of toolRequests) {
+      if (!req || typeof req !== 'object') continue;
+      const reqId =
+        (req as Record<string, unknown>).id ??
+        (req as Record<string, unknown>).toolCallId ??
+        (req as Record<string, unknown>).tool_call_id;
+      if (typeof reqId === 'string' && reqId === toolCallId) {
+        return event;
+      }
+    }
+  }
+  return null;
+}
+
 function isAgentActivity(type: string): boolean {
   const normalizedType = type.toLowerCase();
   return (
@@ -134,9 +279,13 @@ function isWaitingSignalEvent(event: ParsedEvent): boolean {
 }
 
 function getSortedByRecency(events: ParsedEvent[]): ParsedEvent[] {
-  return [...events].sort(
-    (a, b) => toEpochMs(getEventTimestamp(b)) - toEpochMs(getEventTimestamp(a)),
-  );
+  const indexed = events.map((event, idx) => ({ event, idx }));
+  indexed.sort((a, b) => {
+    const diff = toEpochMs(getEventTimestamp(b.event)) - toEpochMs(getEventTimestamp(a.event));
+    if (diff !== 0) return diff;
+    return b.idx - a.idx; // Later file position = more recent
+  });
+  return indexed.map(({ event }) => event);
 }
 
 function isWithinThreshold(timestamp: string): boolean {
@@ -151,6 +300,8 @@ function getLastMeaningfulEvent(events: ParsedEvent[]): ParsedEvent | null {
     'session.ping',
     'session.updated',
     'stream.keepalive',
+    'hook.start',
+    'hook.end',
   ]);
 
   for (const event of getSortedByRecency(events)) {
@@ -213,6 +364,7 @@ export function deriveSessionStatus(
 
   // 2. Blocked (error-like/failure-like signal — only if the error IS the most recent meaningful event)
   const lastMeaningful = getLastMeaningfulEvent(sortedEvents);
+
   const mostRecentErrorEvent = sortedEvents.find(isErrorLikeEvent);
   if (mostRecentErrorEvent && lastMeaningful) {
     const errorTime = toEpochMs(getEventTimestamp(mostRecentErrorEvent));
@@ -230,14 +382,59 @@ export function deriveSessionStatus(
 
   const fresh = isWithinThreshold(mostRecentTimestamp);
 
+  // 2.5. Ask-user waiting (takes priority over general active detection)
+  // If the most recent meaningful event is an ask_user tool execution,
+  // the session is waiting for user input — even if other tools recently completed.
+  if (fresh && lastMeaningful) {
+    if (isAskUserToolExecution(lastMeaningful)) {
+      const parentMessage = findAskUserParentMessage(sortedEvents, lastMeaningful);
+      const askUserRequest = parentMessage ? getAskUserRequest(parentMessage) : null;
+      return {
+        status: 'waiting',
+        lastActivityAt: mostRecentTimestamp,
+        waitingFor: 'user input',
+        waitingQuestion: askUserRequest?.question,
+        waitingChoices: askUserRequest?.choices,
+      };
+    }
+
+    // Also check: if the most recent assistant.message has ask_user as a tool request
+    // and ask_user hasn't completed yet (no matching tool.execution_complete)
+    if (lastMeaningful.type.toLowerCase() === 'assistant.message') {
+      const askReq = getAskUserRequest(lastMeaningful);
+      if (askReq) {
+        return {
+          status: 'waiting',
+          lastActivityAt: mostRecentTimestamp,
+          waitingFor: 'user input',
+          waitingQuestion: askReq.question,
+          waitingChoices: askReq.choices,
+        };
+      }
+    }
+  }
+
   // 3. Active (fresh + ongoing tool/agent activity)
   if (fresh) {
     const hasRecentExecutionActivity = sortedEvents.some((event) => {
       const type = event.type.toLowerCase();
+      // Don't count ask_user tool requests as execution activity
+      if (type === 'assistant.message' && hasToolRequests(event)) {
+        const askUserRequest = getAskUserRequest(event);
+        if (askUserRequest !== null) {
+          return false; // ask_user is waiting, not active
+        }
+        return true; // Other tool requests are active
+      }
+      if (
+        (type === 'tool.execution_start' || type === 'tool.execution_complete') &&
+        isAskUserToolExecution(event)
+      ) {
+        return false; // ask_user tool execution is waiting, not active
+      }
       return (
         type === 'tool.execution_start' ||
         type === 'tool.execution_complete' ||
-        (type === 'assistant.message' && hasToolRequests(event)) ||
         isAgentActivity(type)
       );
     });
@@ -252,6 +449,38 @@ export function deriveSessionStatus(
 
   // 4. Waiting (fresh but assistant appears to have finished its turn)
   if (fresh) {
+    // Check for ask_user tool execution as the latest meaningful event
+    if (lastMeaningful) {
+      const lastMeaningfulType = lastMeaningful.type.toLowerCase();
+      if (
+        (lastMeaningfulType === 'tool.execution_start' || lastMeaningfulType === 'tool.execution_complete') &&
+        isAskUserToolExecution(lastMeaningful)
+      ) {
+        const askUserInfo = findAskUserFromToolExecution(lastMeaningful, sortedEvents);
+        return {
+          status: 'waiting',
+          lastActivityAt: mostRecentTimestamp,
+          waitingFor: 'user input',
+          waitingQuestion: askUserInfo?.question,
+          waitingChoices: askUserInfo?.choices,
+        };
+      }
+    }
+
+    // Check for ask_user tool request in assistant.message
+    if (normalizedRecentType === 'assistant.message') {
+      const askUserRequest = getAskUserRequest(mostRecentEvent);
+      if (askUserRequest !== null) {
+        return {
+          status: 'waiting',
+          lastActivityAt: mostRecentTimestamp,
+          waitingFor: 'user input',
+          waitingQuestion: askUserRequest.question,
+          waitingChoices: askUserRequest.choices,
+        };
+      }
+    }
+
     const isAssistantMessageWithoutToolRequests =
       normalizedRecentType === 'assistant.message' && !hasToolRequests(mostRecentEvent);
     const hasWaitingSignal =

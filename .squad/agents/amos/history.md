@@ -58,3 +58,17 @@
 - **Fix**: Removed the `toolRequests` skip filter. Now all `assistant.message` events with non-empty `content` are included, regardless of whether they also carry `toolRequests`. The `content` field is always the user-facing text.
 - **Verification**: Confirmed `tool.execution_complete` events are not referenced in this function, so sub-agent raw results cannot leak into updates.
 - **Key files**: `server/services/sessionMapper.ts`.
+
+### ask_user detection priority fix (2025-07)
+- **Bug**: When `ask_user` is pending alongside other tools (e.g., `report_intent`), the general active-detection check (step 3) fires first because `tool.execution_complete` for `report_intent` satisfies `hasRecentExecutionActivity`. The ask_user waiting check (step 4) is never reached.
+- **Root cause**: Detection order — active check (step 3) runs before ask_user waiting check (step 4). The `sortedEvents.some()` in step 3 correctly skips ask_user events but still matches other tools' execution events.
+- **Fix**: Inserted a new step 2.5 between blocked (step 2) and active (step 3) that checks if `lastMeaningful` is an ask_user tool execution or an `assistant.message` containing an ask_user request. If so, returns `waiting` immediately before the general active check runs. Added `findAskUserParentMessage()` helper to trace from a tool execution event back to its parent `assistant.message` via `toolCallId`. Also added `hook.start` and `hook.end` to the ignorable types in `getLastMeaningfulEvent()` so hook events don't mask ask_user as the last meaningful event.
+- **Priority order now**: shutdown → completed → blocked → **ask_user waiting** → active → general waiting → stale/completed → fallback active.
+- **Key files**: `server/services/statusDeriver.ts`.
+
+### getSortedByRecency timestamp tie-breaking fix (2025-07)
+- **Bug**: When multiple events share the same millisecond timestamp, JS stable sort preserves original array order (file order = earliest written first). This means later events like `tool.execution_start(ask_user)` sort AFTER earlier events like `tool.execution_start(report_intent)`, causing `getLastMeaningfulEvent()` to return the wrong event.
+- **Root cause**: `getSortedByRecency` only compared `toEpochMs()` values. Same-millisecond events retained file order (ascending), so the "first" sorted event was actually the oldest among ties.
+- **Fix**: Added secondary sort by original array index (`b.idx - a.idx`) so that later file positions (which represent more-recent writes) win ties. This is the correct tiebreaker because `events.jsonl` is append-only.
+- **Diagnostic**: Added a temporary `console.log` (gated by `NODE_ENV !== 'production'`) after `lastMeaningful` is computed, logging when `ask_user` is detected as the last meaningful event.
+- **Key files**: `server/services/statusDeriver.ts`.
