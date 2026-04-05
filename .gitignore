@@ -25,6 +25,7 @@ dist-server
 *.njsproj
 *.sln
 *.sw?
+
 # Squad: ignore runtime state (logs, inbox, sessions)
 .squad/orchestration-log/
 .squad/log/
@@ -35,3 +36,10 @@ dist-server
 
 # Playwright MCP - screenshots and snapshots
 .playwright-mcp/
+
+# Squad and Copilot config (private, lives on dev branch)
+.copilot/
+.agents/
+.github/agents/
+.github/workflows/squad-*
+.github/workflows/sync-squad-*

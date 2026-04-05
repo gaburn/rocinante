@@ -50,7 +50,7 @@ For a comprehensive guide on using the dashboard, see **[docs/user-guide.md](./d
 
 ---
 
-*(placeholder: the main view is a horizontal kanban board with color-coded session tiles organized by workstream, and a fixed 420px detail sidebar on the right)*
+*(placeholder: the main view is a horizontal kanban board with color-coded session tiles organized by workstream, and a resizable detail sidebar on the right)*
 
 ---
 
@@ -69,7 +69,7 @@ For a comprehensive guide on using the dashboard, see **[docs/user-guide.md](./d
 
 ```bash
 # Clone the repo
-git clone <repo-url>
+git clone https://github.com/gaburn/rocinante.git
 cd rocinante
 
 # Install dependencies (includes native module compilation)
@@ -105,7 +105,7 @@ Create a `.env` file from `.env.example` as needed.
 
 ```text
 Frontend (Vite + React + TypeScript + Tailwind CSS v4)
-├── Kanban View: horizontal board (workstream columns + 420px detail sidebar)
+├── Kanban View: horizontal board (workstream columns + resizable detail sidebar)
 ├── Network View: animated force-directed graph (d3-force + Canvas)
 ├── Terminal: session-scoped xterm.js terminals
 └── Settings: configurable preferences
