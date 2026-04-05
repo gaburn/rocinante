@@ -134,7 +134,7 @@ export function useWorkstreamWorkItems(): UseWorkstreamWorkItemsResult {
       if (!(workstreamName in current)) {
         return current
       }
-      const { [workstreamName]: _, ...rest } = current
+      const { [workstreamName]: _removed, ...rest } = current // eslint-disable-line @typescript-eslint/no-unused-vars
       return rest
     })
   }, [])

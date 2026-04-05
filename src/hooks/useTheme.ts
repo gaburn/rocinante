@@ -27,6 +27,7 @@ export function useTheme(theme: ThemeMode): EffectiveTheme {
   );
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setEffectiveTheme(resolveTheme(theme));
 
     if (theme !== 'system' || typeof window === 'undefined') {

@@ -635,6 +635,7 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
 
   // Keep draft in sync when settings change externally
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setDirDraft(settings.data.sessionStateDir);
   }, [settings.data.sessionStateDir]);
 

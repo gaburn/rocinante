@@ -81,7 +81,7 @@ export function usePlanStatus(): UsePlanStatusResult {
         if (!(sessionId in current)) {
           return current
         }
-        const { [sessionId]: _removed, ...rest } = current
+        const { [sessionId]: _removed1, ...rest } = current // eslint-disable-line @typescript-eslint/no-unused-vars
         return rest
       }
 
@@ -105,7 +105,7 @@ export function usePlanStatus(): UsePlanStatusResult {
       if (!(sessionId in current)) {
         return current
       }
-      const { [sessionId]: _removed, ...rest } = current
+      const { [sessionId]: _removed2, ...rest } = current // eslint-disable-line @typescript-eslint/no-unused-vars
       return rest
     })
   }, [])

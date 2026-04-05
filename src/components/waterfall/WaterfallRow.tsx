@@ -34,6 +34,7 @@ export default function WaterfallRow({
   depth,
 }: WaterfallRowProps) {
   const agentStart = Date.parse(agent.startedAt);
+  // eslint-disable-next-line react-hooks/purity
   const agentEnd   = agent.completedAt ? Date.parse(agent.completedAt) : Date.now();
   const agentDur   = Math.max(agentEnd - agentStart, 0);
 

@@ -321,6 +321,7 @@ export function useCanvasInteraction(
       window.removeEventListener('mousemove', handleMouseMoveWindow);
       window.removeEventListener('mouseup', handleMouseUpWindow);
     };
+  // eslint-disable-next-line react-hooks/refs
   }, [canvasRef.current, onDragStart, onDragMove, onDragEnd]);
 
   return {

@@ -102,7 +102,7 @@ export default function SessionGroup({
   );
 
   const handleDragLeave = useCallback(
-    (_e: React.DragEvent) => {
+    (_e: React.DragEvent) => { // eslint-disable-line @typescript-eslint/no-unused-vars
       if (!onDropSession) return;
       dragCounter.current -= 1;
       if (dragCounter.current === 0) setIsDragOver(false);
