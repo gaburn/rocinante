@@ -53,3 +53,13 @@
   --color-fg-secondary: oklch(0.45 0.010 270);
   --color-fg-muted: oklch(0.55 0.010 270);
 }
+
+/* Amber glow for sessions waiting for user input */
+@keyframes glow-amber {
+  0%, 100% { box-shadow: 0 0 4px 1px rgba(245, 158, 11, 0.15); }
+  50%      { box-shadow: 0 0 12px 3px rgba(245, 158, 11, 0.3); }
+}
+
+.animate-glow-amber {
+  animation: glow-amber 2s ease-in-out infinite;
+}

@@ -111,11 +111,9 @@ function extractAssistantUpdates(events: ParsedEvent[]): string[] | undefined {
     if (!data) {
       continue;
     }
-    // Skip tool-calling turns — only keep pure text responses
-    const toolRequests = data.toolRequests;
-    if (Array.isArray(toolRequests) && toolRequests.length > 0) {
-      continue;
-    }
+    // Include all assistant.message events with text content, even if they
+    // also carry toolRequests — the coordinator often sends user-facing text
+    // and tool calls in the same message.
     const content = data.content;
     if (typeof content === 'string' && content.trim().length > 0) {
       updates.push(content.trim());
@@ -193,6 +191,8 @@ export function mapToSession(sqlRow: SqliteSession, events: ParsedEvent[]): Sess
     activityBuckets: buildActivityBuckets(events, sqlRow.created_at, derivedStatus.lastActivityAt),
     blockedReason: derivedStatus.blockedReason,
     waitingFor: derivedStatus.waitingFor,
+    waitingQuestion: derivedStatus.waitingQuestion,
+    waitingChoices: derivedStatus.waitingChoices,
     cwd: getSessionCwd(sqlRow.id, sqlRow.cwd),
     repository: sqlRow.repository ?? null,
     branch: sqlRow.branch ?? null,

@@ -38,7 +38,17 @@ Named after the ship from *The Expanse*, which was named after Don Quixote's hor
 
 For a comprehensive guide on using the dashboard, see **[docs/user-guide.md](./docs/user-guide.md)**. It covers the kanban board, search, auto-grouping, session details, settings, demo mode, and more.
 
-## Screenshots
+## Recent Changes
+
+### v1.2.1 (Latest)
+- **Waiting for Input indicator**: Sessions using `ask_user` show a `?` icon on tiles with an amber glow. The detail pane displays the question text and available choices.
+- **Session ID search**: The search bar now supports partial session ID matching for faster session lookup.
+- **Inline markdown rendering**: Session updates properly render bold, italic, code, and table formatting.
+- **Session updates fix**: Coordinator text now displays correctly (previously showed sub-agent results).
+- **Cleaner tiles**: Removed sparklines from session tiles for a streamlined UI.
+- **Improved sparkline bucketing**: Activity buckets now calculate based on event time range rather than the full session span for more accurate activity visualization.
+
+---
 
 *(placeholder: the main view is a horizontal kanban board with color-coded session tiles organized by workstream, and a resizable detail sidebar on the right)*
 

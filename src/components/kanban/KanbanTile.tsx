@@ -8,7 +8,7 @@ import {
   getStatusDotClass,
 } from '../../utils/statusColors';
 import { formatRelativeTime, countAgents } from '../../utils/formatters';
-import { Sparkline } from '../common/Sparkline';
+import { renderInlineMarkdown } from '../../utils/inlineMarkdown';
 
 interface KanbanTileProps {
   session: Session;
@@ -19,7 +19,7 @@ interface KanbanTileProps {
   searchActive?: boolean;
 }
 
-const PULSING_STATUSES = new Set<SessionStatus>(['active']);
+const PULSING_STATUSES = new Set<SessionStatus>(['active', 'waiting']);
 
 export default function KanbanTile({ session, isSelected, onSelect, onArchive, conversationMatch, searchActive }: KanbanTileProps) {
   const {
@@ -59,6 +59,7 @@ export default function KanbanTile({ session, isSelected, onSelect, onArchive, c
           ? 'bg-surface-tertiary border-border-active ring-1 ring-border-active/30'
           : `${getStatusBgClass(session.status)} ${getStatusBorderClass(session.status)}`
         }
+        ${!isSelected && session.status === 'waiting' ? 'animate-glow-amber' : ''}
       `}
     >
       {/* Row 1: name + status dot */}
@@ -71,6 +72,15 @@ export default function KanbanTile({ session, isSelected, onSelect, onArchive, c
             ${shouldPulse ? 'animate-pulse' : ''}
           `}
         />
+        {session.status === 'waiting' && (
+          <span
+            className="shrink-0 inline-flex items-center justify-center size-4 rounded-full bg-amber-500/20 text-amber-400 text-[10px] font-bold"
+            title="Waiting for user input"
+            aria-label="Waiting for user input"
+          >
+            ?
+          </span>
+        )}
         <span className="truncate text-sm font-semibold text-fg/90">
           {session.name}
         </span>
@@ -91,7 +101,7 @@ export default function KanbanTile({ session, isSelected, onSelect, onArchive, c
       {/* Row 2.5: latest assistant update */}
       {session.assistantUpdates && session.assistantUpdates.length > 0 && (
         <p className="mt-1 text-[11px] leading-relaxed text-fuchsia-300/70 line-clamp-2 border-l-2 border-fuchsia-500/40 pl-1.5">
-          {session.assistantUpdates[session.assistantUpdates.length - 1]}
+          {renderInlineMarkdown(session.assistantUpdates[session.assistantUpdates.length - 1])}
         </p>
       )}
 
@@ -105,17 +115,9 @@ export default function KanbanTile({ session, isSelected, onSelect, onArchive, c
         </div>
       )}
 
-      {/* Row 3: meta — time, sparkline, agent count */}
+      {/* Row 3: meta — time, agent count */}
       <div className="mt-1.5 flex items-center gap-2 text-[11px] tabular-nums text-fg/30">
         <span>{timeAgo}</span>
-        {session.activityBuckets && session.activityBuckets.length > 0 && (
-          <Sparkline
-            buckets={session.activityBuckets}
-            width={40}
-            height={10}
-            className="text-fg/20 flex-1"
-          />
-        )}
         {/* Archive session — visible on hover */}
         {onArchive && (
           <button

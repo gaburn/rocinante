@@ -3,7 +3,6 @@ import type { Session } from '../../types';
 import { getStatusBorderClass } from '../../utils/statusColors';
 import { formatRelativeTime, countAgents } from '../../utils/formatters';
 import StatusBadge from '../common/StatusBadge';
-import { Sparkline } from '../common/Sparkline';
 import WorkstreamAutocomplete from '../common/WorkstreamAutocomplete';
 
 /* ────────────────────────────────────────────────────────
@@ -83,6 +82,7 @@ export default function SessionCard({
             ? 'bg-surface-tertiary border-border-active'
             : `bg-surface-secondary hover:bg-surface-hover ${getStatusBorderClass(session.status)}`
         }
+        ${!isSelected && session.status === 'waiting' ? 'animate-glow-amber' : ''}
       `}
     >
       {/* ── Archive / Unarchive button ────────────── */}
@@ -138,9 +138,20 @@ export default function SessionCard({
       </span>
       {/* ── Top row: name + status badge ──────────── */}
       <div className="flex items-center justify-between gap-2 min-w-0">
-        <span className="truncate text-sm font-semibold text-fg/90">
-          {session.name}
-        </span>
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="truncate text-sm font-semibold text-fg/90">
+            {session.name}
+          </span>
+          {session.status === 'waiting' && (
+            <span
+              className="shrink-0 inline-flex items-center justify-center size-4 rounded-full bg-amber-500/20 text-amber-400 text-[10px] font-bold"
+              title="Waiting for user input"
+              aria-label="Waiting for user input"
+            >
+              ?
+            </span>
+          )}
+        </div>
         <StatusBadge status={session.status} size="sm" />
       </div>
 
@@ -160,17 +171,9 @@ export default function SessionCard({
         {session.latestUserMessage ?? session.intent}
       </p>
 
-      {/* ── Meta row: relative time + sparkline + agent count ── */}
+      {/* ── Meta row: relative time + agent count ── */}
       <div className="mt-1.5 flex items-center gap-2 text-[11px] tabular-nums text-fg/30">
         <span>{timeAgo}</span>
-        {session.activityBuckets && session.activityBuckets.length > 0 && (
-          <Sparkline
-            buckets={session.activityBuckets}
-            width={48}
-            height={12}
-            className="text-fg/20 flex-1"
-          />
-        )}
         <span className="ml-auto">
           {agentCount} {agentCount === 1 ? 'agent' : 'agents'}
         </span>

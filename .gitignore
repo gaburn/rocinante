@@ -25,8 +25,19 @@ dist-server
 *.njsproj
 *.sln
 *.sw?
+
+# Squad: ignore runtime state (logs, inbox, sessions)
+.squad/orchestration-log/
+.squad/log/
+.squad/decisions/inbox/
+.squad/sessions/
+# Squad: SubSquad activation file (local to this machine)
+.squad-workstream
+
+# Playwright MCP - screenshots and snapshots
+.playwright-mcp/
+
 # Squad and Copilot config (private, lives on dev branch)
-.squad/
 .copilot/
 .agents/
 .github/agents/

@@ -12,7 +12,7 @@ interface StatusBadgeProps {
   size?: 'sm' | 'md';
 }
 
-const PULSING_STATUSES = new Set<string>(['active', 'running']);
+const PULSING_STATUSES = new Set<string>(['active', 'running', 'waiting']);
 
 export default function StatusBadge({ status, size = 'md' }: StatusBadgeProps) {
   const shouldPulse = PULSING_STATUSES.has(status);
