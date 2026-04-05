@@ -101,7 +101,7 @@ function getSessionCwd(sessionId: string, sqlCwd: string | null): string | null 
 
 const MAX_ASSISTANT_UPDATES = 20;
 
-function extractAssistantUpdates(events: ParsedEvent[]): string[] | undefined {
+export function extractAssistantUpdates(events: ParsedEvent[]): string[] | undefined {
   const updates: string[] = [];
   for (const event of events) {
     if (event.type.toLowerCase() !== 'assistant.message') {
