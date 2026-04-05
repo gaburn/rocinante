@@ -1,0 +1,76 @@
+{
+  "id": "bbc58136-aaf8-4a6a-a60d-3a458623c8da",
+  "createdAt": "2026-04-02T00:59:58.588Z",
+  "lastActiveAt": "2026-04-02T01:04:48.425Z",
+  "messages": [
+    {
+      "role": "system",
+      "content": "🏗️ No team yet — casting one based on your project...",
+      "timestamp": "2026-04-02T01:00:17.759Z"
+    },
+    {
+      "role": "system",
+      "content": "⚠ Could not parse a team proposal from the model response.\n\nTry again, or run: squad init \"describe your project\"",
+      "timestamp": "2026-04-02T01:00:33.330Z"
+    },
+    {
+      "role": "system",
+      "content": "🏗️ No team yet — casting one based on your project...",
+      "timestamp": "2026-04-02T01:00:56.213Z"
+    },
+    {
+      "role": "agent",
+      "agentName": "coordinator",
+      "content": "Team proposed:\n\n🏗️  **Odin**   — Lead            Architecture, code review, decisions\n⚛️  **Thor**   — Frontend Dev    React, components, styling\n🔧  **Freya**  — Backend Dev     Node.js, Express, WebSockets\n🧪  **Loki**   — Tester          Tests, edge cases, quality\n⚙️  **Heimdall** — DevOps          Build, deploy, monitoring\n📋  Scribe     — (silent)        Memory, decisions, session logs\n🔄  Ralph      — (monitor)       Work queue, backlog, keep-alive\n\nUniverse: Norse Mythology",
+      "timestamp": "2026-04-02T01:01:12.789Z"
+    },
+    {
+      "role": "system",
+      "content": "Look good? Type **y** to confirm or **n** to cancel.",
+      "timestamp": "2026-04-02T01:01:12.901Z"
+    },
+    {
+      "role": "system",
+      "content": "⚠ Team casting failed: ENOENT: no such file or directory, mkdir 'C:\\data\\src\\agent-dashboard\\.squad\\agents\\**odin**'\nTry again or edit .squad/team.md directly.",
+      "timestamp": "2026-04-02T01:01:41.787Z"
+    },
+    {
+      "role": "system",
+      "content": "🏗️ No team yet — casting one based on your project...",
+      "timestamp": "2026-04-02T01:02:05.656Z"
+    },
+    {
+      "role": "agent",
+      "agentName": "coordinator",
+      "content": "Team proposed:\n\n🏗️  Homer      — Lead            Architecture, code review, decisions\n⚛️  Bart       — Frontend Dev    React, components, styling\n🔧  Lisa       — Backend Dev     Node.js, APIs, WebSockets\n🧪  Marge      — Tester          Tests, quality, edge cases\n⚙️  Apu        — DevOps          Build, deploy, performance\n📋  Scribe     — (silent)        Memory, decisions, session logs\n🔄  Ralph      — (monitor)       Work queue, backlog, keep-alive\n\nUniverse: The Simpsons",
+      "timestamp": "2026-04-02T01:02:22.186Z"
+    },
+    {
+      "role": "system",
+      "content": "Look good? Type **y** to confirm or **n** to cancel.",
+      "timestamp": "2026-04-02T01:02:22.289Z"
+    },
+    {
+      "role": "system",
+      "content": "✅ Team hired! 7 members created.",
+      "timestamp": "2026-04-02T01:03:50.213Z"
+    },
+    {
+      "role": "system",
+      "content": "📌 Routing your message to the team now...",
+      "timestamp": "2026-04-02T01:03:50.240Z"
+    },
+    {
+      "role": "agent",
+      "agentName": "coordinator",
+      "content": "Your team is already cast from The Simpsons! 🍩\n\n| Name | Role | Simpsons Character |\n|------|------|--------------------|\n| **Homer** | Lead | Homer Simpson |\n| **Bart** | Frontend Dev | Bart Simpson |\n| **Lisa** | Backend Dev | Lisa Simpson |\n| **Marge** | Tester | Marge Simpson |\n| **Apu** | DevOps | Apu Nahasapeemapetilon |\n| **Ralph** | Work Monitor | Ralph Wiggum |\n| **Scribe** | Session Logger | (utility role) |\n\nDid you want to **recast with different Simpsons characters** (e.g., swap in Mr. Burns, Ned Flanders, Milhouse, etc.), or did you have a different show/theme in mind?\n\n---\n🕐 2026-04-02T01:03:50.951Z",
+      "timestamp": "2026-04-02T01:04:09.405Z"
+    },
+    {
+      "role": "agent",
+      "agentName": "coordinator",
+      "content": "Glad you like the crew! The Springfield squad is ready to roll. Just say the word when you need something built. 🍩\n\n---\n🕐 2026-04-02T01:04:39.827Z",
+      "timestamp": "2026-04-02T01:04:42.559Z"
+    }
+  ]
+}
