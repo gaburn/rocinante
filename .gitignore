@@ -32,3 +32,6 @@ dist-server
 .squad/sessions/
 # Squad: SubSquad activation file (local to this machine)
 .squad-workstream
+
+# Playwright MCP - screenshots and snapshots
+.playwright-mcp/
