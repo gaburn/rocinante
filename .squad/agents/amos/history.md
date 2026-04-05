@@ -72,3 +72,9 @@
 - **Fix**: Added secondary sort by original array index (`b.idx - a.idx`) so that later file positions (which represent more-recent writes) win ties. This is the correct tiebreaker because `events.jsonl` is append-only.
 - **Diagnostic**: Added a temporary `console.log` (gated by `NODE_ENV !== 'production'`) after `lastMeaningful` is computed, logging when `ask_user` is detected as the last meaningful event.
 - **Key files**: `server/services/statusDeriver.ts`.
+
+### sparkline bucketing fix (2025-07)
+- **Bug**: `buildActivityBuckets()` used the full session time range (`startedAt` to `lastActivityAt`) to distribute events into 20 buckets. But `eventTailReader.ts` only reads the tail of `events.jsonl`, so for long sessions the events cluster in the last few minutes while the range spans hours. Result: 19 empty buckets and 1 tall bar.
+- **Fix**: Changed bucketing to derive the time range from the actual event timestamps (`Math.min`/`Math.max` of parsed event times) instead of the session-level `startedAt`/`lastActivityAt`. Events now spread across all 20 buckets regardless of session duration.
+- **Edge cases**: Empty events → 20 zeros. All-noise events → 20 zeros. All events at same timestamp → single centered bucket. The `startedAt`/`lastActivityAt` params are retained in the signature for API compatibility but unused.
+- **Key files**: `server/services/activityBucketBuilder.ts`.

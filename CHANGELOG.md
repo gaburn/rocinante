@@ -2,6 +2,18 @@
 
 All notable changes to Rocinante will be documented in this file.
 
+## [1.2.1] - 2026-04-03
+
+### Added
+- **Waiting for Input indicator** — sessions using `ask_user` now display a `?` icon on tiles with an amber glow; the detail pane shows question text and available choices
+- **Session ID search** — search bar now matches partial session IDs for faster lookup
+- **Inline markdown rendering** — session updates now properly render bold, italic, code, and table markdown formatting
+
+### Fixed
+- **Session updates display** — coordinator text now displays correctly instead of showing sub-agent results
+- **Sparkline bucketing** — activity buckets now calculate based on event time range (not full session span), providing more accurate activity distribution
+- **Session tile cleanup** — removed sparklines from session tiles for a cleaner UI
+
 ## [1.2.0] - 2026-04-02
 
 ### Added

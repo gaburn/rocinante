@@ -82,3 +82,20 @@
 - **SessionCard:** Same amber circle element placed in the top row between the session name and `StatusBadge`. Wrapped name + icon in a flex container to preserve `justify-between` layout with the badge.
 - **Conditional:** Only rendered when `session.status === 'waiting'`. No new props or dependencies added.
 - **Outcome:** Build (`tsc --noEmit`) and lint (`eslint`) both clean. Icon is small but unmissable — pairs with the pulsing dot and glow to make waiting sessions obvious.
+
+### Inline Markdown Rendering for Session Updates (2025-07)
+- **Utility:** `src/utils/inlineMarkdown.tsx` — `renderInlineMarkdown(text)` converts basic inline markdown (`**bold**`, `*italic*`, `` `code` ``) into React elements using regex tokenization. Returns plain string if no markdown found, otherwise wraps in a fragment. No `dangerouslySetInnerHTML` — pure React elements with keys.
+- **Code styling:** Inline `<code>` gets `bg-surface-tertiary px-1 py-0.5 font-mono text-[0.9em] text-fuchsia-300/90` to match the session update fuchsia accent.
+- **Applied to:** (1) `SessionDetail.tsx` session updates list (line ~794), (2) `SessionDetail.tsx` waiting banner question text (line ~735) and waiting-for text (line ~753), (3) `KanbanTile.tsx` assistant update preview (line ~103).
+- **Import:** Added `import { renderInlineMarkdown } from '../../utils/inlineMarkdown'` to both `SessionDetail.tsx` and `KanbanTile.tsx`.
+- **Approach:** Option A (lightweight regex utility) chosen over installing a library. Handles only inline formatting — block-level markdown (headers, lists, code blocks) renders as plain text. Emoji pass through naturally since they're just Unicode.
+- **Outcome:** Build (`tsc --noEmit`) and lint (`eslint`) both clean. `**Naomi**` now renders as bold **Naomi** instead of literal asterisks.
+
+### Markdown Table Rendering in inlineMarkdown (2025-07)
+- **Purpose:** Session updates containing markdown tables (pipe-delimited with `|---|` separator rows) were rendering as raw text. Now they render as styled HTML tables.
+- **Architecture:** Refactored `renderInlineMarkdown()` into a block-level parser. The original inline regex logic moved to a private `renderInlineTokens()` function. New `splitBlocks()` splits input text into `'text'` and `'table'` blocks by detecting contiguous pipe-prefixed lines.
+- **Table parsing:** `isSeparatorRow()` validates `|------|` patterns. `parseCells()` strips outer pipes and splits on inner ones. Header row is the line immediately before the separator; data rows follow it. Inline markdown (bold/italic/code) is applied to each cell's content.
+- **Styling:** `table: "w-full text-xs border-collapse my-1"`, `th: "text-left font-medium text-fg/60 border-b border-border-default px-2 py-1"`, `td: "text-fg/80 border-b border-border-default/50 px-2 py-1"`. Matches dark theme, compact and monospace-friendly.
+- **Mixed content:** Handles text before/after tables — each block type renders independently. Pipe-delimited blocks without a separator row are demoted back to plain text.
+- **Fast path:** If input contains no `|` character, skips block splitting entirely and goes straight to inline token rendering. No perf impact on non-table content.
+- **Outcome:** Build (`tsc --noEmit`) and lint (`eslint`) both clean. Tables like test result matrices now render as proper HTML tables instead of raw pipe text.

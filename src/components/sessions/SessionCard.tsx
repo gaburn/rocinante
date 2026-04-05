@@ -3,7 +3,6 @@ import type { Session } from '../../types';
 import { getStatusBorderClass } from '../../utils/statusColors';
 import { formatRelativeTime, countAgents } from '../../utils/formatters';
 import StatusBadge from '../common/StatusBadge';
-import { Sparkline } from '../common/Sparkline';
 import WorkstreamAutocomplete from '../common/WorkstreamAutocomplete';
 
 /* ────────────────────────────────────────────────────────
@@ -172,17 +171,9 @@ export default function SessionCard({
         {session.latestUserMessage ?? session.intent}
       </p>
 
-      {/* ── Meta row: relative time + sparkline + agent count ── */}
+      {/* ── Meta row: relative time + agent count ── */}
       <div className="mt-1.5 flex items-center gap-2 text-[11px] tabular-nums text-fg/30">
         <span>{timeAgo}</span>
-        {session.activityBuckets && session.activityBuckets.length > 0 && (
-          <Sparkline
-            buckets={session.activityBuckets}
-            width={48}
-            height={12}
-            className="text-fg/20 flex-1"
-          />
-        )}
         <span className="ml-auto">
           {agentCount} {agentCount === 1 ? 'agent' : 'agents'}
         </span>

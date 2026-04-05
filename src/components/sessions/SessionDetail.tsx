@@ -12,6 +12,7 @@ import {
   getStatusDotClass,
   getStatusTextClass,
 } from '../../utils/statusColors';
+import { renderInlineMarkdown } from '../../utils/inlineMarkdown';
 import StatusBadge from '../common/StatusBadge';
 import WorkstreamAutocomplete from '../common/WorkstreamAutocomplete';
 import SubagentTree from '../agents/SubagentTree';
@@ -731,7 +732,7 @@ export default function SessionDetail() {
                       Waiting for Input
                     </p>
                     <p className="text-sm leading-relaxed text-amber-300/90">
-                      {session.waitingQuestion}
+                      {renderInlineMarkdown(session.waitingQuestion)}
                     </p>
                     {session.waitingChoices && session.waitingChoices.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 mt-1.5">
@@ -749,7 +750,7 @@ export default function SessionDetail() {
                       Waiting for
                     </p>
                     <p className="text-sm leading-relaxed text-amber-300/90">
-                      {session.waitingFor}
+                      {renderInlineMarkdown(session.waitingFor)}
                     </p>
                   </>
                 )}
@@ -790,7 +791,7 @@ export default function SessionDetail() {
                   key={i}
                   className="rounded-md border-l-2 border-fuchsia-500/40 bg-fuchsia-500/5 px-3 py-2"
                 >
-                  <p className="text-sm leading-relaxed text-fg/70 whitespace-pre-wrap">{update}</p>
+                  <p className="text-sm leading-relaxed text-fg/70 whitespace-pre-wrap">{renderInlineMarkdown(update)}</p>
                 </div>
               ))}
             </div>
