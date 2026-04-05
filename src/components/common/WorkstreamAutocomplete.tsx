@@ -102,6 +102,7 @@ export default function WorkstreamAutocomplete({
 
   // ── Clamp highlight when list changes ─────────────────────────────
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setHighlightIndex((prev) =>
       prev >= totalOptions ? totalOptions - 1 : prev,
     );

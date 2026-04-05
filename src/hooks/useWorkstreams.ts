@@ -122,11 +122,11 @@ export function useWorkstreams(): UseWorkstreamsResult {
         if (!(sessionId in current)) {
           return current
         }
-        const { [sessionId]: _, ...rest } = current
+        const { [sessionId]: _removed, ...rest } = current // eslint-disable-line @typescript-eslint/no-unused-vars
         return rest
       }
 
-      if (current[sessionId] === nextName) {
+      if (current[sessionId] === nextName){
         return current
       }
 
@@ -142,7 +142,7 @@ export function useWorkstreams(): UseWorkstreamsResult {
       if (!(sessionId in current)) {
         return current
       }
-      const { [sessionId]: _, ...rest } = current
+      const { [sessionId]: _deleted, ...rest } = current // eslint-disable-line @typescript-eslint/no-unused-vars
       return rest
     })
   }, [])

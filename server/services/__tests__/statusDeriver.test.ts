@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { deriveSessionStatus, DerivedStatus } from '../statusDeriver.js';
+import { deriveSessionStatus } from '../statusDeriver.js';
 import { ParsedEvent } from '../eventTailReader.js';
-import * as config from '../../config.js';
 
 // Mock the config module
 vi.mock('../../config.js', () => ({

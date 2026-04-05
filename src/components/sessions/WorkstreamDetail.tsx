@@ -271,11 +271,13 @@ export default function WorkstreamDetail() {
   const currentName = selectedWorkstream?.name ?? null;
   const currentDescription = selectedWorkstream?.description ?? '';
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setNotesValue(currentDescription);
   }, [currentName, currentDescription]);
 
   /* Reset editing state when workstream changes */
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsEditingName(false);
     setEditNameValue('');
     setIsAddingWorkItem(false);

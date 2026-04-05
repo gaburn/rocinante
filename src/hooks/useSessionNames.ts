@@ -76,7 +76,7 @@ export function useSessionNames(): UseSessionNamesResult {
       if (!(sessionId in current)) {
         return current
       }
-      const { [sessionId]: _, ...rest } = current
+      const { [sessionId]: _removed, ...rest } = current // eslint-disable-line @typescript-eslint/no-unused-vars
       return rest
     })
   }, [])

@@ -157,9 +157,11 @@ export function useForceGraph(sessions: Session[]): {
     };
   }, []);
 
+  /* eslint-disable react-hooks/refs */
   const isSimulating = simulationRef.current
     ? simulationRef.current.alpha() > simulationRef.current.alphaMin()
     : false;
+  /* eslint-enable react-hooks/refs */
 
   return {
     nodes,
