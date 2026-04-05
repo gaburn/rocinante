@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { Session, SessionStatus } from '../../types/index.js';
+import type { Session } from '../../types/index.js';
 
 /**
  * The session search/filter logic from useSessions.ts (lines 229-238):
