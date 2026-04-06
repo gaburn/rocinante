@@ -99,6 +99,12 @@ export interface ToolUsageEntry {
   failureCount: number;
 }
 
+export interface ModelUsageEntry {
+  model: string;
+  count: number;
+  percentage: number;
+}
+
 export interface DateCount {
   date: string;
   count: number;
@@ -114,6 +120,12 @@ export interface AgentLeaderboardEntry {
   tasksCompleted: number;
   tasksSucceeded: number;
   tasksFailed: number;
+}
+
+export interface ModelUsageEntry {
+  model: string;
+  count: number;
+  percentage: number;
 }
 
 export interface TelemetryData {
@@ -149,5 +161,15 @@ export interface TelemetryData {
     averageAgentsPerSession: number;
   };
 
+  modelUtilization: {
+    totalInvocations: number;
+    byModel: ModelUsageEntry[];
+  };
+
   agentLeaderboard: AgentLeaderboardEntry[];
+
+  modelUtilization?: {
+    totalInvocations: number;
+    byModel: ModelUsageEntry[];
+  };
 }

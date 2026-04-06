@@ -2,6 +2,7 @@ import { useTelemetry } from '../../hooks/useTelemetry'
 import StatCard from './StatCard'
 import ActivityChart from './ActivityChart'
 import StatusBreakdown from './StatusBreakdown'
+import ModelBreakdown from './ModelBreakdown'
 import ToolLeaderboard from './ToolLeaderboard'
 import AgentLeaderboard from './AgentLeaderboard'
 
@@ -107,6 +108,9 @@ export default function StatsPage() {
           <ActivityChart data={data.activityTimeline.sessionsPerDay} />
           <StatusBreakdown data={data.sessionOverview.byStatus} />
         </div>
+
+        {/* Model utilization */}
+        <ModelBreakdown data={data.modelUtilization} />
 
         {/* Bottom row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

@@ -1,4 +1,4 @@
-import { TelemetryData, ToolUsageEntry, DateCount, RepoCount, SessionStatus, AgentLeaderboardEntry } from '../../src/types/index.js';
+import { TelemetryData, ToolUsageEntry, DateCount, RepoCount, SessionStatus, AgentLeaderboardEntry, ModelUsageEntry } from '../../src/types/index.js';
 import { getAllSessions, SqliteSession } from './sqliteReader.js';
 import { readEventsTail, ParsedEvent } from './eventTailReader.js';
 import { deriveSessionStatus } from './statusDeriver.js';
@@ -386,6 +386,42 @@ function computeAgentLeaderboard(
     }));
 }
 
+// --- Model utilization ---
+
+function computeModelUtilization(
+  rows: SqliteSession[],
+  rowEvents: Map<string, ParsedEvent[]>,
+): TelemetryData['modelUtilization'] {
+  const modelMap = new Map<string, number>();
+  let totalInvocations = 0;
+
+  const recentRows = rows.slice(0, MAX_SESSIONS_FOR_TOOLS);
+
+  for (const row of recentRows) {
+    const events = rowEvents.get(row.id) ?? [];
+    for (const event of events) {
+      if (event.type !== 'tool.execution_complete') continue;
+      const model = event.data?.model as string | undefined;
+      if (!model) continue;
+
+      totalInvocations++;
+      modelMap.set(model, (modelMap.get(model) ?? 0) + 1);
+    }
+  }
+
+  const byModel: ModelUsageEntry[] = Array.from(modelMap.entries())
+    .sort((a, b) => b[1] - a[1])
+    .map(([model, count]) => ({
+      model,
+      count,
+      percentage: totalInvocations > 0
+        ? Math.round((count / totalInvocations) * 10000) / 100
+        : 0,
+    }));
+
+  return { totalInvocations, byModel };
+}
+
 // --- Main aggregator ---
 
 export function aggregateTelemetry(): TelemetryData {
@@ -415,6 +451,7 @@ export function aggregateTelemetry(): TelemetryData {
     activityTimeline: computeActivityTimeline(rows, rowEvents),
     repoDistribution: computeRepoDistribution(rows),
     agentStats: computeAgentStats(rows, rowEvents),
+    modelUtilization: computeModelUtilization(rows, rowEvents),
     agentLeaderboard,
   };
 
