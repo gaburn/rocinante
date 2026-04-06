@@ -1,4 +1,3 @@
-import type { StatusBreakdownEntry } from '../../types/telemetry'
 import {
   getStatusDotClass,
   getStatusLabel,
@@ -7,7 +6,7 @@ import {
 import type { SessionStatus } from '../../types'
 
 interface StatusBreakdownProps {
-  data: StatusBreakdownEntry[]
+  data: Record<SessionStatus, number>
 }
 
 const STATUS_BAR_COLORS: Record<SessionStatus, string> = {
@@ -18,7 +17,8 @@ const STATUS_BAR_COLORS: Record<SessionStatus, string> = {
 }
 
 export default function StatusBreakdown({ data }: StatusBreakdownProps) {
-  const total = data.reduce((sum, d) => sum + d.count, 0)
+  const entries = (Object.entries(data) as [SessionStatus, number][])
+  const total = entries.reduce((sum, [, count]) => sum + count, 0)
 
   if (total === 0) {
     return (
@@ -41,16 +41,16 @@ export default function StatusBreakdown({ data }: StatusBreakdownProps) {
 
       {/* Stacked horizontal bar */}
       <div className="flex h-6 w-full overflow-hidden rounded-full bg-surface-tertiary">
-        {data
-          .filter((d) => d.count > 0)
-          .map((entry) => {
-            const pct = (entry.count / total) * 100
+        {entries
+          .filter(([, count]) => count > 0)
+          .map(([status, count]) => {
+            const pct = (count / total) * 100
             return (
               <div
-                key={entry.status}
-                className={`${STATUS_BAR_COLORS[entry.status]} transition-all duration-300`}
+                key={status}
+                className={`${STATUS_BAR_COLORS[status]} transition-all duration-300`}
                 style={{ width: `${pct}%` }}
-                title={`${getStatusLabel(entry.status)}: ${entry.count} (${pct.toFixed(1)}%)`}
+                title={`${getStatusLabel(status)}: ${count} (${pct.toFixed(1)}%)`}
               />
             )
           })}
@@ -58,18 +58,18 @@ export default function StatusBreakdown({ data }: StatusBreakdownProps) {
 
       {/* Legend */}
       <div className="mt-4 grid grid-cols-2 gap-3">
-        {data.map((entry) => {
-          const pct = total > 0 ? ((entry.count / total) * 100).toFixed(1) : '0'
+        {entries.map(([status, count]) => {
+          const pct = total > 0 ? ((count / total) * 100).toFixed(1) : '0'
           return (
-            <div key={entry.status} className="flex items-center gap-2">
+            <div key={status} className="flex items-center gap-2">
               <span
-                className={`h-2.5 w-2.5 rounded-full ${getStatusDotClass(entry.status)}`}
+                className={`h-2.5 w-2.5 rounded-full ${getStatusDotClass(status)}`}
               />
-              <span className={`text-xs ${getStatusTextClass(entry.status)}`}>
-                {getStatusLabel(entry.status)}
+              <span className={`text-xs ${getStatusTextClass(status)}`}>
+                {getStatusLabel(status)}
               </span>
               <span className="ml-auto text-xs font-mono text-fg-secondary">
-                {entry.count}{' '}
+                {count}{' '}
                 <span className="text-fg-secondary/60">({pct}%)</span>
               </span>
             </div>

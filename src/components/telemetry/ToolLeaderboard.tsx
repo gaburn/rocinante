@@ -1,7 +1,7 @@
-import type { ToolUsage } from '../../types/telemetry'
+import type { ToolUsageEntry } from '../../types'
 
 interface ToolLeaderboardProps {
-  data: ToolUsage[]
+  data: ToolUsageEntry[]
 }
 
 export default function ToolLeaderboard({ data }: ToolLeaderboardProps) {
@@ -25,7 +25,7 @@ export default function ToolLeaderboard({ data }: ToolLeaderboardProps) {
           {data.slice(0, 10).map((tool, i) => {
             const pct = (tool.count / maxCount) * 100
             return (
-              <div key={tool.name} className="flex items-center gap-3">
+              <div key={tool.tool} className="flex items-center gap-3">
                 {/* Rank */}
                 <span className="w-5 text-right text-xs font-mono text-fg-secondary/60">
                   {i + 1}
@@ -33,7 +33,7 @@ export default function ToolLeaderboard({ data }: ToolLeaderboardProps) {
 
                 {/* Tool name */}
                 <span className="w-32 truncate text-xs font-mono text-fg-heading">
-                  {tool.name}
+                  {tool.tool}
                 </span>
 
                 {/* Bar */}

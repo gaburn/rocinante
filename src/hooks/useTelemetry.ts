@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { TelemetryData } from '../types/telemetry'
+import type { TelemetryData } from '../types/index'
 
 const POLL_INTERVAL = 30_000
 

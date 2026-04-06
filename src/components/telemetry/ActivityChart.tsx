@@ -1,7 +1,7 @@
-import type { DailyActivity } from '../../types/telemetry'
+import type { DateCount } from '../../types'
 
 interface ActivityChartProps {
-  data: DailyActivity[]
+  data: DateCount[]
 }
 
 export default function ActivityChart({ data }: ActivityChartProps) {

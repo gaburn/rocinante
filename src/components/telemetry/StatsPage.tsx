@@ -78,24 +78,24 @@ export default function StatsPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             label="Total Sessions"
-            value={data.totalSessions.toLocaleString()}
+            value={data.sessionOverview.totalSessions.toLocaleString()}
             icon={<SessionsIcon />}
           />
           <StatCard
             label="Active Now"
-            value={data.activeSessions}
+            value={data.sessionOverview.byStatus.active}
             icon={<ActiveIcon />}
             accent="text-emerald-400"
             indicator="green"
           />
           <StatCard
             label="Avg Duration"
-            value={formatDuration(data.avgDurationSeconds)}
+            value={formatDuration(data.sessionOverview.averageDurationMs / 1000)}
             icon={<ClockIcon />}
           />
           <StatCard
             label="Tool Calls"
-            value={data.totalToolCalls.toLocaleString()}
+            value={data.toolUsage.totalToolCalls.toLocaleString()}
             icon={<ToolIcon />}
             accent="text-blue-400"
           />
@@ -103,13 +103,13 @@ export default function StatsPage() {
 
         {/* Charts row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <ActivityChart data={data.dailyActivity} />
-          <StatusBreakdown data={data.statusBreakdown} />
+          <ActivityChart data={data.activityTimeline.sessionsPerDay} />
+          <StatusBreakdown data={data.sessionOverview.byStatus} />
         </div>
 
         {/* Bottom row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <ToolLeaderboard data={data.topTools} />
+          <ToolLeaderboard data={data.toolUsage.top10} />
 
           {/* Repository breakdown */}
           <div className="rounded-xl border border-border-default bg-surface-secondary p-5">
@@ -119,15 +119,15 @@ export default function StatsPage() {
                 by session count
               </span>
             </h3>
-            {data.topRepositories.length === 0 ? (
+            {data.repoDistribution.topRepos.length === 0 ? (
               <div className="flex h-20 items-center justify-center text-fg-secondary text-sm">
                 No repository data
               </div>
             ) : (
               <div className="space-y-3">
-                {data.topRepositories.slice(0, 5).map((repo, i) => (
+                {data.repoDistribution.topRepos.slice(0, 5).map((repo, i) => (
                   <div
-                    key={repo.repository}
+                    key={repo.name}
                     className="flex items-center justify-between rounded-lg bg-surface-tertiary/50 px-3 py-2"
                   >
                     <div className="flex items-center gap-2 min-w-0">
@@ -135,7 +135,7 @@ export default function StatsPage() {
                         {i + 1}
                       </span>
                       <span className="text-xs font-mono text-fg-heading truncate">
-                        {repo.repository}
+                        {repo.name}
                       </span>
                     </div>
                     <span className="text-xs font-mono font-semibold text-accent-primary shrink-0 ml-2">
