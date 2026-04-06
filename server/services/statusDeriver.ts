@@ -92,9 +92,11 @@ function getAskUserRequest(event: ParsedEvent): AskUserToolRequest | null {
           const question = (params as { question?: unknown }).question;
           const choices = (params as { choices?: unknown }).choices;
 
+          const q = typeof question === 'string' && question !== '' ? question : undefined;
+          const c = Array.isArray(choices) ? choices.filter((v): v is string => typeof v === 'string') : undefined;
           return {
-            question: typeof question === 'string' ? question : undefined,
-            choices: Array.isArray(choices) ? choices.filter((c): c is string => typeof c === 'string') : undefined,
+            question: q,
+            choices: c && c.length > 0 ? c : undefined,
           };
         }
 
@@ -212,11 +214,11 @@ function findAskUserFromToolExecution(
       if (params && typeof params === 'object') {
         const question = (params as { question?: unknown }).question;
         const choices = (params as { choices?: unknown }).choices;
+        const q = typeof question === 'string' && question !== '' ? question : undefined;
+        const c = Array.isArray(choices) ? choices.filter((v): v is string => typeof v === 'string') : undefined;
         return {
-          question: typeof question === 'string' ? question : undefined,
-          choices: Array.isArray(choices)
-            ? choices.filter((c): c is string => typeof c === 'string')
-            : undefined,
+          question: q,
+          choices: c && c.length > 0 ? c : undefined,
         };
       }
       return {};

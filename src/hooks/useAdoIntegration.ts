@@ -128,10 +128,12 @@ export function useAdoIntegration(workstreamName: string | null, sessions: Sessi
   }, [branches, isAdoConfigured, workstreamName])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchWorkItems()
   }, [fetchWorkItems])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchPullRequests()
   }, [fetchPullRequests])
 

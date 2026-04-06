@@ -41,6 +41,7 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
   const tabs = useTerminalTabs();
   const { selectedSession } = useSessionContext();
 
+  /* eslint-disable react-hooks/preserve-manual-memoization */
   const openSessionTerminal = useCallback(
     (session: Session) => {
       tabs.openTab({ id: session.id, name: session.name, cwd: session.cwd ?? null });
@@ -56,6 +57,7 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
     );
     panel.openTerminal();
   }, [tabs.openTab, panel.openTerminal]);
+  /* eslint-enable react-hooks/preserve-manual-memoization */
 
   useEffect(() => {
     if (!tabs.followSession || !selectedSession || !panel.isTerminalOpen) return;
@@ -78,6 +80,7 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useTerminalContext(): TerminalContextValue {
   const context = useContext(TerminalContext);
   if (!context) throw new Error('useTerminalContext must be used within a TerminalProvider');

@@ -69,7 +69,7 @@ export function useWorkstreamMeta(): UseWorkstreamMetaResult {
       if (!(workstreamName in current)) {
         return current
       }
-      const { [workstreamName]: _, ...rest } = current
+      const { [workstreamName]: _removed, ...rest } = current // eslint-disable-line @typescript-eslint/no-unused-vars
       return rest
     })
   }, [])
@@ -81,11 +81,11 @@ export function useWorkstreamMeta(): UseWorkstreamMetaResult {
         if (!(workstreamName in current)) {
           return current
         }
-        const { [workstreamName]: _, ...rest } = current
+        const { [workstreamName]: _cleared, ...rest } = current // eslint-disable-line @typescript-eslint/no-unused-vars
         return rest
       }
 
-      if (current[workstreamName]?.description === trimmedDescription) {
+      if (current[workstreamName]?.description === trimmedDescription){
         return current
       }
 
@@ -120,7 +120,7 @@ export function useWorkstreamMeta(): UseWorkstreamMetaResult {
       if (!(workstreamName in current)) {
         return current
       }
-      const { [workstreamName]: _, ...rest } = current
+      const { [workstreamName]: _deleted, ...rest } = current // eslint-disable-line @typescript-eslint/no-unused-vars
       return rest
     })
   }, [])

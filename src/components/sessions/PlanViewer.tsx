@@ -127,6 +127,7 @@ export default function PlanViewer({ sessionId }: PlanViewerProps) {
     const controller = new AbortController();
     abortRef.current = controller;
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsLoading(true);
     setError(null);
 
