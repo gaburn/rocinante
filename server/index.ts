@@ -7,6 +7,7 @@ import { killAllPtys } from './services/ptyManager.js';
 import sessionsRouter from './routes/sessions.js';
 import configRouter from './routes/config.js';
 import adoRouter from './routes/ado.js';
+import telemetryRouter from './routes/telemetry.js';
 import { attachTerminalWebSocket } from './routes/terminal.js';
 
 const app = express();
@@ -41,6 +42,7 @@ app.use((req, res, next) => {
 app.use('/api', sessionsRouter);
 app.use('/api', configRouter);
 app.use('/api', adoRouter);
+app.use('/api', telemetryRouter);
 
 if (process.env.NODE_ENV === 'production') {
   const distPath = path.join(import.meta.dirname ?? '.', '..', 'dist');

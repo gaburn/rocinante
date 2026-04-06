@@ -29,7 +29,7 @@ export interface AutoArchiveRule {
 
 export interface DisplaySettings {
   refreshInterval: RefreshInterval;
-  defaultViewMode: 'list' | 'network';
+  defaultViewMode: 'list' | 'network' | 'stats';
   sortOrder: SortOrder;
   showCompletedSessions: boolean;
   theme: ThemeMode;

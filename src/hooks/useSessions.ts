@@ -29,7 +29,7 @@ export interface UseSessionsResult {
   selectedWorkstream: SessionGroup | null
   statusFilter: SessionStatus | 'all'
   searchQuery: string
-  viewMode: 'list' | 'network'
+  viewMode: 'list' | 'network' | 'stats'
   showArchived: boolean
   statusCounts: StatusCounts
   archivedCount: number
@@ -41,7 +41,7 @@ export interface UseSessionsResult {
   clearSelection: () => void
   setStatusFilter: (status: SessionStatus | 'all') => void
   setSearchQuery: (query: string) => void
-  setViewMode: (mode: 'list' | 'network') => void
+  setViewMode: (mode: 'list' | 'network' | 'stats') => void
   setShowArchived: (show: boolean) => void
   isArchived: (id: string) => boolean
   archiveSession: (id: string) => void
@@ -83,7 +83,7 @@ export function useSessions(): UseSessionsResult {
   const [selectedWorkstreamName, setSelectedWorkstreamName] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<SessionStatus | 'all'>('all')
   const [searchQuery, setSearchQuery] = useState('')
-  const [viewMode, setViewMode] = useState<'list' | 'network'>(
+  const [viewMode, setViewMode] = useState<'list' | 'network' | 'stats'>(
     settings.display.defaultViewMode,
   )
   const [showArchived, setShowArchived] = useState(false)

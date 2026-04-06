@@ -91,3 +91,54 @@ export interface SessionPlan {
   raw: string;
   sections: PlanSection[];
 }
+
+export interface ToolUsageEntry {
+  tool: string;
+  count: number;
+  successCount: number;
+  failureCount: number;
+}
+
+export interface DateCount {
+  date: string;
+  count: number;
+}
+
+export interface RepoCount {
+  name: string;
+  count: number;
+}
+
+export interface TelemetryData {
+  generatedAt: string;
+
+  sessionOverview: {
+    totalSessions: number;
+    byStatus: Record<SessionStatus, number>;
+    averageDurationMs: number;
+    sessionsToday: number;
+    sessionsThisWeek: number;
+    sessionsThisMonth: number;
+  };
+
+  toolUsage: {
+    totalToolCalls: number;
+    top10: ToolUsageEntry[];
+    overallSuccessRate: number;
+  };
+
+  activityTimeline: {
+    sessionsPerDay: DateCount[];
+    eventsPerDay: DateCount[];
+  };
+
+  repoDistribution: {
+    topRepos: RepoCount[];
+    topBranches: RepoCount[];
+  };
+
+  agentStats: {
+    totalSubAgentsSpawned: number;
+    averageAgentsPerSession: number;
+  };
+}
