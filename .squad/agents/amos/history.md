@@ -64,6 +64,14 @@
 - **Root cause**: Detection order — active check (step 3) runs before ask_user waiting check (step 4). The `sortedEvents.some()` in step 3 correctly skips ask_user events but still matches other tools' execution events.
 - **Fix**: Inserted a new step 2.5 between blocked (step 2) and active (step 3) that checks if `lastMeaningful` is an ask_user tool execution or an `assistant.message` containing an ask_user request. If so, returns `waiting` immediately before the general active check runs. Added `findAskUserParentMessage()` helper to trace from a tool execution event back to its parent `assistant.message` via `toolCallId`. Also added `hook.start` and `hook.end` to the ignorable types in `getLastMeaningfulEvent()` so hook events don't mask ask_user as the last meaningful event.
 - **Priority order now**: shutdown → completed → blocked → **ask_user waiting** → active → general waiting → stale/completed → fallback active.
+
+### Token Utilization Aggregation (2026-04)
+- **What:** Backend telemetry pipeline to aggregate and attribute token consumption across sessions by model.
+- **Model Attribution:** Implemented primary model selection based on frequency — the model with the most `tool.execution_complete` occurrences in a session gets credited with that session's entire `outputTokens` (summed from `assistant.message` events). Sessions with no model information fallback to `"unknown"`.
+- **Why primary model:** `assistant.message` events don't carry model info (only `tool.execution_complete` events do). Per-event interleave-based correlation rejected due to unreliable event ordering within same timestamps and minimal accuracy gain for dashboard aggregation.
+- **Implementation:** Added `telemetryAggregator.ts` service with token accumulation logic. Type updates in `src/types/index.ts` for telemetry data structures. Integrates cleanly with existing event processing pipeline.
+- **Frontend integration:** Naomi building `TokenUtilization` React component to visualize token spend by model on stats page (Decision #7 filed).
+- **Key files:** `src/types/index.ts`, `server/services/telemetryAggregator.ts`.
 - **Key files**: `server/services/statusDeriver.ts`.
 
 ### getSortedByRecency timestamp tie-breaking fix (2025-07)

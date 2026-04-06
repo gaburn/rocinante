@@ -83,7 +83,13 @@
 - **Conditional:** Only rendered when `session.status === 'waiting'`. No new props or dependencies added.
 - **Outcome:** Build (`tsc --noEmit`) and lint (`eslint`) both clean. Icon is small but unmissable — pairs with the pulsing dot and glow to make waiting sessions obvious.
 
-### Inline Markdown Rendering for Session Updates (2025-07)
+### TokenUtilization Component (2026-04)
+- **What:** New React component `src/components/telemetry/TokenUtilization.tsx` for visualizing token consumption metrics on the stats page.
+- **Integration:** Built to consume Amos's token aggregation backend (Decision #7). Expects per-model token breakdowns from `/api/telemetry/tokens` endpoint.
+- **Features:** Displays token spend proportionally per model, supports time range filtering, responsive design matching existing stats page layout.
+- **File changes:** Created `src/components/telemetry/TokenUtilization.tsx` and integrated into `src/components/telemetry/StatsPage.tsx` layout.
+- **Production ready:** Component tested and deployed with stats page. No breaking changes to existing telemetry API.
+- **Parallel work:** Complements Amos's backend token aggregation. Together they provide full telemetry visibility for token usage analytics.
 - **Utility:** `src/utils/inlineMarkdown.tsx` — `renderInlineMarkdown(text)` converts basic inline markdown (`**bold**`, `*italic*`, `` `code` ``) into React elements using regex tokenization. Returns plain string if no markdown found, otherwise wraps in a fragment. No `dangerouslySetInnerHTML` — pure React elements with keys.
 - **Code styling:** Inline `<code>` gets `bg-surface-tertiary px-1 py-0.5 font-mono text-[0.9em] text-fuchsia-300/90` to match the session update fuchsia accent.
 - **Applied to:** (1) `SessionDetail.tsx` session updates list (line ~794), (2) `SessionDetail.tsx` waiting banner question text (line ~735) and waiting-for text (line ~753), (3) `KanbanTile.tsx` assistant update preview (line ~103).

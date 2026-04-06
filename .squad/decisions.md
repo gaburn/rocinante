@@ -135,6 +135,28 @@ Returns `undefined` when no updates exist. Cleanly separates status updates from
 
 **Recommendation:** Adopt Added/Changed/Fixed for all future entries. Optionally back-port 1.1.0 in cleanup pass (low priority).
 
+---
+
+### 7. Token Utilization — Model Attribution Strategy
+
+**Author:** Amos (Backend Dev)  
+**Date:** 2025-07  
+**Status:** Implemented  
+**Scope:** Backend telemetry aggregation
+
+**Context:** Token utilization analytics need to attribute `outputTokens` (from `assistant.message` events) to specific models. However, `assistant.message` events don't carry a `model` field — only `tool.execution_complete` events do.
+
+**Decision:** Attribute each session's total output tokens to the **primary model** used in that session (the model with the most `tool.execution_complete` occurrences). Sessions with no model information attribute tokens to `"unknown"`.
+
+**Trade-offs:**
+- **Simpler**: One model per session avoids complex per-event correlation that the event structure doesn't support.
+- **Approximate**: Multi-model sessions (rare — usually happen with sub-agents using different models) will attribute all tokens to the dominant model.
+- **Good enough**: For dashboards showing proportional token spend across models, per-session granularity is sufficient.
+
+**Alternative Considered:** Interleave-based attribution (find the nearest `tool.execution_complete` before each `assistant.message`) — rejected because event ordering within the same timestamp is unreliable, and the added complexity doesn't materially improve accuracy for the dashboard use case.
+
+**Files Changed:** src/types/index.ts, server/services/telemetryAggregator.ts
+
 ## Governance
 
 - All meaningful changes require team consensus
