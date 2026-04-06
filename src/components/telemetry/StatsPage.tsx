@@ -138,7 +138,7 @@ export default function StatsPage() {
                         {repo.name}
                       </span>
                     </div>
-                    <span className="text-xs font-mono font-semibold text-accent-primary shrink-0 ml-2">
+                    <span className="text-xs font-mono font-semibold text-amber-400 shrink-0 ml-2">
                       {repo.count}
                     </span>
                   </div>
