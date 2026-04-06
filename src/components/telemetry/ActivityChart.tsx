@@ -52,7 +52,7 @@ export default function ActivityChart({ data }: ActivityChartProps) {
                   width={16}
                   height={barHeight}
                   rx={3}
-                  className="fill-amber-500/70 hover:fill-amber-400 transition-colors"
+                  className="fill-blue-500/70 hover:fill-blue-400 transition-colors"
                 />
                 {/* Tooltip area */}
                 <title>
