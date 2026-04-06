@@ -305,32 +305,31 @@ function computeAgentLeaderboard(
   for (const row of recentRows) {
     const events = rowEvents.get(row.id) ?? [];
 
-    // Index task start events: toolCallId → agentName
-    const taskStarts = new Map<string, string>();
+    // Build completion index for success/failure lookup
+    const completionResults = new Map<string, boolean>();
     for (const event of events) {
-      if (event.type === 'tool.execution_start' && event.data) {
-        const toolName = (event.data.toolName ?? event.data.tool_name ?? event.data.name) as string | undefined;
-        if (toolName?.toLowerCase() !== 'task') continue;
-
+      if (event.type === 'tool.execution_complete' && event.data) {
         const callId = event.data.toolCallId as string | undefined;
         if (!callId) continue;
-
-        const args = event.data.arguments as Record<string, unknown> | undefined;
-        const description = (args?.description ?? '') as string;
-        const agent = parseAgentName(description);
-        if (agent) {
-          taskStarts.set(callId, agent);
-        }
+        const success = event.data.success as boolean | undefined;
+        const status = event.data.status as string | undefined;
+        const error = event.data.error as string | undefined;
+        const failed = success === false || status?.toLowerCase() === 'error' || status?.toLowerCase() === 'failed' || !!error;
+        completionResults.set(callId, !failed);
       }
     }
 
-    // Match completion events
+    // Count from task starts (these carry the description with agent name)
     for (const event of events) {
-      if (event.type !== 'tool.execution_complete') continue;
-      const callId = event.data?.toolCallId as string | undefined;
-      if (!callId || !taskStarts.has(callId)) continue;
+      if (event.type !== 'tool.execution_start' || !event.data) continue;
+      const toolName = (event.data.toolName ?? event.data.tool_name ?? event.data.name) as string | undefined;
+      if (toolName?.toLowerCase() !== 'task') continue;
 
-      const agent = taskStarts.get(callId)!;
+      const args = event.data.arguments as Record<string, unknown> | undefined;
+      const description = (args?.description ?? '') as string;
+      const agent = parseAgentName(description);
+      if (!agent) continue;
+
       let stats = agentMap.get(agent);
       if (!stats) {
         stats = { completed: 0, succeeded: 0, failed: 0 };
@@ -338,12 +337,16 @@ function computeAgentLeaderboard(
       }
       stats.completed++;
 
-      const success = event.data?.success as boolean | undefined;
-      const status = event.data?.status as string | undefined;
-      const error = event.data?.error as string | undefined;
-      if (success === false || status?.toLowerCase() === 'error' || status?.toLowerCase() === 'failed' || error) {
-        stats.failed++;
+      // If we have a matching completion, track success/failure
+      const callId = event.data.toolCallId as string | undefined;
+      if (callId && completionResults.has(callId)) {
+        if (completionResults.get(callId)) {
+          stats.succeeded++;
+        } else {
+          stats.failed++;
+        }
       } else {
+        // No completion in tail — assume success (task was spawned)
         stats.succeeded++;
       }
     }
