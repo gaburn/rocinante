@@ -105,13 +105,30 @@ function computeToolUsage(
 
   for (const row of recentRows) {
     const events = rowEvents.get(row.id) ?? [];
+
+    // Build toolCallId → toolName index from start events
+    // (complete events don't carry toolName)
+    const callIdToName = new Map<string, string>();
     for (const event of events) {
-      if (event.type.toLowerCase() !== 'tool.execution_complete') continue;
+      if (event.type === 'tool.execution_start' && event.data) {
+        const name = (event.data.toolName ?? event.data.tool_name ?? event.data.name) as string | undefined;
+        const callId = event.data.toolCallId as string | undefined;
+        if (name && callId) {
+          callIdToName.set(callId, name);
+        }
+      }
+    }
+
+    for (const event of events) {
+      if (event.type !== 'tool.execution_complete') continue;
 
       const data = event.data;
       if (!data) continue;
 
-      const toolName = (data.toolName ?? data.tool_name ?? data.name) as string | undefined;
+      // Look up tool name: first try the event data, then fall back to the start-event index
+      const callId = data.toolCallId as string | undefined;
+      const toolName = (data.toolName ?? data.tool_name ?? data.name ??
+        (callId ? callIdToName.get(callId) : undefined)) as string | undefined;
       if (!toolName) continue;
 
       totalCalls++;
@@ -122,9 +139,10 @@ function computeToolUsage(
       }
       stats.count++;
 
+      const success = data.success as boolean | undefined;
       const status = data.status as string | undefined;
       const error = data.error as string | undefined;
-      if (status?.toLowerCase() === 'error' || status?.toLowerCase() === 'failed' || error) {
+      if (success === false || status?.toLowerCase() === 'error' || status?.toLowerCase() === 'failed' || error) {
         stats.failure++;
       } else {
         stats.success++;
