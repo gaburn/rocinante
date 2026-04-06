@@ -3,6 +3,7 @@ import StatCard from './StatCard'
 import ActivityChart from './ActivityChart'
 import StatusBreakdown from './StatusBreakdown'
 import ToolLeaderboard from './ToolLeaderboard'
+import AgentLeaderboard from './AgentLeaderboard'
 
 function formatDuration(seconds: number): string {
   if (seconds < 60) return `${Math.round(seconds)}s`
@@ -110,7 +111,11 @@ export default function StatsPage() {
         {/* Bottom row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <ToolLeaderboard data={data.toolUsage.top10} />
+          <AgentLeaderboard data={data.agentLeaderboard} />
+        </div>
 
+        {/* Repo row */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Repository breakdown */}
           <div className="rounded-xl border border-border-default bg-surface-secondary p-5">
             <h3 className="mb-4 text-sm font-semibold text-fg-heading">

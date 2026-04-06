@@ -109,6 +109,13 @@ export interface RepoCount {
   count: number;
 }
 
+export interface AgentLeaderboardEntry {
+  agent: string;
+  tasksCompleted: number;
+  tasksSucceeded: number;
+  tasksFailed: number;
+}
+
 export interface TelemetryData {
   generatedAt: string;
 
@@ -141,4 +148,6 @@ export interface TelemetryData {
     totalSubAgentsSpawned: number;
     averageAgentsPerSession: number;
   };
+
+  agentLeaderboard: AgentLeaderboardEntry[];
 }

@@ -1,4 +1,4 @@
-import { TelemetryData, ToolUsageEntry, DateCount, RepoCount, SessionStatus } from '../../src/types/index.js';
+import { TelemetryData, ToolUsageEntry, DateCount, RepoCount, SessionStatus, AgentLeaderboardEntry } from '../../src/types/index.js';
 import { getAllSessions, SqliteSession } from './sqliteReader.js';
 import { readEventsTail, ParsedEvent } from './eventTailReader.js';
 import { deriveSessionStatus } from './statusDeriver.js';
@@ -282,6 +282,84 @@ function computeAgentStats(
   };
 }
 
+// --- Agent leaderboard ---
+
+function parseAgentName(description: string): string | null {
+  // Strip leading emoji (non-ASCII chars) and whitespace
+  const stripped = description.replace(/^[^\x20-\x7E]+\s*/, '');
+  if (!stripped) return null;
+  // Take everything before the first ':' or '('
+  const match = stripped.match(/^([^:(]+)/);
+  if (!match) return null;
+  return match[1].trim() || null;
+}
+
+function computeAgentLeaderboard(
+  rows: SqliteSession[],
+  rowEvents: Map<string, ParsedEvent[]>,
+): AgentLeaderboardEntry[] {
+  const agentMap = new Map<string, { completed: number; succeeded: number; failed: number }>();
+
+  const recentRows = rows.slice(0, MAX_SESSIONS_FOR_TOOLS);
+
+  for (const row of recentRows) {
+    const events = rowEvents.get(row.id) ?? [];
+
+    // Index task start events: toolCallId → agentName
+    const taskStarts = new Map<string, string>();
+    for (const event of events) {
+      if (event.type === 'tool.execution_start' && event.data) {
+        const toolName = (event.data.toolName ?? event.data.tool_name ?? event.data.name) as string | undefined;
+        if (toolName?.toLowerCase() !== 'task') continue;
+
+        const callId = event.data.toolCallId as string | undefined;
+        if (!callId) continue;
+
+        const args = event.data.arguments as Record<string, unknown> | undefined;
+        const description = (args?.description ?? '') as string;
+        const agent = parseAgentName(description);
+        if (agent) {
+          taskStarts.set(callId, agent);
+        }
+      }
+    }
+
+    // Match completion events
+    for (const event of events) {
+      if (event.type !== 'tool.execution_complete') continue;
+      const callId = event.data?.toolCallId as string | undefined;
+      if (!callId || !taskStarts.has(callId)) continue;
+
+      const agent = taskStarts.get(callId)!;
+      let stats = agentMap.get(agent);
+      if (!stats) {
+        stats = { completed: 0, succeeded: 0, failed: 0 };
+        agentMap.set(agent, stats);
+      }
+      stats.completed++;
+
+      const success = event.data?.success as boolean | undefined;
+      const status = event.data?.status as string | undefined;
+      const error = event.data?.error as string | undefined;
+      if (success === false || status?.toLowerCase() === 'error' || status?.toLowerCase() === 'failed' || error) {
+        stats.failed++;
+      } else {
+        stats.succeeded++;
+      }
+    }
+  }
+
+  return Array.from(agentMap.entries())
+    .sort((a, b) => b[1].completed - a[1].completed)
+    .slice(0, 10)
+    .map(([agent, s]) => ({
+      agent,
+      tasksCompleted: s.completed,
+      tasksSucceeded: s.succeeded,
+      tasksFailed: s.failed,
+    }));
+}
+
 // --- Main aggregator ---
 
 export function aggregateTelemetry(): TelemetryData {
@@ -309,6 +387,7 @@ export function aggregateTelemetry(): TelemetryData {
     activityTimeline: computeActivityTimeline(rows, rowEvents),
     repoDistribution: computeRepoDistribution(rows),
     agentStats: computeAgentStats(rows, rowEvents),
+    agentLeaderboard: computeAgentLeaderboard(rows, rowEvents),
   };
 
   cachedResult = result;
