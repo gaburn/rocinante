@@ -16,6 +16,7 @@ function readTaskEvents(sessionId: string): ParsedEvent[] {
   const { sessionStateDir } = getConfig();
   const filePath = path.join(sessionStateDir, sessionId, 'events.jsonl');
   try {
+    if (!fs.existsSync(filePath)) return [];
     const content = fs.readFileSync(filePath, 'utf-8');
     const results: ParsedEvent[] = [];
     for (const line of content.split('\n')) {
@@ -325,16 +326,38 @@ function parseAgentName(description: string): string | null {
 }
 
 function computeAgentLeaderboard(
-  rows: SqliteSession[],
+  _rows: SqliteSession[],
   _rowEvents: Map<string, ParsedEvent[]>,
 ): AgentLeaderboardEntry[] {
   const agentMap = new Map<string, { completed: number; succeeded: number; failed: number }>();
 
-  const recentRows = rows.slice(0, MAX_SESSIONS_FOR_TOOLS);
+  // Scan session-state directory directly (DB row order may miss long-running sessions)
+  const { sessionStateDir } = getConfig();
+  let sessionDirs: string[];
+  try {
+    sessionDirs = fs.readdirSync(sessionStateDir, { withFileTypes: true })
+      .filter(d => d.isDirectory())
+      .map(d => d.name);
+  } catch {
+    return [];
+  }
 
-  for (const row of recentRows) {
-    // Read full file for task events (tail is insufficient for large sessions)
-    const taskEvents = readTaskEvents(row.id);
+  // Sort by mtime descending, scan up to 100 sessions
+  const withMtime = sessionDirs
+    .map(id => {
+      try {
+        const evPath = path.join(sessionStateDir, id, 'events.jsonl');
+        return { id, mtime: fs.statSync(evPath).mtimeMs };
+      } catch {
+        return null;
+      }
+    })
+    .filter((s): s is { id: string; mtime: number } => s !== null)
+    .sort((a, b) => b.mtime - a.mtime)
+    .slice(0, 100);
+
+  for (const s of withMtime) {
+    const taskEvents = readTaskEvents(s.id);
 
     for (const event of taskEvents) {
       const args = event.data.arguments as Record<string, unknown> | undefined;
@@ -348,7 +371,7 @@ function computeAgentLeaderboard(
         agentMap.set(agent, stats);
       }
       stats.completed++;
-      stats.succeeded++; // assume success for starts (completion data may not be in tail)
+      stats.succeeded++;
     }
   }
 
@@ -383,6 +406,8 @@ export function aggregateTelemetry(): TelemetryData {
     }
   }
 
+  const agentLeaderboard = computeAgentLeaderboard(rows, rowEvents);
+
   const result: TelemetryData = {
     generatedAt: new Date().toISOString(),
     sessionOverview: computeSessionOverview(rows, rowEvents),
@@ -390,7 +415,7 @@ export function aggregateTelemetry(): TelemetryData {
     activityTimeline: computeActivityTimeline(rows, rowEvents),
     repoDistribution: computeRepoDistribution(rows),
     agentStats: computeAgentStats(rows, rowEvents),
-    agentLeaderboard: computeAgentLeaderboard(rows, rowEvents),
+    agentLeaderboard,
   };
 
   cachedResult = result;
