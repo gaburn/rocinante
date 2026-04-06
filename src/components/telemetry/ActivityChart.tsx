@@ -24,54 +24,65 @@ export default function ActivityChart({ data }: ActivityChartProps) {
         </span>
       </h3>
 
-      <div className="relative">
-        {/* Y-axis guide lines */}
-        <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
-          {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="border-t border-border-default/30" />
-          ))}
+      <div className="relative flex">
+        {/* Y-axis labels */}
+        <div className="flex flex-col justify-between h-48 pr-2 text-[10px] text-fg-secondary font-mono text-right w-8 shrink-0">
+          <span>{maxCount}</span>
+          <span>{Math.round(maxCount * 0.75)}</span>
+          <span>{Math.round(maxCount * 0.5)}</span>
+          <span>{Math.round(maxCount * 0.25)}</span>
+          <span>0</span>
         </div>
 
-        <svg
-          viewBox={`0 0 ${data.length * 20} 120`}
-          className="w-full h-48"
-          preserveAspectRatio="none"
-          role="img"
-          aria-label="Sessions per day bar chart"
-        >
-          {data.map((day, i) => {
-            const barHeight = (day.count / maxCount) * 100
-            const x = i * 20 + 2
-            const y = 110 - barHeight
+        <div className="relative flex-1">
+          {/* Y-axis guide lines */}
+          <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
+            {[0, 1, 2, 3, 4].map((i) => (
+              <div key={i} className="border-t border-border-default/30" />
+            ))}
+          </div>
 
-            return (
-              <g key={day.date}>
-                <rect
-                  x={x}
-                  y={y}
-                  width={16}
-                  height={barHeight}
-                  rx={3}
-                  className="fill-blue-500/70 hover:fill-blue-400 transition-colors"
-                />
-                {/* Tooltip area */}
-                <title>
-                  {day.date}: {day.count} session{day.count !== 1 ? 's' : ''}
-                </title>
-              </g>
-            )
-          })}
-        </svg>
+          <svg
+            viewBox={`0 0 ${data.length * 20} 120`}
+            className="w-full h-48"
+            preserveAspectRatio="none"
+            role="img"
+            aria-label="Sessions per day bar chart"
+          >
+            {data.map((day, i) => {
+              const barHeight = (day.count / maxCount) * 100
+              const x = i * 20 + 2
+              const y = 110 - barHeight
 
-        {/* X-axis labels — show first, middle, last */}
-        <div className="mt-2 flex justify-between text-[10px] text-fg-secondary font-mono">
-          <span>{formatDateLabel(data[0]?.date)}</span>
-          {data.length > 2 && (
-            <span>
-              {formatDateLabel(data[Math.floor(data.length / 2)]?.date)}
-            </span>
-          )}
-          <span>{formatDateLabel(data[data.length - 1]?.date)}</span>
+              return (
+                <g key={day.date}>
+                  <rect
+                    x={x}
+                    y={y}
+                    width={16}
+                    height={barHeight}
+                    rx={3}
+                    className="fill-blue-500/70 hover:fill-blue-400 transition-colors"
+                  />
+                  {/* Tooltip area */}
+                  <title>
+                    {day.date}: {day.count} session{day.count !== 1 ? 's' : ''}
+                  </title>
+                </g>
+              )
+            })}
+          </svg>
+
+          {/* X-axis labels — show first, middle, last */}
+          <div className="mt-2 flex justify-between text-[10px] text-fg-secondary font-mono">
+            <span>{formatDateLabel(data[0]?.date)}</span>
+            {data.length > 2 && (
+              <span>
+                {formatDateLabel(data[Math.floor(data.length / 2)]?.date)}
+              </span>
+            )}
+            <span>{formatDateLabel(data[data.length - 1]?.date)}</span>
+          </div>
         </div>
       </div>
 
