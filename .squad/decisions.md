@@ -194,6 +194,64 @@ Returns `undefined` when no updates exist. Cleanly separates status updates from
 
 ---
 
+### 9. API List/Detail Split + N+1 Query Elimination
+
+**Author:** Amos (Backend Dev)
+**Date:** 2026-04
+**Status:** Implemented
+**Scope:** Full-stack (Backend API, Frontend state management, UI components)
+
+**Context:** The `GET /api/sessions` endpoint returned the full session graph (events, activityBuckets, rootAgent, assistantUpdates) for ALL sessions on every poll cycle. The frontend list view only needs summary data. Additionally, each session triggered 2–3 separate SQLite queries for first/last message and turn count (N+1 pattern).
+
+**Decision:**
+
+1. **Lightweight SessionSummary DTO** — Added `SessionSummary` interface to `src/types/index.ts`. `Session extends SessionSummary` — backward compatible. Summary omits `rootAgent`, `events`, `activityBuckets`, `assistantUpdates`.
+2. **Batch N+1 queries** — Added `getSessionTurnDataBatch(sessionIds)` — single SQL query with `ROW_NUMBER() OVER (PARTITION BY session_id)` window functions.
+3. **Database indexes** — `ensureIndexes()` attempts `CREATE INDEX IF NOT EXISTS` on `turns(session_id, turn_index)` and `sessions(updated_at)`.
+4. **Route split** — `GET /api/sessions` → `SessionSummary[]` via `mapAllSessionSummaries()`. `GET /api/sessions/:id` → `Session` (unchanged).
+5. **Frontend state split** — `useSessions` stores `SessionSummary[]`. `selectedSession` (full `Session`) fetched separately.
+
+**Trade-offs:**
+- Network view "show all" mode now shows session nodes without agent sub-trees (summaries lack `rootAgent`).
+- Extra detail fetch when selecting a session, offset by much smaller list payload on every poll cycle.
+
+**Files Changed:** `src/types/index.ts`, `server/services/sqliteReader.ts`, `server/services/sessionMapper.ts`, `server/routes/sessions.ts`, `src/services/sessionService.ts`, `src/hooks/useSessions.ts`, and 12 additional component/hook files.
+
+---
+
+### 10. Context Split + List Virtualization
+
+**Author:** Naomi (Frontend Dev)
+**Date:** 2026-04
+**Status:** Implemented
+**Scope:** Frontend (context architecture, rendering performance)
+
+**Context:** The monolithic `SessionContext` caused re-render cascades — any state change (poll, click, search) re-rendered every consumer in the dashboard tree. Combined with an un-virtualized session list rendering all cards, this created measurable jank with 30+ sessions.
+
+**Decision:**
+
+1. **Split SessionContext into three focused providers**:
+   - `SessionDataContext` — session list, loading/error, filters, counts, workstream names, auto-archive.
+   - `SessionSelectionContext` — selected session/workstream + select/clear actions.
+   - `SessionActionsContext` — stable callback functions (archive, workstream, filter setters).
+
+2. **Focused consumer hooks** — `useSessionData()`, `useSessionSelection()`, `useSessionActions()`. `useSessionContext()` kept for backward compatibility.
+
+3. **SessionCard memoization** — Wrapped in `React.memo` with custom comparator checking session id, status, selection, workstream, etc.
+
+4. **Lazy-mount WorkstreamAutocomplete** — SessionCard renders simple pill/button; full autocomplete only mounts on edit.
+
+5. **Virtualize SessionList** — Installed `@tanstack/react-virtual` (~3KB gzipped). Flat list views use `useVirtualizer` with 110px row height, 5-row overscan, 10px gap.
+
+**Trade-offs:**
+- Three hooks vs one — slightly more imports but dramatically fewer re-renders.
+- Lazy WorkstreamAutocomplete has tiny visual flash on edit (acceptable).
+- Grouped view not virtualized (addressed later if needed).
+
+**Files Changed:** `src/context/SessionContext.tsx`, `src/components/sessions/SessionCard.tsx`, `src/components/sessions/SessionList.tsx`, `src/components/common/WorkstreamAutocomplete.tsx`, `src/App.tsx`, 13 consumer files, `package.json`.
+
+---
+
 ## Governance
 
 - All meaningful changes require team consensus
