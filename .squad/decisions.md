@@ -157,6 +157,43 @@ Returns `undefined` when no updates exist. Cleanly separates status updates from
 
 **Files Changed:** src/types/index.ts, server/services/telemetryAggregator.ts
 
+### 8. Server & Bundle Performance Baselines
+
+**Author:** Amos (Backend Dev), Naomi (Frontend Dev)  
+**Date:** 2026-04  
+**Status:** Implemented  
+**Scope:** Backend + Frontend (performance tooling)
+
+**Context:** Preparing for performance optimization. Created baseline measurement scripts for server API latency and frontend bundle sizes before any optimization work begins.
+
+**Decisions:**
+
+**Server Baseline (Amos):**
+1. Created `server/__benchmarks__/baseline.ts` — standalone benchmark script using native Node `fetch` and `performance.now()`.
+2. Measures HTTP endpoint latency (`/api/sessions`, `/api/sessions/:id`, `/api/telemetry`) — 20 iterations each, records avg/p50/p95/min/max response times and payload sizes.
+3. Direct aggregation timing — imports `aggregateTelemetry()` and times cold vs warm execution (cache behavior).
+4. Output: JSON report to file + human-readable table to stderr. Configurable iteration count via constant.
+5. No test framework — pure Node/TypeScript. Server must be running separately (avoids coupling).
+6. npm script: `bench:server` runs via `tsx`.
+
+**Bundle Baseline (Naomi):**
+1. Created `src/__benchmarks__/bundle-baseline.ts` — Node script using `tsx`. Shells out to `npx vite build`, scans `dist/`, computes gzipped sizes.
+2. Flags chunks over 100KB gzipped. Output: JSON report to `src/__benchmarks__/bundle-baseline-results.json` + human-readable stderr table.
+3. npm script: `bench:build` runs via `tsx`.
+4. Baseline findings: Main bundle 465KB raw / 126KB gzip (over 100KB 🔴). xterm chunk 340KB raw / 86KB gzip. CSS 73KB raw / 12KB gzip. Total 861KB raw / 223KB gzip.
+5. No new dependencies — uses only Node stdlib (`child_process`, `fs`, `path`, `zlib`).
+
+**Key Choices:**
+- Both scripts are one-time baseline snapshots (not continuous monitoring). Re-run after optimization passes to measure improvement.
+- Results stored in `.gitignore` so individual developer runs don't pollute git history.
+- Server baseline requires separate server startup (manual, avoids startup complexity). Bundle baseline bundles on each run (deterministic, no pre-built artifacts).
+
+**Trade-offs:** Neither script is integrated into CI yet (added later as needed). No cloud deployment or production baseline (local dev only for now).
+
+**Files Changed:** `server/__benchmarks__/baseline.ts`, `src/__benchmarks__/bundle-baseline.ts`, `src/__benchmarks__/bundle-baseline-results.json` (.gitignored), `package.json` (added `bench:server` and `bench:build` scripts).
+
+---
+
 ## Governance
 
 - All meaningful changes require team consensus

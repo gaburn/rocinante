@@ -10,6 +10,14 @@
 
 <!-- Append learnings below -->
 
+### Server performance baseline benchmarks (2025-07)
+- **What:** Created `server/__benchmarks__/baseline.ts` — a standalone benchmark script that measures API response times (avg/p50/p95), payload sizes, and direct `aggregateTelemetry()` cold/warm timing.
+- **Endpoints tested:** `GET /api/sessions`, `GET /api/sessions/:id` (first session from list), `GET /api/telemetry`. 20 iterations each.
+- **Telemetry cache insight:** `telemetryAggregator.ts` has module-level `cachedResult`/`cacheTimestamp` (30s TTL). Cache vars are private — can't clear from outside without modifying source. Cold vs warm measurement works by importing fresh (cache starts null) and timing first call vs second call.
+- **Percentile computation:** Sort ascending, then `sorted[ceil(p/100 * n) - 1]`. Simple and correct for small sample sizes.
+- **npm script:** `bench:server` runs via `tsx`. Server must be running separately.
+- **Key files:** `server/__benchmarks__/baseline.ts`, `package.json`.
+
 ### latestUserMessage field (2025-07)
 - **Event types**: User messages appear as `user.message` events in `events.jsonl` with content in `data.content`.
 - **Data sources**: SQLite `turns` table (`user_message` column, ordered by `turn_index`) and event log are both reliable sources. Event log captures the tail; SQLite has the full history.
@@ -86,3 +94,8 @@
 - **Fix**: Changed bucketing to derive the time range from the actual event timestamps (`Math.min`/`Math.max` of parsed event times) instead of the session-level `startedAt`/`lastActivityAt`. Events now spread across all 20 buckets regardless of session duration.
 - **Edge cases**: Empty events → 20 zeros. All-noise events → 20 zeros. All events at same timestamp → single centered bucket. The `startedAt`/`lastActivityAt` params are retained in the signature for API compatibility but unused.
 - **Key files**: `server/services/activityBucketBuilder.ts`.
+
+### TEAM UPDATE: Bundle Baseline Measurement (2026-04)
+- **From:** Naomi (Frontend Dev)
+- **Summary:** Created frontend bundle size baseline script (`src/__benchmarks__/bundle-baseline.ts`). Main entry point is 126KB gzip (over 100KB threshold). Parallel work to Amos's server baseline benchmarks. Both scripts provide pre-optimization snapshots for performance work.
+- **Integration:** No backend changes. Frontend baseline is independent tooling.
