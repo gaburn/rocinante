@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
-import { useSessionContext } from '../../context/SessionContext'
+import { useSessionData, useSessionActions } from '../../context/SessionContext'
 import { useSettingsContext } from '../../context/SettingsContext'
 import { useTerminalContext } from '../../context/TerminalContext'
 import SettingsPanel from '../settings/SettingsPanel'
@@ -161,13 +161,15 @@ function MoonIcon() {
 
 export default function Header() {
   const {
-    refreshSessions,
     autoRefreshEnabled,
-    toggleAutoRefresh,
     isLoading,
     viewMode,
+  } = useSessionData()
+  const {
+    refreshSessions,
+    toggleAutoRefresh,
     setViewMode,
-  } = useSessionContext()
+  } = useSessionActions()
 
   const [settingsOpen, setSettingsOpen] = useState(false)
   const { settings, updateDisplaySettings } = useSettingsContext()

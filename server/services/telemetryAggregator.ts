@@ -1,4 +1,4 @@
-import { TelemetryData, ToolUsageEntry, DateCount, RepoCount, SessionStatus, AgentLeaderboardEntry, ModelUsageEntry } from '../../src/types/index.js';
+import { TelemetryData, ToolUsageEntry, DateCount, RepoCount, SessionStatus, AgentLeaderboardEntry, ModelUsageEntry, TokenUtilizationEntry } from '../../src/types/index.js';
 import { getAllSessions, SqliteSession } from './sqliteReader.js';
 import { readEventsTail, ParsedEvent } from './eventTailReader.js';
 import { deriveSessionStatus } from './statusDeriver.js';
@@ -422,6 +422,69 @@ function computeModelUtilization(
   return { totalInvocations, byModel };
 }
 
+// --- Token utilization ---
+
+function computeTokenUtilization(
+  rows: SqliteSession[],
+  rowEvents: Map<string, ParsedEvent[]>,
+): TelemetryData['tokenUtilization'] {
+  const modelTokens = new Map<string, number>();
+  let totalOutputTokens = 0;
+
+  const recentRows = rows.slice(0, MAX_SESSIONS_FOR_TOOLS);
+
+  for (const row of recentRows) {
+    const events = rowEvents.get(row.id) ?? [];
+
+    // Determine the primary model for this session from tool.execution_complete events
+    const modelCounts = new Map<string, number>();
+    for (const event of events) {
+      if (event.type === 'tool.execution_complete') {
+        const model = event.data?.model as string | undefined;
+        if (model) {
+          modelCounts.set(model, (modelCounts.get(model) ?? 0) + 1);
+        }
+      }
+    }
+    let primaryModel = 'unknown';
+    let maxCount = 0;
+    for (const [model, count] of modelCounts) {
+      if (count > maxCount) {
+        maxCount = count;
+        primaryModel = model;
+      }
+    }
+
+    // Sum outputTokens from assistant.message events
+    let sessionTokens = 0;
+    for (const event of events) {
+      if (event.type === 'assistant.message') {
+        const tokens = event.data?.outputTokens;
+        if (typeof tokens === 'number' && tokens > 0) {
+          sessionTokens += tokens;
+        }
+      }
+    }
+
+    if (sessionTokens > 0) {
+      totalOutputTokens += sessionTokens;
+      modelTokens.set(primaryModel, (modelTokens.get(primaryModel) ?? 0) + sessionTokens);
+    }
+  }
+
+  const byModel: TokenUtilizationEntry[] = Array.from(modelTokens.entries())
+    .sort((a, b) => b[1] - a[1])
+    .map(([model, tokens]) => ({
+      model,
+      totalTokens: tokens,
+      percentage: totalOutputTokens > 0
+        ? Math.round((tokens / totalOutputTokens) * 10000) / 100
+        : 0,
+    }));
+
+  return { totalOutputTokens, byModel };
+}
+
 // --- Main aggregator ---
 
 export function aggregateTelemetry(): TelemetryData {
@@ -452,6 +515,7 @@ export function aggregateTelemetry(): TelemetryData {
     repoDistribution: computeRepoDistribution(rows),
     agentStats: computeAgentStats(rows, rowEvents),
     modelUtilization: computeModelUtilization(rows, rowEvents),
+    tokenUtilization: computeTokenUtilization(rows, rowEvents),
     agentLeaderboard,
   };
 

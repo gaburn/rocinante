@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSettingsContext } from '../../context/SettingsContext';
-import { useSessionContext } from '../../context/SessionContext';
+import { useSessionData } from '../../context/SessionContext';
 import packageJson from '../../../package.json';
 import { updateAdoConfig, testAdoConnection, getAdoStatus } from '../../services/adoService';
 import type {
@@ -585,7 +585,7 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
     serverSyncError,
   } = useSettingsContext();
 
-  const { autoArchive } = useSessionContext();
+  const { autoArchive } = useSessionData();
   const [newRulePattern, setNewRulePattern] = useState('');
 
   /* ── Reset confirmation guard ────────────────────────── */

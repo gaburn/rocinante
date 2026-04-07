@@ -9,6 +9,7 @@ lerna-debug.log*
 
 node_modules
 dist
+src/__benchmarks__/*-results.json
 dist-ssr
 dist-server
 *.local

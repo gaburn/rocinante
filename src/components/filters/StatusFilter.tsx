@@ -1,4 +1,4 @@
-import { useSessionContext } from '../../context/SessionContext'
+import { useSessionData, useSessionActions } from '../../context/SessionContext'
 import type { SessionStatus } from '../../types'
 import {
   getStatusTextClass,
@@ -60,7 +60,8 @@ const ACTIVE_UNDERLINE: Record<FilterValue, string> = {
 }
 
 export default function StatusFilter() {
-  const { statusFilter, setStatusFilter, statusCounts } = useSessionContext()
+  const { statusFilter, statusCounts } = useSessionData()
+  const { setStatusFilter } = useSessionActions()
 
   function countFor(value: FilterValue): number {
     return value === 'all' ? statusCounts.total : statusCounts[value]

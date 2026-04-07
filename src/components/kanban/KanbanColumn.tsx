@@ -1,7 +1,7 @@
 import { useDroppable } from '@dnd-kit/core';
 import { useSortable, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import type { Session, SessionStatus } from '../../types';
+import type { SessionSummary, SessionStatus } from '../../types';
 import type { ConversationMatch } from '../../hooks/useSessions';
 import KanbanTile from './KanbanTile';
 
@@ -14,7 +14,7 @@ const STATUS_SORT_ORDER: Record<SessionStatus, number> = {
   completed: 3,
 };
 
-function sortTiles(sessions: Session[]): Session[] {
+function sortTiles(sessions: SessionSummary[]): SessionSummary[] {
   return [...sessions].sort((a, b) => {
     const statusDiff = STATUS_SORT_ORDER[a.status] - STATUS_SORT_ORDER[b.status];
     if (statusDiff !== 0) return statusDiff;
@@ -25,9 +25,9 @@ function sortTiles(sessions: Session[]): Session[] {
 interface KanbanColumnProps {
   id: string;
   name: string;
-  sessions: Session[];
+  sessions: SessionSummary[];
   selectedSessionId: string | null;
-  onSelectSession: (session: Session) => void;
+  onSelectSession: (session: SessionSummary) => void;
   onSelectWorkstream?: () => void;
   onArchive?: (sessionId: string) => void;
   isSortable?: boolean;

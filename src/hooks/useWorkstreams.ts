@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useWorkstreamMeta } from './useWorkstreamMeta'
-import type { Session } from '../types'
+import type { SessionSummary } from '../types'
 
 const WORKSTREAM_STORAGE_KEY = 'rocinante-workstreams'
 const DEMO_WORKSTREAM_STORAGE_KEY = 'rocinante-workstreams-demo'
@@ -49,7 +49,7 @@ export interface UseWorkstreamsResult {
   renameWorkstream: (oldName: string, newName: string) => void
   deleteWorkstream: (name: string) => void
   pruneStaleIds: (activeIds: string[]) => void
-  autoGroupByRepository: (sessions: Session[]) => void
+  autoGroupByRepository: (sessions: SessionSummary[]) => void
   hasAnyWorkstreams: boolean
   workstreamMap: Readonly<Record<string, string>>
   metaMap: Readonly<Record<string, { description: string }>>
@@ -216,7 +216,7 @@ export function useWorkstreams(): UseWorkstreamsResult {
     })
   }, [])
 
-  const autoGroupByRepository = useCallback((sessions: Session[]) => {
+  const autoGroupByRepository = useCallback((sessions: SessionSummary[]) => {
     setWorkstreamMap((current) => {
       const next = { ...current }
       let changed = false

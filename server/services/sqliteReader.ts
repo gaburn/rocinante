@@ -62,6 +62,9 @@ export function initDatabase(): void {
     db = null;
     databaseUnavailable = true;
   }
+
+  // Try to create performance indexes (separate write connection, fails silently)
+  ensureIndexes();
 }
 
 export function getAllSessions(): SqliteSession[] {
@@ -254,6 +257,93 @@ export function searchConversations(query: string): SearchResult[] {
   }
 
   return Array.from(seen.values()).sort((a, b) => a.sessionId.localeCompare(b.sessionId));
+}
+
+/** Batch result for first/last message and turn count per session. */
+export interface SessionTurnData {
+  firstMessage: string | null;
+  lastMessage: string | null;
+  turnCount: number;
+}
+
+/**
+ * Fetch first message, last message, and turn count for multiple sessions
+ * in a single query. Eliminates N+1 per-session SQLite reads.
+ */
+export function getSessionTurnDataBatch(sessionIds: string[]): Map<string, SessionTurnData> {
+  const result = new Map<string, SessionTurnData>();
+  const database = getDatabase();
+
+  if (!database || sessionIds.length === 0) {
+    return result;
+  }
+
+  // Initialize defaults for every requested session
+  for (const id of sessionIds) {
+    result.set(id, { firstMessage: null, lastMessage: null, turnCount: 0 });
+  }
+
+  try {
+    const placeholders = sessionIds.map(() => '?').join(',');
+
+    const stmt = database.prepare(`
+      SELECT
+        session_id,
+        MIN(CASE WHEN rn_asc = 1 THEN user_message END)  AS first_message,
+        MIN(CASE WHEN rn_desc = 1 THEN user_message END) AS last_message,
+        MAX(total) AS turn_count
+      FROM (
+        SELECT
+          session_id,
+          user_message,
+          ROW_NUMBER() OVER (PARTITION BY session_id ORDER BY turn_index ASC)  AS rn_asc,
+          ROW_NUMBER() OVER (PARTITION BY session_id ORDER BY turn_index DESC) AS rn_desc,
+          COUNT(*) OVER (PARTITION BY session_id) AS total
+        FROM turns
+        WHERE session_id IN (${placeholders})
+      )
+      WHERE rn_asc = 1 OR rn_desc = 1
+      GROUP BY session_id
+    `);
+
+    const rows = stmt.all(...sessionIds) as Array<{
+      session_id: string;
+      first_message: string | null;
+      last_message: string | null;
+      turn_count: number;
+    }>;
+
+    for (const row of rows) {
+      result.set(row.session_id, {
+        firstMessage: row.first_message,
+        lastMessage: row.last_message,
+        turnCount: row.turn_count,
+      });
+    }
+  } catch (error) {
+    console.warn('[sqliteReader] Failed to batch-read session turn data.', error);
+  }
+
+  return result;
+}
+
+/**
+ * Attempt to create indexes that accelerate session/turn queries.
+ * Silently fails if the database is read-only (common for Copilot session state).
+ */
+export function ensureIndexes(): void {
+  const { sqliteDbPath } = getConfig();
+
+  let writeDb: InstanceType<typeof Database> | null = null;
+  try {
+    writeDb = new Database(sqliteDbPath, { fileMustExist: true });
+    writeDb.exec('CREATE INDEX IF NOT EXISTS idx_turns_session_turn ON turns(session_id, turn_index)');
+    writeDb.exec('CREATE INDEX IF NOT EXISTS idx_sessions_updated ON sessions(updated_at)');
+  } catch {
+    // Database may be locked or read-only — indexes are optional optimizations
+  } finally {
+    try { writeDb?.close(); } catch { /* ignore */ }
+  }
 }
 
 export function closeDatabase(): void {

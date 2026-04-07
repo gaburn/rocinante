@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, type ReactNode } from 'react';
-import { useSessionContext } from './SessionContext';
+import { useSessionSelection } from './SessionContext';
 import { useTerminalPanel } from '../hooks/useTerminalPanel';
 import { useTerminalTabs, type UseTerminalTabsResult } from '../hooks/useTerminalTabs';
 import type { Session } from '../types';
@@ -39,7 +39,7 @@ const TerminalContext = createContext<TerminalContextValue | null>(null);
 export function TerminalProvider({ children }: { children: ReactNode }) {
   const panel = useTerminalPanel();
   const tabs = useTerminalTabs();
-  const { selectedSession } = useSessionContext();
+  const { selectedSession } = useSessionSelection();
 
   /* eslint-disable react-hooks/preserve-manual-memoization */
   const openSessionTerminal = useCallback(

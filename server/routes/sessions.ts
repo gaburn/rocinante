@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { mapAllSessions, mapSessionById } from '../services/sessionMapper.js';
+import { mapAllSessionSummaries, mapSessionById } from '../services/sessionMapper.js';
 import { readSessionPlan } from '../services/planReader.js';
 import { generateDemoSessions, getDemoWorkstreams } from '../services/demoData.js';
 import { searchConversations } from '../services/sqliteReader.js';
@@ -14,7 +14,7 @@ sessionsRouter.get('/sessions', (req, res) => {
       return res.json(sessions);
     }
 
-    const sessions = mapAllSessions();
+    const sessions = mapAllSessionSummaries();
     res.set('Cache-Control', 'no-cache');
     res.json(sessions);
   } catch (error) {

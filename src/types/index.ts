@@ -46,14 +46,16 @@ export interface ErrorDetail {
   timestamp: string;
 }
 
-export interface Session {
+/** Lightweight DTO returned by the sessions list endpoint. */
+export interface SessionSummary {
   id: string;
   name: string;
   intent: string;
   status: SessionStatus;
   startedAt: string;
   lastActivityAt: string;
-  rootAgent: SubAgent;
+  agentCount: number;
+  turnCount: number;
   blockedReason?: string;
   waitingFor?: string;
   waitingQuestion?: string;
@@ -62,9 +64,15 @@ export interface Session {
   repository?: string | null;
   branch?: string | null;
   errorDetails?: ErrorDetail[];
+  latestUserMessage?: string;
+  lastAssistantUpdate?: string;
+}
+
+/** Full session payload returned by the detail endpoint. */
+export interface Session extends SessionSummary {
+  rootAgent: SubAgent;
   events?: TimelineEvent[];
   activityBuckets?: number[];
-  latestUserMessage?: string;
   assistantUpdates?: string[];
 }
 
@@ -122,6 +130,12 @@ export interface AgentLeaderboardEntry {
   tasksFailed: number;
 }
 
+export interface TokenUtilizationEntry {
+  model: string;
+  totalTokens: number;
+  percentage: number;
+}
+
 export interface ModelUsageEntry {
   model: string;
   count: number;
@@ -164,6 +178,11 @@ export interface TelemetryData {
   modelUtilization: {
     totalInvocations: number;
     byModel: ModelUsageEntry[];
+  };
+
+  tokenUtilization: {
+    totalOutputTokens: number;
+    byModel: TokenUtilizationEntry[];
   };
 
   agentLeaderboard: AgentLeaderboardEntry[];

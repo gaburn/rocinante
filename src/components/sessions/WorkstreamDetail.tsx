@@ -1,11 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { useSessionContext } from '../../context/SessionContext';
+import { useSessionSelection, useSessionActions } from '../../context/SessionContext';
 import { useAdoIntegration } from '../../hooks/useAdoIntegration';
-import type { Session, SessionStatus } from '../../types';
+import type { SessionSummary, SessionStatus } from '../../types';
 import type { AdoPullRequest } from '../../types/ado';
 import {
   formatRelativeTime,
-  countAgents,
 } from '../../utils/formatters';
 import {
   getStatusDotClass,
@@ -87,7 +86,7 @@ function PanelLayoutIcon() {
 /* ── Helpers ──────────────────────────────────────────────────── */
 
 /** Count sessions by their SessionStatus. */
-function countSessionsByStatus(sessions: Session[]): Record<SessionStatus, number> {
+function countSessionsByStatus(sessions: SessionSummary[]): Record<SessionStatus, number> {
   const counts: Record<SessionStatus, number> = {
     active: 0,
     blocked: 0,
@@ -103,15 +102,15 @@ function countSessionsByStatus(sessions: Session[]): Record<SessionStatus, numbe
 }
 
 /** Sum all agents across every session in the workstream. */
-function totalAgentsAcrossSessions(sessions: Session[]): number {
-  return sessions.reduce((sum, s) => sum + countAgents(s.rootAgent), 0);
+function totalAgentsAcrossSessions(sessions: SessionSummary[]): number {
+  return sessions.reduce((sum, s) => sum + s.agentCount, 0);
 }
 
 /**
  * Compute the combined wall-clock duration of all sessions.
  * Returns a human-readable string like "3h 22m".
  */
-function combinedDuration(sessions: Session[]): string {
+function combinedDuration(sessions: SessionSummary[]): string {
   const MINUTE = 60;
   const HOUR = 60 * MINUTE;
 
@@ -142,7 +141,7 @@ function combinedDuration(sessions: Session[]): string {
 }
 
 /** Sort sessions: active → blocked → waiting → completed. */
-function sortedByStatus(sessions: Session[]): Session[] {
+function sortedByStatus(sessions: SessionSummary[]): SessionSummary[] {
   return [...sessions].sort(
     (a, b) => STATUS_SORT_ORDER[a.status] - STATUS_SORT_ORDER[b.status],
   );
@@ -241,13 +240,15 @@ export default function WorkstreamDetail() {
   const {
     selectedWorkstream,
     selectSession,
+  } = useSessionSelection();
+  const {
     renameWorkstream,
     deleteWorkstream,
     setWorkstreamDescription,
     removeWorkstreamDescription,
     archiveSession,
     isArchived,
-  } = useSessionContext();
+  } = useSessionActions();
 
   /* ── Local state ── */
   const [isEditingName, setIsEditingName] = useState(false);
@@ -854,7 +855,7 @@ export default function WorkstreamDetail() {
 
             <div className="rounded-lg border border-border-default bg-surface-secondary overflow-hidden">
               {sorted.map((session) => {
-                const agentCount = countAgents(session.rootAgent);
+                const agentCount = session.agentCount;
                 const archived = isArchived(session.id);
 
                 return (

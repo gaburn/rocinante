@@ -1,5 +1,5 @@
 import { useTerminalContext } from '../../context/TerminalContext';
-import { useSessionContext } from '../../context/SessionContext';
+import { useSessionData } from '../../context/SessionContext';
 import { getStatusDotClass } from '../../utils/statusColors';
 
 const PULSING_STATUSES = new Set(['active', 'running']);
@@ -7,7 +7,7 @@ const PULSING_STATUSES = new Set(['active', 'running']);
 export default function TerminalTabBar() {
   const { tabs, activeTabId, setActiveTab, requestCloseTab } =
     useTerminalContext();
-  const { allSessions } = useSessionContext();
+  const { allSessions } = useSessionData();
 
   if (tabs.length === 0) return null;
 

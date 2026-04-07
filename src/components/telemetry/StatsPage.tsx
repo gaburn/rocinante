@@ -3,6 +3,7 @@ import StatCard from './StatCard'
 import ActivityChart from './ActivityChart'
 import StatusBreakdown from './StatusBreakdown'
 import ModelBreakdown from './ModelBreakdown'
+import TokenUtilization from './TokenUtilization'
 import ToolLeaderboard from './ToolLeaderboard'
 import AgentLeaderboard from './AgentLeaderboard'
 
@@ -110,7 +111,10 @@ export default function StatsPage() {
         </div>
 
         {/* Model utilization */}
-        <ModelBreakdown data={data.modelUtilization} />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <ModelBreakdown data={data.modelUtilization} />
+          <TokenUtilization data={data.tokenUtilization} />
+        </div>
 
         {/* Bottom row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

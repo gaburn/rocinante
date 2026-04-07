@@ -1,4 +1,4 @@
-import { useSessionContext } from '../../context/SessionContext'
+import { useSessionData } from '../../context/SessionContext'
 import { getStatusTextClass, getStatusDotClass } from '../../utils/statusColors'
 
 /* ────────────────────────────────────────────────────────
@@ -26,7 +26,7 @@ interface StatusItem {
 }
 
 export default function StatusSummaryBar() {
-  const { statusCounts, archivedCount, getWorkstreamNames } = useSessionContext()
+  const { statusCounts, archivedCount, getWorkstreamNames } = useSessionData()
   const workstreamCount = getWorkstreamNames.length
 
   const items: StatusItem[] = [

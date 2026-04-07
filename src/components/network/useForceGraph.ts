@@ -8,7 +8,7 @@ import {
   type Simulation,
 } from 'd3-force';
 import type { GraphNode, GraphEdge } from './networkTypes';
-import type { Session } from '../../types';
+import type { Session, SessionSummary } from '../../types';
 import { buildGraph, buildAdjacencyMap } from './graphLayout';
 import { useSettingsContext } from '../../context/SettingsContext';
 import { getNodeSizeMultiplier, getPhysicsParams } from '../../types/settings';
@@ -60,7 +60,7 @@ function copyNodePosition(fromNode: GraphNode, toNode: GraphNode): void {
   }
 }
 
-export function useForceGraph(sessions: Session[]): {
+export function useForceGraph(sessions: (Session | SessionSummary)[]): {
   nodes: GraphNode[];
   edges: GraphEdge[];
   adjacency: Map<string, Set<string>>;

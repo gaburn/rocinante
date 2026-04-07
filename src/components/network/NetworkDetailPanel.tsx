@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
-import { useSessionContext } from '../../context/SessionContext';
-import type { Session, SubAgent, AgentStatus } from '../../types';
-import { formatRelativeTime, formatDuration, countAgents } from '../../utils/formatters';
+import { useSessionData, useSessionSelection } from '../../context/SessionContext';
+import type { Session, SessionSummary, SubAgent, AgentStatus } from '../../types';
+import { formatRelativeTime, formatDuration } from '../../utils/formatters';
 import { getStatusDotClass, getStatusTextClass } from '../../utils/statusColors';
 import StatusBadge from '../common/StatusBadge';
 
@@ -82,14 +82,23 @@ function findAgentInTree(
 }
 
 /** Locate an agent across every session, returning both it and the
- *  parent session it belongs to. */
+ *  parent session it belongs to. Only searches full Session objects. */
 function findAgentAndSession(
-  sessions: Session[],
+  sessions: SessionSummary[],
+  selectedSession: Session | null,
   agentId: string,
 ): { agent: SubAgent; session: Session } | null {
+  // Search in selected session detail first (has rootAgent)
+  if (selectedSession && 'rootAgent' in selectedSession) {
+    const agent = findAgentInTree(selectedSession.rootAgent, agentId);
+    if (agent) return { agent, session: selectedSession };
+  }
+  // Fallback: search in any full Session objects in the list
   for (const session of sessions) {
-    const agent = findAgentInTree(session.rootAgent, agentId);
-    if (agent) return { agent, session };
+    if ('rootAgent' in session && (session as Session).rootAgent) {
+      const agent = findAgentInTree((session as Session).rootAgent, agentId);
+      if (agent) return { agent, session: session as Session };
+    }
   }
   return null;
 }
@@ -226,7 +235,7 @@ function StatCard({ status, label, count }: StatCardProps) {
 
 type ResolvedSession = {
   type: 'session';
-  session: Session;
+  session: SessionSummary;
 };
 
 type ResolvedAgent = {
@@ -243,7 +252,8 @@ export default function NetworkDetailPanel({
   nodeId,
   onClose,
 }: NetworkDetailPanelProps) {
-  const { allSessions, selectSession } = useSessionContext();
+  const { allSessions } = useSessionData();
+  const { selectSession, selectedSession } = useSessionSelection();
 
   const isOpen = nodeId !== null;
   const closeBtnRef = useRef<HTMLButtonElement>(null);
@@ -301,10 +311,10 @@ export default function NetworkDetailPanel({
       return { type: 'session', session };
     }
 
-    const result = findAgentAndSession(allSessions, parsed.entityId);
+    const result = findAgentAndSession(allSessions, selectedSession, parsed.entityId);
     if (!result) return null;
     return { type: 'agent', agent: result.agent, session: result.session };
-  }, [displayedNodeId, allSessions]);
+  }, [displayedNodeId, allSessions, selectedSession]);
 
   /* ── Actions ── */
   const handleViewInList = useCallback(
@@ -416,13 +426,16 @@ export default function NetworkDetailPanel({
  * ══════════════════════════════════════════════════════════════ */
 
 interface SessionContentProps {
-  session: Session;
+  session: SessionSummary;
   onViewInList: (sessionId: string) => void;
 }
 
 function SessionContent({ session, onViewInList }: SessionContentProps) {
-  const totalAgents = countAgents(session.rootAgent);
-  const agentCounts = countAgentsByStatus(session.rootAgent);
+  const totalAgents = session.agentCount;
+  const hasRootAgent = 'rootAgent' in session && (session as Session).rootAgent != null;
+  const agentCounts = hasRootAgent
+    ? countAgentsByStatus((session as Session).rootAgent)
+    : null;
   const hasGitContext = !!(session.cwd || session.repository || session.branch);
 
   return (
@@ -532,10 +545,18 @@ function SessionContent({ session, onViewInList }: SessionContentProps) {
         </div>
 
         <div className="grid grid-cols-2 gap-2">
-          <StatCard status="running"   label="Running"   count={agentCounts.running} />
-          <StatCard status="blocked"   label="Blocked"   count={agentCounts.blocked} />
-          <StatCard status="waiting"   label="Waiting"   count={agentCounts.waiting} />
-          <StatCard status="completed" label="Completed" count={agentCounts.completed} />
+          {agentCounts ? (
+            <>
+              <StatCard status="running"   label="Running"   count={agentCounts.running} />
+              <StatCard status="blocked"   label="Blocked"   count={agentCounts.blocked} />
+              <StatCard status="waiting"   label="Waiting"   count={agentCounts.waiting} />
+              <StatCard status="completed" label="Completed" count={agentCounts.completed} />
+            </>
+          ) : (
+            <span className="col-span-2 text-xs text-fg/30 italic">
+              Select session for agent breakdown
+            </span>
+          )}
         </div>
       </section>
 
