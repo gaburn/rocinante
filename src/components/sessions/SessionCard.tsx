@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import type { Session } from '../../types';
+import { useState, memo } from 'react';
+import type { SessionSummary } from '../../types';
 import { getStatusBorderClass } from '../../utils/statusColors';
-import { formatRelativeTime, countAgents } from '../../utils/formatters';
+import { formatRelativeTime } from '../../utils/formatters';
 import StatusBadge from '../common/StatusBadge';
 import WorkstreamAutocomplete from '../common/WorkstreamAutocomplete';
 
@@ -30,7 +30,7 @@ import WorkstreamAutocomplete from '../common/WorkstreamAutocomplete';
  * ──────────────────────────────────────────────────────── */
 
 interface SessionCardProps {
-  session: Session;
+  session: SessionSummary;
   isSelected: boolean;
   isArchived: boolean;
   onClick: () => void;
@@ -41,7 +41,7 @@ interface SessionCardProps {
   onRemoveWorkstream: () => void;
 }
 
-export default function SessionCard({
+const SessionCard = memo(function SessionCard({
   session,
   isSelected,
   isArchived,
@@ -53,7 +53,8 @@ export default function SessionCard({
   onRemoveWorkstream,
 }: SessionCardProps) {
   const [isDragging, setIsDragging] = useState(false);
-  const agentCount = countAgents(session.rootAgent);
+  const [isEditingWorkstream, setIsEditingWorkstream] = useState(false);
+  const agentCount = session.agentCount;
   const timeAgo = formatRelativeTime(session.lastActivityAt);
 
   return (
@@ -155,15 +156,49 @@ export default function SessionCard({
         <StatusBadge status={session.status} size="sm" />
       </div>
 
-      {/* ── Workstream tag ────────────────────────── */}
+      {/* ── Workstream tag (lazy-mounted) ─────────── */}
       <div className="mt-1" onClick={e => e.stopPropagation()}>
-        <WorkstreamAutocomplete
-          value={workstream}
-          suggestions={workstreamNames}
-          onChange={onSetWorkstream}
-          onRemove={onRemoveWorkstream}
-          size="sm"
-        />
+        {isEditingWorkstream ? (
+          <WorkstreamAutocomplete
+            value={workstream}
+            suggestions={workstreamNames}
+            onChange={(name) => { onSetWorkstream(name); setIsEditingWorkstream(false); }}
+            onRemove={() => { onRemoveWorkstream(); setIsEditingWorkstream(false); }}
+            size="sm"
+            autoFocus
+            onEditEnd={() => setIsEditingWorkstream(false)}
+          />
+        ) : workstream ? (
+          <span
+            className="bg-surface-tertiary text-fg/40 text-[10px] font-mono rounded-full px-2 py-0.5 inline-flex items-center gap-1 select-none transition-colors"
+          >
+            <button
+              type="button"
+              className="cursor-pointer hover:text-fg/60 transition-colors"
+              onClick={(e) => { e.stopPropagation(); setIsEditingWorkstream(true); }}
+              aria-label={`Edit workstream: ${workstream}`}
+            >
+              {workstream}
+            </button>
+            <button
+              type="button"
+              className="cursor-pointer ml-0.5 opacity-50 hover:opacity-100 transition-opacity"
+              onClick={(e) => { e.stopPropagation(); onRemoveWorkstream(); }}
+              aria-label={`Remove workstream: ${workstream}`}
+            >
+              ✕
+            </button>
+          </span>
+        ) : (
+          <button
+            type="button"
+            className="text-fg/20 text-[10px] font-mono hover:text-fg/35 cursor-pointer select-none transition-colors"
+            onClick={(e) => { e.stopPropagation(); setIsEditingWorkstream(true); }}
+            aria-label="Add workstream"
+          >
+            + workstream
+          </button>
+        )}
       </div>
 
       {/* ── Intent / task description ─────────────── */}
@@ -180,4 +215,19 @@ export default function SessionCard({
       </div>
     </button>
   );
-}
+}, (prev, next) => {
+  // Shallow compare on stable identity + key props
+  return (
+    prev.session.id === next.session.id &&
+    prev.session.lastActivityAt === next.session.lastActivityAt &&
+    prev.session.status === next.session.status &&
+    prev.session.name === next.session.name &&
+    prev.session.latestUserMessage === next.session.latestUserMessage &&
+    prev.isSelected === next.isSelected &&
+    prev.isArchived === next.isArchived &&
+    prev.workstream === next.workstream &&
+    prev.workstreamNames === next.workstreamNames
+  );
+});
+
+export default SessionCard;

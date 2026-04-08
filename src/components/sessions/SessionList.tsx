@@ -1,12 +1,14 @@
-import { useState } from 'react';
-import type { Session } from '../../types';
-import { useSessionContext } from '../../context/SessionContext';
+import { useState, useRef, useCallback } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
+import type { SessionSummary } from '../../types';
+import { useSessionData, useSessionSelection, useSessionActions } from '../../context/SessionContext';
 import StatusSummaryBar from '../common/StatusSummaryBar';
 import StatusFilter from '../filters/StatusFilter';
 import SessionCard from './SessionCard';
 import SessionGroup from './SessionGroup';
 
 const SKELETON_CARD_COUNT = 5;
+const ESTIMATED_ROW_HEIGHT = 110;
 
 function SessionCardSkeleton() {
   return (
@@ -36,29 +38,33 @@ export default function SessionList() {
   const {
     sessions,
     allSessions,
+    searchQuery,
+    showArchived,
+    archivedCount,
+    hasAnyWorkstreams,
+    groupedSessions,
+    isLoading,
+    error,
+    getWorkstreamNames,
+  } = useSessionData();
+  const {
     selectedSession,
     selectedWorkstream,
     selectSession,
     selectWorkstream,
-    isLoading,
-    error,
-    searchQuery,
+  } = useSessionSelection();
+  const {
     setSearchQuery,
-    showArchived,
     setShowArchived,
     isArchived,
     toggleArchive,
     archiveAllCompleted,
-    archivedCount,
     getWorkstream,
     setWorkstreamDescription,
     removeWorkstreamDescription,
     setWorkstream,
     removeWorkstream,
-    getWorkstreamNames,
-    hasAnyWorkstreams,
-    groupedSessions,
-  } = useSessionContext();
+  } = useSessionActions();
 
   const showSkeletons = isLoading && sessions.length === 0;
   const showErrorState = !isLoading && Boolean(error) && sessions.length === 0;
@@ -70,8 +76,51 @@ export default function SessionList() {
   );
   const showArchiveControls = archivedCount > 0 || hasCompletedNonArchived;
 
-  const activeSessions = sessions.filter((s) => !isArchived(s.id));
-  const archivedSessions = sessions.filter((s) => isArchived(s.id));
+  /* ── Virtualization for flat list modes ──────── */
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  type ListItem =
+    | { type: 'session'; session: SessionSummary; dimmed: boolean }
+    | { type: 'divider' };
+
+  const flatItems: ListItem[] = (() => {
+    // Grouped mode uses non-virtualized rendering
+    if (hasAnyWorkstreams) return [];
+    if (showSkeletons || showErrorState || showEmptyState) return [];
+
+    if (showArchived && archivedSessions.length > 0) {
+      const items: ListItem[] = activeSessions.map((s) => ({
+        type: 'session' as const,
+        session: s,
+        dimmed: false,
+      }));
+      items.push({ type: 'divider' as const });
+      for (const s of archivedSessions) {
+        items.push({ type: 'session' as const, session: s, dimmed: true });
+      }
+      return items;
+    }
+
+    return sessions.map((s) => ({
+      type: 'session' as const,
+      session: s,
+      dimmed: false,
+    }));
+  })();
+
+  const virtualizer = useVirtualizer({
+    count: flatItems.length,
+    getScrollElement: () => scrollContainerRef.current,
+    estimateSize: useCallback(
+      (index: number) => flatItems[index]?.type === 'divider' ? 32 : ESTIMATED_ROW_HEIGHT,
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      [flatItems.length],
+    ),
+    overscan: 5,
+    gap: 10,
+  });
+
+  const useFlatVirtualized = flatItems.length > 0;
 
   /* ── Grouped-mode collapse state ──────────────── */
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
@@ -86,7 +135,7 @@ export default function SessionList() {
   };
 
   /** Render session cards for a group, splitting active / archived. */
-  const renderGroupCards = (groupSessions: Session[]) => {
+  const renderGroupCards = (groupSessions: SessionSummary[]) => {
     const active = groupSessions.filter((s) => !isArchived(s.id));
     const archived = groupSessions.filter((s) => isArchived(s.id));
 
@@ -251,7 +300,7 @@ export default function SessionList() {
       )}
 
       {/* ── Scrollable session list ───────────────────── */}
-      <div className="flex-1 overflow-y-auto bg-surface-primary p-3">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto bg-surface-primary p-3">
         {showSkeletons ? (
           <div className="space-y-2.5">
             {Array.from({ length: SKELETON_CARD_COUNT }).map((_, index) => (
@@ -333,70 +382,67 @@ export default function SessionList() {
               </SessionGroup>
             )}
           </div>
-        ) : showArchived ? (
-          /* ── Split view: active first, then archived ── */
-          <div className="space-y-2.5">
-            {activeSessions.map((session) => (
-              <SessionCard
-                key={session.id}
-                session={session}
-                isSelected={selectedSession?.id === session.id}
-                isArchived={isArchived(session.id)}
-                onClick={() => selectSession(session.id)}
-                onArchive={(e) => { e.stopPropagation(); toggleArchive(session.id); }}
-                workstream={getWorkstream(session.id)}
-                workstreamNames={getWorkstreamNames}
-                onSetWorkstream={(name) => setWorkstream(session.id, name)}
-                onRemoveWorkstream={() => removeWorkstream(session.id)}
-              />
-            ))}
-
-            {archivedSessions.length > 0 && (
-              <>
-                <div
-                  aria-label="Archived sessions"
-                  className="text-[10px] font-mono uppercase tracking-widest text-fg/20 px-1 py-2"
-                >
-                  Archived
-                </div>
-
-                {archivedSessions.map((session) => (
-                  <div key={session.id} className="opacity-50 transition-opacity duration-200 hover:opacity-70">
-                    <SessionCard
-                      session={session}
-                      isSelected={selectedSession?.id === session.id}
-                      isArchived={isArchived(session.id)}
-                      onClick={() => selectSession(session.id)}
-                      onArchive={(e) => { e.stopPropagation(); toggleArchive(session.id); }}
-                      workstream={getWorkstream(session.id)}
-                      workstreamNames={getWorkstreamNames}
-                      onSetWorkstream={(name) => setWorkstream(session.id, name)}
-                      onRemoveWorkstream={() => removeWorkstream(session.id)}
-                    />
+        ) : useFlatVirtualized ? (
+          /* ── Virtualized flat list ── */
+          <div
+            style={{ height: `${virtualizer.getTotalSize()}px`, width: '100%', position: 'relative' }}
+          >
+            {virtualizer.getVirtualItems().map((virtualRow) => {
+              const item = flatItems[virtualRow.index];
+              if (item.type === 'divider') {
+                return (
+                  <div
+                    key="__divider__"
+                    data-index={virtualRow.index}
+                    ref={virtualizer.measureElement}
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      transform: `translateY(${virtualRow.start}px)`,
+                    }}
+                  >
+                    <div
+                      aria-label="Archived sessions"
+                      className="text-[10px] font-mono uppercase tracking-widest text-fg/20 px-1 py-2"
+                    >
+                      Archived
+                    </div>
                   </div>
-                ))}
-              </>
-            )}
+                );
+              }
+              const { session, dimmed } = item;
+              return (
+                <div
+                  key={session.id}
+                  data-index={virtualRow.index}
+                  ref={virtualizer.measureElement}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    transform: `translateY(${virtualRow.start}px)`,
+                  }}
+                  className={dimmed ? 'opacity-50 transition-opacity duration-200 hover:opacity-70' : undefined}
+                >
+                  <SessionCard
+                    session={session}
+                    isSelected={selectedSession?.id === session.id}
+                    isArchived={isArchived(session.id)}
+                    onClick={() => selectSession(session.id)}
+                    onArchive={(e) => { e.stopPropagation(); toggleArchive(session.id); }}
+                    workstream={getWorkstream(session.id)}
+                    workstreamNames={getWorkstreamNames}
+                    onSetWorkstream={(name) => setWorkstream(session.id, name)}
+                    onRemoveWorkstream={() => removeWorkstream(session.id)}
+                  />
+                </div>
+              );
+            })}
           </div>
-        ) : (
-          /* ── Standard flat list (no archived visible) ── */
-          <div className="space-y-2.5">
-            {sessions.map((session) => (
-              <SessionCard
-                key={session.id}
-                session={session}
-                isSelected={selectedSession?.id === session.id}
-                isArchived={isArchived(session.id)}
-                onClick={() => selectSession(session.id)}
-                onArchive={(e) => { e.stopPropagation(); toggleArchive(session.id); }}
-                workstream={getWorkstream(session.id)}
-                workstreamNames={getWorkstreamNames}
-                onSetWorkstream={(name) => setWorkstream(session.id, name)}
-                onRemoveWorkstream={() => removeWorkstream(session.id)}
-              />
-            ))}
-          </div>
-        )}
+        ) : null}
       </div>
     </section>
   );

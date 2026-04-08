@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSettingsContext } from '../../context/SettingsContext';
-import { useSessionContext } from '../../context/SessionContext';
+import { useSessionSelection, useSessionActions, useSessionData } from '../../context/SessionContext';
 import { useTerminalContext } from '../../context/TerminalContext';
 import type { SubAgent, AgentStatus, ErrorDetail } from '../../types';
 import {
@@ -288,18 +288,22 @@ function ExpandablePrompt({ text }: { text: string }) {
 export default function SessionDetail() {
   const {
     selectedSession,
+  } = useSessionSelection();
+  const {
     isArchived,
     toggleArchive,
     archiveAndSelectNext,
     getWorkstream,
     setWorkstream,
     removeWorkstream,
-    getWorkstreamNames,
     getCustomName,
     setSessionName,
     removeSessionName,
+  } = useSessionActions();
+  const {
     autoArchive,
-  } = useSessionContext();
+    getWorkstreamNames,
+  } = useSessionData();
   const { settings } = useSettingsContext();
   const { openSessionTerminal, openShellTerminal, hasTab, canOpenTab } = useTerminalContext();
   const panes = settings.display.paneVisibility;

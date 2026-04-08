@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { getAdoStatus, getWorkItems, getPullRequests } from '../services/adoService'
 import type { AdoWorkItem, AdoPullRequest, AdoStatus } from '../types/ado'
 import { useWorkstreamWorkItems } from './useWorkstreamWorkItems'
-import type { Session } from '../types'
+import type { SessionSummary } from '../types'
 
 export interface UseAdoIntegrationResult {
   // ADO status
@@ -32,7 +32,7 @@ export interface UseAdoIntegrationResult {
   deleteWorkstreamKey: (workstreamName: string) => void
 }
 
-export function useAdoIntegration(workstreamName: string | null, sessions: Session[]): UseAdoIntegrationResult {
+export function useAdoIntegration(workstreamName: string | null, sessions: SessionSummary[]): UseAdoIntegrationResult {
   const wiHook = useWorkstreamWorkItems()
 
   const [adoStatus, setAdoStatus] = useState<AdoStatus | null>(null)

@@ -1,19 +1,19 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import type { Session, SessionStatus } from '../../types';
+import type { SessionSummary, SessionStatus } from '../../types';
 import type { ConversationMatch } from '../../hooks/useSessions';
 import {
   getStatusBorderClass,
   getStatusBgClass,
   getStatusDotClass,
 } from '../../utils/statusColors';
-import { formatRelativeTime, countAgents } from '../../utils/formatters';
+import { formatRelativeTime } from '../../utils/formatters';
 import { renderInlineMarkdown } from '../../utils/inlineMarkdown';
 
 interface KanbanTileProps {
-  session: Session;
+  session: SessionSummary;
   isSelected: boolean;
-  onSelect: (session: Session) => void;
+  onSelect: (session: SessionSummary) => void;
   onArchive?: (sessionId: string) => void;
   conversationMatch?: ConversationMatch;
   searchActive?: boolean;
@@ -36,7 +36,7 @@ export default function KanbanTile({ session, isSelected, onSelect, onArchive, c
     transition,
   };
 
-  const agentCount = countAgents(session.rootAgent);
+  const agentCount = session.agentCount;
   const timeAgo = formatRelativeTime(session.lastActivityAt);
   const shouldPulse = PULSING_STATUSES.has(session.status);
 
@@ -99,9 +99,9 @@ export default function KanbanTile({ session, isSelected, onSelect, onArchive, c
       </p>
 
       {/* Row 2.5: latest assistant update */}
-      {session.assistantUpdates && session.assistantUpdates.length > 0 && (
+      {session.lastAssistantUpdate && (
         <p className="mt-1 text-[11px] leading-relaxed text-fuchsia-300/70 line-clamp-2 border-l-2 border-fuchsia-500/40 pl-1.5">
-          {renderInlineMarkdown(session.assistantUpdates[session.assistantUpdates.length - 1])}
+          {renderInlineMarkdown(session.lastAssistantUpdate)}
         </p>
       )}
 

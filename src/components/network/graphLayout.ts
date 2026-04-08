@@ -1,6 +1,5 @@
-import type { Session, SubAgent } from '../../types';
+import type { Session, SessionSummary, SubAgent } from '../../types';
 import type { GraphEdge, GraphNode } from './networkTypes';
-import { countAgents } from '../../utils/formatters';
 
 const MAX_RECURSION_DEPTH = 10;
 const SESSION_LABEL_MAX_LENGTH = 20;
@@ -22,7 +21,7 @@ export function truncateLabel(text: string, maxLength: number): string {
 }
 
 export function buildGraph(
-  sessions: Session[],
+  sessions: (Session | SessionSummary)[],
   nodeSizeScale: number = 1,
 ): { nodes: GraphNode[]; edges: GraphEdge[] } {
   const nodes: GraphNode[] = [];
@@ -79,7 +78,10 @@ export function buildGraph(
 
   for (const session of sessions) {
     const sessionNodeId = `session-${session.id}`;
-    const agentTotal = countAgents(session.rootAgent);
+    const hasFullData = 'rootAgent' in session && session.rootAgent != null;
+    const agentTotal = hasFullData
+      ? 1 + countAgentChildren((session as Session).rootAgent)
+      : session.agentCount;
 
     nodes.push({
       id: sessionNodeId,
@@ -93,16 +95,22 @@ export function buildGraph(
       agentCount: agentTotal
     });
 
-    addAgentTree({
-      agent: session.rootAgent,
-      sessionId: session.id,
-      parentNodeId: sessionNodeId,
-      depth: 1,
-      isRoot: true
-    });
+    if (hasFullData) {
+      addAgentTree({
+        agent: (session as Session).rootAgent,
+        sessionId: session.id,
+        parentNodeId: sessionNodeId,
+        depth: 1,
+        isRoot: true
+      });
+    }
   }
 
   return { nodes, edges };
+}
+
+function countAgentChildren(agent: SubAgent): number {
+  return agent.children.reduce((sum, child) => 1 + sum + countAgentChildren(child), 0);
 }
 
 export function buildAdjacencyMap(

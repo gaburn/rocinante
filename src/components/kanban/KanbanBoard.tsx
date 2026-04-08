@@ -11,8 +11,8 @@ import {
   useSensors,
 } from '@dnd-kit/core';
 import { SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortable';
-import type { Session } from '../../types';
-import { useSessionContext } from '../../context/SessionContext';
+import type { SessionSummary } from '../../types';
+import { useSessionData, useSessionSelection, useSessionActions } from '../../context/SessionContext';
 import { useColumnOrder } from '../../hooks/useColumnOrder';
 import StatusSummaryBar from '../common/StatusSummaryBar';
 import StatusFilter from '../filters/StatusFilter';
@@ -58,33 +58,37 @@ export default function KanbanBoard() {
   const {
     sessions,
     allSessions,
-    selectedSession,
-    selectSession,
-    selectWorkstream,
     isLoading,
     error,
     searchQuery,
-    setSearchQuery,
     showArchived,
-    setShowArchived,
-    isArchived,
-    archiveSession,
-    archiveAllCompleted,
     archivedCount,
-    getWorkstream,
-    setWorkstream,
-    removeWorkstream,
-    autoGroupByRepository,
     hasAnyWorkstreams,
     groupedSessions,
     conversationSearchResults,
     isSearchingConversations,
     autoArchive,
-  } = useSessionContext();
+  } = useSessionData();
+  const {
+    selectedSession,
+    selectSession,
+    selectWorkstream,
+  } = useSessionSelection();
+  const {
+    setSearchQuery,
+    setShowArchived,
+    isArchived,
+    archiveSession,
+    archiveAllCompleted,
+    getWorkstream,
+    setWorkstream,
+    removeWorkstream,
+    autoGroupByRepository,
+  } = useSessionActions();
 
   const { reorderColumns, getOrderedNames } = useColumnOrder();
 
-  const [activeDragSession, setActiveDragSession] = useState<Session | null>(null);
+  const [activeDragSession, setActiveDragSession] = useState<SessionSummary | null>(null);
   const [activeDragColumnName, setActiveDragColumnName] = useState<string | null>(null);
 
   // Configure pointer sensor with a small activation distance to distinguish clicks from drags
@@ -101,7 +105,7 @@ export default function KanbanBoard() {
 
   /* ── Build columns from grouped sessions, respecting persisted order ──────── */
   const columns = useMemo(() => {
-    const cols: { id: string; name: string; sessions: Session[] }[] = [];
+    const cols: { id: string; name: string; sessions: SessionSummary[] }[] = [];
 
     const groupNames = groupedSessions.groups.map((g) => g.name);
     const orderedNames = getOrderedNames(groupNames);
@@ -196,7 +200,7 @@ export default function KanbanBoard() {
       if (overData?.columnId) {
         targetColumnId = overData.columnId as string;
       } else if (overData?.session) {
-        const targetSession = overData.session as Session;
+        const targetSession = overData.session as SessionSummary;
         const ws = getWorkstream(targetSession.id);
         targetColumnId = ws ?? UNGROUPED_ID;
       } else {
@@ -220,7 +224,7 @@ export default function KanbanBoard() {
   );
 
   const handleSelectSession = useCallback(
-    (session: Session) => {
+    (session: SessionSummary) => {
       selectSession(session.id);
     },
     [selectSession],

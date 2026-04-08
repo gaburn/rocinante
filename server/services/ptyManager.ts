@@ -1,8 +1,9 @@
 import * as os from 'node:os';
 import * as fs from 'node:fs';
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import * as pty from 'node-pty';
 import type { IPty } from 'node-pty';
+import { validateShellName } from '../utils/sanitize.js';
 
 const DEBUG = process.env.DEBUG === 'true' || process.env.NODE_ENV !== 'production';
 
@@ -15,6 +16,12 @@ function resolveShell(shell?: string): string {
     cmd: 'cmd.exe',
     bash: 'bash',
   };
+
+  // Validate user-supplied shell name against allowlist
+  if (shell) {
+    validateShellName(shell);
+  }
+
   const optionShell = shell?.toLowerCase();
   const configuredShell = shell
     ? (shellMap[optionShell ?? ''] || shell)
@@ -26,7 +33,7 @@ function resolveShell(shell?: string): string {
 
   const resolveShellPath = (shellName: string): string | null => {
     try {
-      const whereResult = execSync(`where.exe ${shellName}`, { stdio: 'pipe' }).toString();
+      const whereResult = execFileSync('where.exe', [shellName], { stdio: 'pipe' }).toString();
       const firstMatch = whereResult
         .split(/\r?\n/)
         .map((line) => line.trim())

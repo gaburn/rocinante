@@ -1,17 +1,19 @@
 import { useMemo, useState } from 'react';
 
-import { useSessionContext } from '../../context/SessionContext';
+import { useSessionData, useSessionSelection } from '../../context/SessionContext';
 import NetworkCanvas from './NetworkCanvas';
 import NetworkDetailPanel from './NetworkDetailPanel';
 import StatusFilter from '../filters/StatusFilter';
 import StatusSummaryBar from '../common/StatusSummaryBar';
+import type { Session, SessionSummary } from '../../types';
 
 export default function NetworkView() {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [showAllSessions, setShowAllSessions] = useState(false);
-  const { selectedSession, sessions } = useSessionContext();
+  const { selectedSession } = useSessionSelection();
+  const { sessions } = useSessionData();
 
-  const networkSessions = useMemo(() => {
+  const networkSessions = useMemo<(Session | SessionSummary)[]>(() => {
     if (showAllSessions) return sessions;
     if (selectedSession) return [selectedSession];
     return sessions;

@@ -9,11 +9,17 @@ lerna-debug.log*
 
 node_modules
 dist
+src/__benchmarks__/*-results.json
 dist-ssr
 dist-server
 *.local
 *.tsbuildinfo
 .env
+
+# Certificates and keys
+*.pem
+*.key
+*.cert
 
 # Editor directories and files
 .vscode/*
@@ -26,11 +32,8 @@ dist-server
 *.sln
 *.sw?
 
-# Squad: ignore runtime state (logs, inbox, sessions)
-.squad/orchestration-log/
-.squad/log/
-.squad/decisions/inbox/
-.squad/sessions/
+# Squad: dev-only tooling, not tracked
+.squad/
 # Squad: SubSquad activation file (local to this machine)
 .squad-workstream
 
@@ -41,5 +44,6 @@ dist-server
 .copilot/
 .agents/
 .github/agents/
+.github/agents/*squad*
 .github/workflows/squad-*
 .github/workflows/sync-squad-*

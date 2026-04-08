@@ -1,6 +1,6 @@
-import type { Session, SessionPlan, SessionStatus, StatusCounts } from '../types';
+import type { Session, SessionSummary, SessionPlan, SessionStatus, StatusCounts } from '../types';
 
-export async function getSessions(): Promise<Session[]> {
+export async function getSessions(): Promise<SessionSummary[]> {
   const response = await fetch('/api/sessions');
   if (!response.ok) {
     throw new Error(`Failed to fetch sessions: ${response.status} ${response.statusText}`);
@@ -24,7 +24,7 @@ export async function getSessionPlan(sessionId: string): Promise<SessionPlan | n
   return response.json();
 }
 
-export const getStatusCounts = (sessions: Session[]): StatusCounts => {
+export const getStatusCounts = (sessions: SessionSummary[]): StatusCounts => {
   const counts = sessions.reduce<StatusCounts>(
     (accumulator, session) => {
       accumulator[session.status] += 1;
@@ -44,9 +44,9 @@ export const getStatusCounts = (sessions: Session[]): StatusCounts => {
 };
 
 export const filterSessionsByStatus = (
-  sessions: Session[],
+  sessions: SessionSummary[],
   status: SessionStatus | 'all',
-): Session[] => {
+): SessionSummary[] => {
   if (status === 'all') {
     return sessions;
   }

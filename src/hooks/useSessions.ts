@@ -2,10 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   filterSessionsByStatus,
   getSessions,
+  getSessionById,
   getStatusCounts,
 } from '../services/sessionService'
 import { useSettingsContext } from '../context/SettingsContext'
-import type { Session, SessionStatus, StatusCounts } from '../types'
+import type { Session, SessionSummary, SessionStatus, StatusCounts } from '../types'
 import { useArchive } from './useArchive'
 import { useAutoArchive, type UseAutoArchiveResult } from './useAutoArchive'
 import { useSessionNames } from './useSessionNames'
@@ -18,18 +19,18 @@ export interface ConversationMatch {
 
 export interface SessionGroup {
   name: string
-  sessions: Session[]
+  sessions: SessionSummary[]
   description: string | null
 }
 
 export interface UseSessionsResult {
-  sessions: Session[]
-  allSessions: Session[]
+  sessions: SessionSummary[]
+  allSessions: SessionSummary[]
   selectedSession: Session | null
   selectedWorkstream: SessionGroup | null
   statusFilter: SessionStatus | 'all'
   searchQuery: string
-  viewMode: 'list' | 'network'
+  viewMode: 'list' | 'network' | 'stats'
   showArchived: boolean
   statusCounts: StatusCounts
   archivedCount: number
@@ -41,7 +42,7 @@ export interface UseSessionsResult {
   clearSelection: () => void
   setStatusFilter: (status: SessionStatus | 'all') => void
   setSearchQuery: (query: string) => void
-  setViewMode: (mode: 'list' | 'network') => void
+  setViewMode: (mode: 'list' | 'network' | 'stats') => void
   setShowArchived: (show: boolean) => void
   isArchived: (id: string) => boolean
   archiveSession: (id: string) => void
@@ -78,12 +79,13 @@ export function useSessions(): UseSessionsResult {
   const autoArchive = useAutoArchive()
   const sessionNames = useSessionNames()
   const workstreams = useWorkstreams()
-  const [allSessions, setAllSessions] = useState<Session[]>([])
+  const [allSessions, setAllSessions] = useState<SessionSummary[]>([])
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null)
+  const [selectedSessionDetail, setSelectedSessionDetail] = useState<Session | null>(null)
   const [selectedWorkstreamName, setSelectedWorkstreamName] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<SessionStatus | 'all'>('all')
   const [searchQuery, setSearchQuery] = useState('')
-  const [viewMode, setViewMode] = useState<'list' | 'network'>(
+  const [viewMode, setViewMode] = useState<'list' | 'network' | 'stats'>(
     settings.display.defaultViewMode,
   )
   const [showArchived, setShowArchived] = useState(false)
@@ -94,6 +96,12 @@ export function useSessions(): UseSessionsResult {
   const [isSearchingConversations, setIsSearchingConversations] = useState(false)
   const searchAbortRef = useRef<AbortController | null>(null)
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const selectedIdRef = useRef<string | null>(null)
+
+  // Keep ref in sync so loadSessions can refresh the selected detail
+  useEffect(() => {
+    selectedIdRef.current = selectedSessionId
+  }, [selectedSessionId])
 
   const loadSessions = useCallback(async () => {
     setIsLoading(true)
@@ -106,6 +114,17 @@ export function useSessions(): UseSessionsResult {
       archive.pruneStaleIds(activeIds)
       sessionNames.pruneStaleIds(activeIds)
       workstreams.pruneStaleIds(activeIds)
+
+      // Refresh selected session detail alongside list
+      const currentId = selectedIdRef.current
+      if (currentId) {
+        try {
+          const detail = await getSessionById(currentId)
+          if (detail && selectedIdRef.current === currentId) {
+            setSelectedSessionDetail(detail)
+          }
+        } catch { /* detail refresh is best-effort */ }
+      }
     } catch (loadError) {
       const message =
         loadError instanceof Error
@@ -138,6 +157,29 @@ export function useSessions(): UseSessionsResult {
   useEffect(() => {
     void loadSessions()
   }, [loadSessions])
+
+  // Fetch full session detail when selection changes
+  useEffect(() => {
+    if (!selectedSessionId) {
+      setSelectedSessionDetail(null)
+      return
+    }
+
+    let cancelled = false
+    getSessionById(selectedSessionId)
+      .then((session) => {
+        if (!cancelled && session) {
+          setSelectedSessionDetail(session)
+        } else if (!cancelled) {
+          setSelectedSessionDetail(null)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setSelectedSessionDetail(null)
+      })
+
+    return () => { cancelled = true }
+  }, [selectedSessionId])
 
   useEffect(() => {
     if (
@@ -312,14 +354,16 @@ export function useSessions(): UseSessionsResult {
     [allSessions, archive.archivedIds],
   )
 
-  const selectedSession = useMemo(
-    () => sessionsWithNames.find((session) => session.id === selectedSessionId) ?? null,
-    [sessionsWithNames, selectedSessionId],
-  )
+  const selectedSession = useMemo<Session | null>(() => {
+    if (!selectedSessionDetail) return null
+    // Apply custom name to the fetched detail
+    const customName = sessionNames.getCustomName(selectedSessionDetail.id)
+    return customName ? { ...selectedSessionDetail, name: customName } : selectedSessionDetail
+  }, [selectedSessionDetail, sessionNames.getCustomName])
 
   const groupedSessions = useMemo(() => {
-    const groups = new Map<string, Session[]>()
-    const ungrouped: Session[] = []
+    const groups = new Map<string, SessionSummary[]>()
+    const ungrouped: SessionSummary[] = []
 
     for (const session of sessions) {
       const ws = workstreams.getWorkstream(session.id)

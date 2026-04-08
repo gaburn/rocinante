@@ -7,6 +7,8 @@ interface WorkstreamAutocompleteProps {
   onRemove: () => void;
   size: 'sm' | 'md';
   placeholder?: string;
+  autoFocus?: boolean;
+  onEditEnd?: () => void;
 }
 
 export default function WorkstreamAutocomplete({
@@ -16,8 +18,10 @@ export default function WorkstreamAutocomplete({
   onRemove,
   size,
   placeholder = '+ workstream',
+  autoFocus = false,
+  onEditEnd,
 }: WorkstreamAutocompleteProps) {
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(autoFocus);
   const [inputValue, setInputValue] = useState('');
   const [highlightIndex, setHighlightIndex] = useState(-1);
 
@@ -47,15 +51,17 @@ export default function WorkstreamAutocomplete({
       setIsEditing(false);
       setInputValue('');
       setHighlightIndex(-1);
+      onEditEnd?.();
     },
-    [onChange],
+    [onChange, onEditEnd],
   );
 
   const cancel = useCallback(() => {
     setIsEditing(false);
     setInputValue('');
     setHighlightIndex(-1);
-  }, []);
+    onEditEnd?.();
+  }, [onEditEnd]);
 
   // ── Enter editing mode ────────────────────────────────────────────
   const startEditing = useCallback(

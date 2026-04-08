@@ -1,14 +1,18 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as yaml from 'js-yaml';
-import { Session, SubAgent } from '../../src/types/index.js';
+import { Session, SessionSummary, SubAgent } from '../../src/types/index.js';
 import { getConfig } from '../config.js';
+import { sanitizeSessionId } from '../utils/sanitize.js';
 import {
   SqliteSession,
   getAllSessions,
   getSessionById,
   getFirstUserMessage,
   getLastUserMessage,
+  getSessionTurnDataBatch,
+  getTurnCount,
+  type SessionTurnData,
 } from './sqliteReader.js';
 import { readEventsTail, ParsedEvent } from './eventTailReader.js';
 import { deriveSessionStatus, DerivedStatus } from './statusDeriver.js';
@@ -83,8 +87,9 @@ function getSessionCwd(sessionId: string, sqlCwd: string | null): string | null 
   }
 
   try {
+    const safeId = sanitizeSessionId(sessionId);
     const config = getConfig();
-    const workspaceFile = path.join(config.sessionStateDir, sessionId, 'workspace.yaml');
+    const workspaceFile = path.join(config.sessionStateDir, safeId, 'workspace.yaml');
     if (fs.existsSync(workspaceFile)) {
       const content = fs.readFileSync(workspaceFile, 'utf-8');
       const data = yaml.load(content) as Record<string, unknown>;
@@ -186,6 +191,8 @@ export function mapToSession(sqlRow: SqliteSession, events: ParsedEvent[]): Sess
     status: finalStatus,
     startedAt: sqlRow.created_at,
     lastActivityAt: derivedStatus.lastActivityAt,
+    agentCount: countAgentsInTree(rootAgent),
+    turnCount: getTurnCount(sqlRow.id),
     rootAgent,
     events: buildEventTimeline(events),
     activityBuckets: buildActivityBuckets(events, sqlRow.created_at, derivedStatus.lastActivityAt),
@@ -198,6 +205,9 @@ export function mapToSession(sqlRow: SqliteSession, events: ParsedEvent[]): Sess
     branch: sqlRow.branch ?? null,
     errorDetails: derivedStatus.errorDetails,
     latestUserMessage,
+    lastAssistantUpdate: assistantUpdates && assistantUpdates.length > 0
+      ? assistantUpdates[assistantUpdates.length - 1]
+      : undefined,
     assistantUpdates,
   };
 }
@@ -208,6 +218,10 @@ function hasRunningAgents(agent: SubAgent): boolean {
   }
 
   return agent.children.some((child) => hasRunningAgents(child));
+}
+
+function countAgentsInTree(agent: SubAgent): number {
+  return 1 + agent.children.reduce((sum, child) => sum + countAgentsInTree(child), 0);
 }
 
 export function mapAllSessions(): Session[] {
@@ -249,4 +263,107 @@ export function mapSessionById(id: string): Session | undefined {
     });
     return undefined;
   }
+}
+
+/* ── Lightweight summary mapper (list endpoint) ───────────────── */
+
+function resolveLatestUserMessageFromBatch(
+  events: ParsedEvent[],
+  firstUserMessage: string | null,
+  lastUserMessage: string | null,
+): string | undefined {
+  const fromEvents = getLatestUserMessageFromEvents(events);
+  if (fromEvents) {
+    return truncate(fromEvents, MAX_INTENT_LENGTH);
+  }
+
+  if (lastUserMessage && lastUserMessage.trim().length > 0) {
+    if (lastUserMessage !== firstUserMessage) {
+      return truncate(lastUserMessage, MAX_INTENT_LENGTH);
+    }
+  }
+
+  return undefined;
+}
+
+export function mapSessionSummary(
+  sqlRow: SqliteSession,
+  events: ParsedEvent[],
+  turnData: SessionTurnData,
+): SessionSummary {
+  const firstUserMessage = turnData.firstMessage;
+  const name = getSessionName(sqlRow, firstUserMessage);
+  const intent = getSessionIntent(firstUserMessage, name);
+  const derivedStatus: DerivedStatus = deriveSessionStatus(events, sqlRow.updated_at);
+  const rootAgent = buildAgentTree(events, derivedStatus.status, name, sqlRow.created_at);
+
+  let finalStatus = derivedStatus.status;
+  if (finalStatus === 'completed' && hasRunningAgents(rootAgent)) {
+    finalStatus = 'active';
+  }
+
+  const latestUserMessage = resolveLatestUserMessageFromBatch(
+    events, firstUserMessage, turnData.lastMessage,
+  );
+
+  const assistantUpdates = extractAssistantUpdates(events);
+  const lastAssistantUpdate = assistantUpdates && assistantUpdates.length > 0
+    ? assistantUpdates[assistantUpdates.length - 1]
+    : undefined;
+
+  return {
+    id: sqlRow.id,
+    name,
+    intent,
+    status: finalStatus,
+    startedAt: sqlRow.created_at,
+    lastActivityAt: derivedStatus.lastActivityAt,
+    agentCount: countAgentsInTree(rootAgent),
+    turnCount: turnData.turnCount,
+    blockedReason: derivedStatus.blockedReason,
+    waitingFor: derivedStatus.waitingFor,
+    waitingQuestion: derivedStatus.waitingQuestion,
+    waitingChoices: derivedStatus.waitingChoices,
+    cwd: getSessionCwd(sqlRow.id, sqlRow.cwd),
+    repository: sqlRow.repository ?? null,
+    branch: sqlRow.branch ?? null,
+    errorDetails: derivedStatus.errorDetails,
+    latestUserMessage,
+    lastAssistantUpdate,
+  };
+}
+
+/**
+ * Map all sessions to lightweight summaries for the list endpoint.
+ * Uses a single batch query for turn data instead of N+1 per-session reads.
+ */
+export function mapAllSessionSummaries(): SessionSummary[] {
+  const rows = getAllSessions();
+  const sessionIds = rows.map((r) => r.id);
+  const turnDataMap = getSessionTurnDataBatch(sessionIds);
+
+  const summaries: SessionSummary[] = [];
+
+  for (const row of rows) {
+    try {
+      const events = readEventsTail(row.id);
+      const turnData = turnDataMap.get(row.id) ?? {
+        firstMessage: null,
+        lastMessage: null,
+        turnCount: 0,
+      };
+      summaries.push(mapSessionSummary(row, events, turnData));
+    } catch (error) {
+      console.warn('[sessionMapper] Failed to map session summary. Skipping.', {
+        sessionId: row.id,
+        error,
+      });
+    }
+  }
+
+  summaries.sort(
+    (a, b) => toEpochMs(b.lastActivityAt) - toEpochMs(a.lastActivityAt),
+  );
+
+  return summaries;
 }

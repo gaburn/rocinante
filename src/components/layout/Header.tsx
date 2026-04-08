@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
-import { useSessionContext } from '../../context/SessionContext'
+import { useSessionData, useSessionActions } from '../../context/SessionContext'
 import { useSettingsContext } from '../../context/SettingsContext'
 import { useTerminalContext } from '../../context/TerminalContext'
 import SettingsPanel from '../settings/SettingsPanel'
@@ -42,6 +42,26 @@ function BoardIcon() {
       <rect x="1" y="2" width="4" height="12" rx="1" />
       <rect x="6" y="2" width="4" height="8" rx="1" />
       <rect x="11" y="2" width="4" height="10" rx="1" />
+    </svg>
+  )
+}
+
+/** Bar‑chart icon — represents the "stats" view mode. */
+function StatsIcon() {
+  return (
+    <svg
+      className="h-4 w-4"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="1" y="9" width="3" height="5" rx="0.5" />
+      <rect x="6.5" y="4" width="3" height="10" rx="0.5" />
+      <rect x="12" y="2" width="3" height="12" rx="0.5" />
     </svg>
   )
 }
@@ -141,13 +161,15 @@ function MoonIcon() {
 
 export default function Header() {
   const {
-    refreshSessions,
     autoRefreshEnabled,
-    toggleAutoRefresh,
     isLoading,
     viewMode,
+  } = useSessionData()
+  const {
+    refreshSessions,
+    toggleAutoRefresh,
     setViewMode,
-  } = useSessionContext()
+  } = useSessionActions()
 
   const [settingsOpen, setSettingsOpen] = useState(false)
   const { settings, updateDisplaySettings } = useSettingsContext()
@@ -222,6 +244,25 @@ export default function Header() {
             `}
           >
             <NetworkIcon />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setViewMode('stats')}
+            aria-pressed={viewMode === 'stats'}
+            title="Stats view"
+            className={`
+              flex items-center justify-center rounded-md px-2 py-1
+              transition-colors duration-150
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-active focus-visible:ring-offset-1 focus-visible:ring-offset-surface-secondary
+              ${
+                viewMode === 'stats'
+                  ? 'bg-surface-hover text-gray-100'
+                  : 'text-gray-500 hover:text-gray-300'
+              }
+            `}
+          >
+            <StatsIcon />
           </button>
         </div>
 

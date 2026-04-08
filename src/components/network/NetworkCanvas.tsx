@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef } from 'react';
 
 import { useSettingsContext } from '../../context/SettingsContext';
-import { useSessionContext } from '../../context/SessionContext';
+import { useSessionData } from '../../context/SessionContext';
 import { getNodeSizeMultiplier } from '../../types/settings';
-import type { Session } from '../../types';
+import type { Session, SessionSummary } from '../../types';
 import { renderFrame, updateParticles, type NetworkRenderConfig } from './canvasRenderer';
 import { getThemeColors } from './networkColors';
 import type { GraphNode, Particle } from './networkTypes';
@@ -15,7 +15,7 @@ import { useForceGraph } from './useForceGraph';
 /* ------------------------------------------------------------------ */
 
 interface NetworkCanvasProps {
-  sessions?: Session[];
+  sessions?: (Session | SessionSummary)[];
   onSelectNode: (nodeId: string | null) => void;
   selectedNodeId: string | null;
 }
@@ -30,7 +30,7 @@ export default function NetworkCanvas({
   selectedNodeId,
 }: NetworkCanvasProps) {
   /* ---- data ---- */
-  const { sessions: contextSessions, isLoading } = useSessionContext();
+  const { sessions: contextSessions, isLoading } = useSessionData();
   const activeSessions = sessionsProp ?? contextSessions;
   const { settings } = useSettingsContext();
   const { nodes, edges } = useForceGraph(activeSessions);

@@ -46,14 +46,16 @@ export interface ErrorDetail {
   timestamp: string;
 }
 
-export interface Session {
+/** Lightweight DTO returned by the sessions list endpoint. */
+export interface SessionSummary {
   id: string;
   name: string;
   intent: string;
   status: SessionStatus;
   startedAt: string;
   lastActivityAt: string;
-  rootAgent: SubAgent;
+  agentCount: number;
+  turnCount: number;
   blockedReason?: string;
   waitingFor?: string;
   waitingQuestion?: string;
@@ -62,9 +64,15 @@ export interface Session {
   repository?: string | null;
   branch?: string | null;
   errorDetails?: ErrorDetail[];
+  latestUserMessage?: string;
+  lastAssistantUpdate?: string;
+}
+
+/** Full session payload returned by the detail endpoint. */
+export interface Session extends SessionSummary {
+  rootAgent: SubAgent;
   events?: TimelineEvent[];
   activityBuckets?: number[];
-  latestUserMessage?: string;
   assistantUpdates?: string[];
 }
 
@@ -90,4 +98,97 @@ export interface PlanSection {
 export interface SessionPlan {
   raw: string;
   sections: PlanSection[];
+}
+
+export interface ToolUsageEntry {
+  tool: string;
+  count: number;
+  successCount: number;
+  failureCount: number;
+}
+
+export interface ModelUsageEntry {
+  model: string;
+  count: number;
+  percentage: number;
+}
+
+export interface DateCount {
+  date: string;
+  count: number;
+}
+
+export interface RepoCount {
+  name: string;
+  count: number;
+}
+
+export interface AgentLeaderboardEntry {
+  agent: string;
+  tasksCompleted: number;
+  tasksSucceeded: number;
+  tasksFailed: number;
+}
+
+export interface TokenUtilizationEntry {
+  model: string;
+  totalTokens: number;
+  percentage: number;
+}
+
+export interface ModelUsageEntry {
+  model: string;
+  count: number;
+  percentage: number;
+}
+
+export interface TelemetryData {
+  generatedAt: string;
+
+  sessionOverview: {
+    totalSessions: number;
+    byStatus: Record<SessionStatus, number>;
+    averageDurationMs: number;
+    sessionsToday: number;
+    sessionsThisWeek: number;
+    sessionsThisMonth: number;
+  };
+
+  toolUsage: {
+    totalToolCalls: number;
+    top10: ToolUsageEntry[];
+    overallSuccessRate: number;
+  };
+
+  activityTimeline: {
+    sessionsPerDay: DateCount[];
+    eventsPerDay: DateCount[];
+  };
+
+  repoDistribution: {
+    topRepos: RepoCount[];
+    topBranches: RepoCount[];
+  };
+
+  agentStats: {
+    totalSubAgentsSpawned: number;
+    averageAgentsPerSession: number;
+  };
+
+  modelUtilization: {
+    totalInvocations: number;
+    byModel: ModelUsageEntry[];
+  };
+
+  tokenUtilization: {
+    totalOutputTokens: number;
+    byModel: TokenUtilizationEntry[];
+  };
+
+  agentLeaderboard: AgentLeaderboardEntry[];
+
+  modelUtilization?: {
+    totalInvocations: number;
+    byModel: ModelUsageEntry[];
+  };
 }

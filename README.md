@@ -2,6 +2,8 @@
 
 # Rocinante
 
+[![CI](https://github.com/gaburn/rocinante/actions/workflows/ci.yml/badge.svg)](https://github.com/gaburn/rocinante/actions/workflows/ci.yml)
+
 *workhorse for workstreams*
 
 A real-time dashboard for organizing agentic coding sessions into workstreams and interacting with them. When you have dozens of Copilot CLI sessions running across multiple projects, Rocinante gives you a kanban board to track them all, see what each session is working on, and jump into any session with a single click.
