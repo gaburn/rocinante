@@ -44,5 +44,6 @@ dist-server
 .copilot/
 .agents/
 .github/agents/
+.github/agents/*squad*
 .github/workflows/squad-*
 .github/workflows/sync-squad-*
