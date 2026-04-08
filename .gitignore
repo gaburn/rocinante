@@ -16,6 +16,11 @@ dist-server
 *.tsbuildinfo
 .env
 
+# Certificates and keys
+*.pem
+*.key
+*.cert
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

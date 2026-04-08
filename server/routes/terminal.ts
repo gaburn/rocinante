@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { IncomingMessage, Server as HttpServer } from 'node:http';
 import { WebSocketServer, WebSocket } from 'ws';
 import { spawnPty, killPty, getPty } from '../services/ptyManager.js';
+import { sanitizeSessionId } from '../utils/sanitize.js';
 
 type TerminalInputMessage = {
   type: 'input';
@@ -67,9 +68,23 @@ export function attachTerminalWebSocket(server: HttpServer): void {
 
   terminalWss.on('connection', (ws, req: IncomingMessage) => {
     const url = new URL(req.url ?? '', 'http://localhost');
-    const sessionId = url.searchParams.get('sessionId');
+    const rawSessionId = url.searchParams.get('sessionId');
     const cwd = url.searchParams.get('cwd');
     const shell = url.searchParams.get('shell');
+
+    // Validate sessionId before using it in paths or command strings
+    let sessionId: string | null = null;
+    if (rawSessionId) {
+      try {
+        sessionId = sanitizeSessionId(rawSessionId);
+      } catch (err) {
+        const error = err as Error;
+        ws.send(JSON.stringify({ type: 'error', message: `Invalid session ID: ${error.message}` }));
+        ws.close();
+        return;
+      }
+    }
+
     const id = sessionId ?? randomUUID();
 
     // Reject duplicate connections for the same session

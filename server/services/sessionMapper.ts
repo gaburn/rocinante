@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import * as yaml from 'js-yaml';
 import { Session, SessionSummary, SubAgent } from '../../src/types/index.js';
 import { getConfig } from '../config.js';
+import { sanitizeSessionId } from '../utils/sanitize.js';
 import {
   SqliteSession,
   getAllSessions,
@@ -86,8 +87,9 @@ function getSessionCwd(sessionId: string, sqlCwd: string | null): string | null 
   }
 
   try {
+    const safeId = sanitizeSessionId(sessionId);
     const config = getConfig();
-    const workspaceFile = path.join(config.sessionStateDir, sessionId, 'workspace.yaml');
+    const workspaceFile = path.join(config.sessionStateDir, safeId, 'workspace.yaml');
     if (fs.existsSync(workspaceFile)) {
       const content = fs.readFileSync(workspaceFile, 'utf-8');
       const data = yaml.load(content) as Record<string, unknown>;

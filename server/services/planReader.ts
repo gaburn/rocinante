@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { getConfig } from '../config.js';
+import { sanitizeSessionId } from '../utils/sanitize.js';
 import type { SessionPlan, PlanSection, PlanTask } from '../../src/types/index.js';
 
 function simpleHash(str: string): string {
@@ -16,7 +17,8 @@ function createTaskId(sectionIndex: number, taskIndex: number, title: string): s
 }
 
 export function readSessionPlan(sessionId: string): SessionPlan | null {
-  const planPath = path.join(getConfig().sessionStateDir, sessionId, 'plan.md');
+  const safeId = sanitizeSessionId(sessionId);
+  const planPath = path.join(getConfig().sessionStateDir, safeId, 'plan.md');
 
   if (!fs.existsSync(planPath)) {
     return null;

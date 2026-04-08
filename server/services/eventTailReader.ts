@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { getConfig } from '../config.js';
+import { sanitizeSessionId } from '../utils/sanitize.js';
 
 export interface ParsedEvent {
   type: string;
@@ -19,8 +20,9 @@ type CacheEntry = {
 const cache = new Map<string, CacheEntry>();
 
 export function readEventsTail(sessionId: string): ParsedEvent[] {
+  const safeId = sanitizeSessionId(sessionId);
   const { sessionStateDir, tailBytes } = getConfig();
-  const filePath = path.join(sessionStateDir, sessionId, 'events.jsonl');
+  const filePath = path.join(sessionStateDir, safeId, 'events.jsonl');
 
   let stats: fs.Stats;
   try {
