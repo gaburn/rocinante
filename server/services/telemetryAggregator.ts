@@ -325,10 +325,7 @@ function parseAgentName(description: string): string | null {
   return match[1].trim() || null;
 }
 
-function computeAgentLeaderboard(
-  _rows: SqliteSession[],
-  _rowEvents: Map<string, ParsedEvent[]>,
-): AgentLeaderboardEntry[] {
+function computeAgentLeaderboard(): AgentLeaderboardEntry[] {
   const agentMap = new Map<string, { completed: number; succeeded: number; failed: number }>();
 
   // Scan session-state directory directly (DB row order may miss long-running sessions)
@@ -505,7 +502,7 @@ export function aggregateTelemetry(): TelemetryData {
     }
   }
 
-  const agentLeaderboard = computeAgentLeaderboard(rows, rowEvents);
+  const agentLeaderboard = computeAgentLeaderboard();
 
   const result: TelemetryData = {
     generatedAt: new Date().toISOString(),
