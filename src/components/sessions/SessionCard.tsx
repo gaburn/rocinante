@@ -209,6 +209,15 @@ const SessionCard = memo(function SessionCard({
       {/* ── Meta row: relative time + agent count ── */}
       <div className="mt-1.5 flex items-center gap-2 text-[11px] tabular-nums text-fg/30">
         <span>{timeAgo}</span>
+        {session.compacted && (
+          <span
+            className="text-amber-400/70"
+            title={`Context was compacted ${session.compactionCount ?? 1} time(s) during this session — some earlier context may have been summarized`}
+            aria-label="Context compacted"
+          >
+            ⚠️
+          </span>
+        )}
         <span className="ml-auto">
           {agentCount} {agentCount === 1 ? 'agent' : 'agents'}
         </span>
@@ -223,6 +232,8 @@ const SessionCard = memo(function SessionCard({
     prev.session.status === next.session.status &&
     prev.session.name === next.session.name &&
     prev.session.latestUserMessage === next.session.latestUserMessage &&
+    prev.session.compacted === next.session.compacted &&
+    prev.session.compactionCount === next.session.compactionCount &&
     prev.isSelected === next.isSelected &&
     prev.isArchived === next.isArchived &&
     prev.workstream === next.workstream &&

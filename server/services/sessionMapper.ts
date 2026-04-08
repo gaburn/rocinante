@@ -106,6 +106,21 @@ function getSessionCwd(sessionId: string, sqlCwd: string | null): string | null 
 
 const MAX_ASSISTANT_UPDATES = 20;
 
+export function countCompactionEvents(events: ParsedEvent[]): { compacted: boolean; compactionCount: number } {
+  let compactionCount = 0;
+  let compacted = false;
+  for (const event of events) {
+    const t = event.type.toLowerCase();
+    if (t === 'session.compaction_complete') {
+      compactionCount++;
+      compacted = true;
+    } else if (t === 'session.compaction_start') {
+      compacted = true;
+    }
+  }
+  return { compacted, compactionCount };
+}
+
 export function extractAssistantUpdates(events: ParsedEvent[]): string[] | undefined {
   const updates: string[] = [];
   for (const event of events) {
@@ -183,6 +198,7 @@ export function mapToSession(sqlRow: SqliteSession, events: ParsedEvent[]): Sess
 
   const latestUserMessage = resolveLatestUserMessage(sqlRow.id, events, firstUserMessage);
   const assistantUpdates = extractAssistantUpdates(events);
+  const compaction = countCompactionEvents(events);
 
   return {
     id: sqlRow.id,
@@ -209,6 +225,8 @@ export function mapToSession(sqlRow: SqliteSession, events: ParsedEvent[]): Sess
       ? assistantUpdates[assistantUpdates.length - 1]
       : undefined,
     assistantUpdates,
+    compacted: compaction.compacted,
+    compactionCount: compaction.compactionCount,
   };
 }
 
@@ -310,6 +328,7 @@ export function mapSessionSummary(
   const lastAssistantUpdate = assistantUpdates && assistantUpdates.length > 0
     ? assistantUpdates[assistantUpdates.length - 1]
     : undefined;
+  const compaction = countCompactionEvents(events);
 
   return {
     id: sqlRow.id,
@@ -330,6 +349,8 @@ export function mapSessionSummary(
     errorDetails: derivedStatus.errorDetails,
     latestUserMessage,
     lastAssistantUpdate,
+    compacted: compaction.compacted,
+    compactionCount: compaction.compactionCount,
   };
 }
 

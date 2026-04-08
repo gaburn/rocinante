@@ -875,9 +875,14 @@ export default function WorkstreamDetail() {
                       className={`size-1.5 shrink-0 rounded-full ${getStatusDotClass(session.status)}`}
                     />
 
-                    {/* Session name — truncated */}
+                    {/* Session name + branch */}
                     <span className="min-w-0 flex-1 truncate text-sm text-fg/70">
-                      {session.name}
+                      <span className="block truncate">{session.name}</span>
+                      {session.branch && (
+                        <span className="block truncate font-mono text-[10px] text-fg/30">
+                          ⎇ {session.branch}
+                        </span>
+                      )}
                     </span>
 
                     {/* Relative time */}

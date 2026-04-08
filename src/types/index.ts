@@ -66,6 +66,8 @@ export interface SessionSummary {
   errorDetails?: ErrorDetail[];
   latestUserMessage?: string;
   lastAssistantUpdate?: string;
+  compacted?: boolean;
+  compactionCount?: number;
 }
 
 /** Full session payload returned by the detail endpoint. */

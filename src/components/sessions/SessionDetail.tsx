@@ -645,6 +645,14 @@ export default function SessionDetail() {
                 session.status === 'completed' ? session.lastActivityAt : undefined,
               )}
             </span>
+            {session.compacted && (
+              <>
+                <span aria-hidden="true" className="text-fg/15">·</span>
+                <span className="text-amber-400/70" title="Some earlier context may have been summarized">
+                  ⚠️ Context compacted: {session.compactionCount ?? 1} {(session.compactionCount ?? 1) === 1 ? 'time' : 'times'}
+                </span>
+              </>
+            )}
           </div>
 
           {/* Workstream assignment */}
