@@ -24,6 +24,61 @@ const MAX_NAME_LENGTH = 80;
 const MAX_INTENT_LENGTH = 200;
 const UNTITLED_SESSION_NAME = 'Untitled session';
 
+/* ── Git context fallback (branch + repository from cwd) ──────── */
+
+interface GitContext {
+  repository: string | null;
+  branch: string | null;
+}
+
+const gitContextCache = new Map<string, GitContext>();
+
+/**
+ * Read the current branch from a .git/HEAD file.
+ * Returns the branch name or null if HEAD can't be read / is a detached SHA.
+ */
+function readBranchFromGitHead(cwd: string): string | null {
+  try {
+    const headPath = path.join(cwd, '.git', 'HEAD');
+    if (!fs.existsSync(headPath)) {
+      return null;
+    }
+    // If .git is a directory, headPath is a file inside it.
+    // If .git is a worktree file, headPath won't exist as a file — caught above.
+    const stat = fs.statSync(headPath);
+    if (!stat.isFile()) {
+      return null;
+    }
+    const content = fs.readFileSync(headPath, 'utf-8').trim();
+    const match = content.match(/^ref:\s+refs\/heads\/(.+)$/);
+    return match ? match[1] : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Derive repository name and branch from the working directory.
+ * Results are cached per-cwd since many sessions share the same directory.
+ */
+function resolveGitContext(cwd: string | null): GitContext {
+  if (!cwd || cwd.trim().length === 0) {
+    return { repository: null, branch: null };
+  }
+
+  const cached = gitContextCache.get(cwd);
+  if (cached) {
+    return cached;
+  }
+
+  const repository = path.basename(cwd) || null;
+  const branch = readBranchFromGitHead(cwd);
+
+  const ctx: GitContext = { repository, branch };
+  gitContextCache.set(cwd, ctx);
+  return ctx;
+}
+
 function truncate(text: string, maxLength: number): string {
   const normalized = text.trim();
   if (normalized.length <= maxLength) {
@@ -199,6 +254,8 @@ export function mapToSession(sqlRow: SqliteSession, events: ParsedEvent[]): Sess
   const latestUserMessage = resolveLatestUserMessage(sqlRow.id, events, firstUserMessage);
   const assistantUpdates = extractAssistantUpdates(events);
   const compaction = countCompactionEvents(events);
+  const resolvedCwd = getSessionCwd(sqlRow.id, sqlRow.cwd);
+  const gitFallback = resolveGitContext(resolvedCwd);
 
   return {
     id: sqlRow.id,
@@ -216,9 +273,9 @@ export function mapToSession(sqlRow: SqliteSession, events: ParsedEvent[]): Sess
     waitingFor: derivedStatus.waitingFor,
     waitingQuestion: derivedStatus.waitingQuestion,
     waitingChoices: derivedStatus.waitingChoices,
-    cwd: getSessionCwd(sqlRow.id, sqlRow.cwd),
-    repository: sqlRow.repository ?? null,
-    branch: sqlRow.branch ?? null,
+    cwd: resolvedCwd,
+    repository: sqlRow.repository ?? gitFallback.repository,
+    branch: sqlRow.branch ?? gitFallback.branch,
     errorDetails: derivedStatus.errorDetails,
     latestUserMessage,
     lastAssistantUpdate: assistantUpdates && assistantUpdates.length > 0
@@ -329,6 +386,8 @@ export function mapSessionSummary(
     ? assistantUpdates[assistantUpdates.length - 1]
     : undefined;
   const compaction = countCompactionEvents(events);
+  const resolvedCwd = getSessionCwd(sqlRow.id, sqlRow.cwd);
+  const gitFallback = resolveGitContext(resolvedCwd);
 
   return {
     id: sqlRow.id,
@@ -343,9 +402,9 @@ export function mapSessionSummary(
     waitingFor: derivedStatus.waitingFor,
     waitingQuestion: derivedStatus.waitingQuestion,
     waitingChoices: derivedStatus.waitingChoices,
-    cwd: getSessionCwd(sqlRow.id, sqlRow.cwd),
-    repository: sqlRow.repository ?? null,
-    branch: sqlRow.branch ?? null,
+    cwd: resolvedCwd,
+    repository: sqlRow.repository ?? gitFallback.repository,
+    branch: sqlRow.branch ?? gitFallback.branch,
     errorDetails: derivedStatus.errorDetails,
     latestUserMessage,
     lastAssistantUpdate,
