@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import { useSettingsContext } from '../../context/SettingsContext';
 import { useSessionData } from '../../context/SessionContext';
@@ -34,11 +34,11 @@ export default function NetworkCanvas({
   const activeSessions = sessionsProp ?? contextSessions;
   const { settings } = useSettingsContext();
   const { nodes, edges } = useForceGraph(activeSessions);
-  const renderConfig: NetworkRenderConfig = {
+  const renderConfig: NetworkRenderConfig = useMemo(() => ({
     animationSpeed: settings.network.animationSpeed,
     labelVisibility: settings.network.labelVisibility,
     nodeSizeScale: getNodeSizeMultiplier(settings.network.nodeSizeScale),
-  };
+  }), [settings.network.animationSpeed, settings.network.labelVisibility, settings.network.nodeSizeScale]);
 
   /* ---- refs ---- */
   const canvasRef = useRef<HTMLCanvasElement | null>(null);

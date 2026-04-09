@@ -154,12 +154,6 @@ function toEpochMs(timestamp: string): number {
   return Number.isNaN(parsed) ? 0 : parsed;
 }
 
-function getSessionIdFromEntry(entry: ClaudeEntry, filePath: string): string {
-  if (entry.leafUuid) return `${SOURCE_PREFIX}${entry.leafUuid}`;
-  const stem = path.basename(filePath, '.jsonl');
-  return `${SOURCE_PREFIX}${stem}`;
-}
-
 function stripPrefix(id: string): string {
   return id.startsWith(SOURCE_PREFIX) ? id.slice(SOURCE_PREFIX.length) : id;
 }
@@ -216,7 +210,6 @@ function getFirstUserEntry(entries: ClaudeEntry[]): ClaudeEntry | undefined {
 
 export function deriveClaudeStatus(
   mtimeMs: number,
-  _entries: ClaudeEntry[],
 ): SessionStatus {
   const { staleThresholdMs } = getConfig();
   const ageMs = Date.now() - mtimeMs;
@@ -536,7 +529,7 @@ export class ClaudeSessionSource implements SessionSource {
 
     const firstUserContent = getFirstUserContent(entries);
     const firstUser = getFirstUserEntry(entries);
-    const status = deriveClaudeStatus(file.mtimeMs, entries);
+    const status = deriveClaudeStatus(file.mtimeMs);
     const startedAt = getFirstTimestamp(entries);
     const lastActivityAt = getLastTimestamp(entries, file.mtimeMs);
 
@@ -596,7 +589,7 @@ export class ClaudeSessionSource implements SessionSource {
     const summaryEntry = entries[0]?.type === 'summary' ? entries[0] : undefined;
     const firstUserContent = getFirstUserContent(entries);
     const firstUser = getFirstUserEntry(entries);
-    const status = deriveClaudeStatus(meta.mtimeMs, entries);
+    const status = deriveClaudeStatus(meta.mtimeMs);
     const startedAt = getFirstTimestamp(entries);
     const lastActivityAt = getLastTimestamp(entries, meta.mtimeMs);
 
