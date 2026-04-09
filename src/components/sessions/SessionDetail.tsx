@@ -14,6 +14,9 @@ import {
 } from '../../utils/statusColors';
 import { renderInlineMarkdown } from '../../utils/inlineMarkdown';
 import StatusBadge from '../common/StatusBadge';
+import SourceBadge from '../common/SourceBadge';
+import SquadBadge from '../common/SquadBadge';
+import SquadCastList from './SquadCastList';
 import WorkstreamAutocomplete from '../common/WorkstreamAutocomplete';
 import SubagentTree from '../agents/SubagentTree';
 import WaterfallChart from '../waterfall/WaterfallChart';
@@ -407,6 +410,8 @@ export default function SessionDetail() {
                     {session.name}
                   </h2>
                   <StatusBadge status={session.status} size="md" />
+                  <SourceBadge source={session.source} />
+                  <SquadBadge isSquadSession={session.isSquadSession} />
                   <button
                     type="button"
                     onClick={enterNameEditMode}
@@ -787,7 +792,14 @@ export default function SessionDetail() {
           )}
         </section>
 
-        {/* ── 1a · Session Updates ────────────────────────── */}
+        {/* ── 1a · Squad cast ─────────────────────────────── */}
+        {session.isSquadSession && session.squadCast && session.squadCast.length > 0 && (
+          <section>
+            <SquadCastList cast={session.squadCast} />
+          </section>
+        )}
+
+        {/* ── 1b · Session Updates ────────────────────────── */}
         {session.assistantUpdates && session.assistantUpdates.length > 0 && (
           <section className="space-y-2">
             <div className="flex items-center gap-1.5">
@@ -810,7 +822,7 @@ export default function SessionDetail() {
           </section>
         )}
 
-        {/* ── 1b · Git context ───────────────────────────── */}
+        {/* ── 1c · Git context ───────────────────────────── */}
         {panes.gitContext && session.repository && hasGitContext && (
           <section>
             <div className="rounded-lg border border-border-default bg-surface-secondary px-3.5 py-3">

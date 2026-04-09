@@ -29,6 +29,7 @@ export interface UseSessionsResult {
   selectedSession: Session | null
   selectedWorkstream: SessionGroup | null
   statusFilter: SessionStatus | 'all'
+  sourceFilter: 'copilot' | 'claude' | 'all'
   searchQuery: string
   viewMode: 'list' | 'network' | 'stats'
   showArchived: boolean
@@ -41,6 +42,7 @@ export interface UseSessionsResult {
   selectWorkstream: (name: string) => void
   clearSelection: () => void
   setStatusFilter: (status: SessionStatus | 'all') => void
+  setSourceFilter: (source: 'copilot' | 'claude' | 'all') => void
   setSearchQuery: (query: string) => void
   setViewMode: (mode: 'list' | 'network' | 'stats') => void
   setShowArchived: (show: boolean) => void
@@ -84,6 +86,7 @@ export function useSessions(): UseSessionsResult {
   const [selectedSessionDetail, setSelectedSessionDetail] = useState<Session | null>(null)
   const [selectedWorkstreamName, setSelectedWorkstreamName] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<SessionStatus | 'all'>('all')
+  const [sourceFilter, setSourceFilter] = useState<'copilot' | 'claude' | 'all'>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [viewMode, setViewMode] = useState<'list' | 'network' | 'stats'>(
     settings.display.defaultViewMode,
@@ -268,6 +271,10 @@ export function useSessions(): UseSessionsResult {
 
     filtered = filterSessionsByStatus(filtered, statusFilter)
 
+    if (sourceFilter !== 'all') {
+      filtered = filtered.filter((s) => (s.source ?? 'copilot') === sourceFilter)
+    }
+
     if (searchQuery.trim()) {
       const query = searchQuery.trim().toLowerCase()
       filtered = filtered.filter(
@@ -307,6 +314,7 @@ export function useSessions(): UseSessionsResult {
     sessionsWithNames,
     showArchived,
     statusFilter,
+    sourceFilter,
     searchQuery,
     conversationSearchResults,
     settings.display.showCompletedSessions,
@@ -468,6 +476,7 @@ export function useSessions(): UseSessionsResult {
     selectedSession,
     selectedWorkstream,
     statusFilter,
+    sourceFilter,
     searchQuery,
     viewMode,
     showArchived,
@@ -480,6 +489,7 @@ export function useSessions(): UseSessionsResult {
     selectWorkstream,
     clearSelection,
     setStatusFilter,
+    setSourceFilter,
     setSearchQuery,
     setViewMode,
     setShowArchived,

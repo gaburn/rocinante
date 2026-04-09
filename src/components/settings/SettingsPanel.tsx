@@ -12,6 +12,7 @@ import type {
   NodeSizeScale,
   PhysicsStrength,
   ShellType,
+  SessionSourceOption,
 } from '../../types/settings';
 
 /* ═══════════════════════════════════════════════════════════
@@ -135,6 +136,13 @@ const TERMINAL_FONT_SIZE_OPTIONS: { value: number; label: string }[] = [
   { value: 16, label: '16' },
   { value: 18, label: '18' },
   { value: 20, label: '20' },
+];
+
+const SESSION_SOURCE_OPTIONS: { value: 'auto' | 'copilot' | 'claude' | 'both'; label: string }[] = [
+  { value: 'auto', label: 'Auto-detect' },
+  { value: 'copilot', label: 'Copilot' },
+  { value: 'claude', label: 'Claude' },
+  { value: 'both', label: 'Both' },
 ];
 
 /* ── Inline micro-icons ────────────────────────────────── */
@@ -650,6 +658,29 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
   useEffect(() => {
     return () => {
       if (dirTimerRef.current) clearTimeout(dirTimerRef.current);
+    };
+  }, []);
+
+  /* ── Claude dir input debounce ───────────────────────── */
+  const [claudeDirDraft, setClaudeDirDraft] = useState(settings.data.claudeDir);
+  const claudeDirTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setClaudeDirDraft(settings.data.claudeDir);
+  }, [settings.data.claudeDir]);
+
+  const handleClaudeDirChange = (value: string) => {
+    setClaudeDirDraft(value);
+    if (claudeDirTimerRef.current) clearTimeout(claudeDirTimerRef.current);
+    claudeDirTimerRef.current = setTimeout(() => {
+      void updateDataSettings({ claudeDir: value });
+    }, 600);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (claudeDirTimerRef.current) clearTimeout(claudeDirTimerRef.current);
     };
   }, []);
 
@@ -1224,6 +1255,78 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
             </div>
           </Section>
 
+          {/* ━━━━━━━━━━ Section: Session Sources ━━━━━━━━ */}
+          <Section title="Session Sources">
+
+            {/* Source selector — segmented button group */}
+            <FieldRow label="Data Source">
+              <div className="flex items-center rounded-lg bg-surface-tertiary p-0.5">
+                {SESSION_SOURCE_OPTIONS.map(({ value, label }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={data.sessionSources === value}
+                    onClick={() =>
+                      void updateDataSettings({ sessionSources: value as SessionSourceOption })
+                    }
+                    className={`
+                      rounded-md px-3 py-1 text-xs font-mono
+                      transition-colors duration-150 cursor-pointer
+                      focus-visible:outline-none focus-visible:ring-2
+                      focus-visible:ring-border-active focus-visible:ring-offset-1
+                      focus-visible:ring-offset-surface-tertiary
+                      ${
+                        data.sessionSources === value
+                          ? 'bg-surface-hover text-fg-heading'
+                          : 'text-fg-muted hover:text-fg-secondary'
+                      }
+                    `}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </FieldRow>
+
+            {/* Claude Directory — only visible when Claude source is enabled */}
+            {(data.sessionSources === 'auto' || data.sessionSources === 'claude' || data.sessionSources === 'both') && (
+              <FieldStack label="Claude Directory">
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={claudeDirDraft}
+                    onChange={(e) => handleClaudeDirChange(e.target.value)}
+                    placeholder="~/.claude"
+                    aria-label="Claude session data directory path"
+                    className="
+                      w-full
+                      bg-surface-tertiary border border-border-default rounded-md
+                      px-3 py-1.5
+                      text-sm text-fg/80 font-mono placeholder:text-fg/20
+                      transition-colors duration-150
+                      hover:border-fg/20
+                      focus-visible:outline-none focus-visible:ring-2
+                      focus-visible:ring-border-active focus-visible:ring-offset-1
+                      focus-visible:ring-offset-surface-secondary
+                    "
+                  />
+                  {isServerSyncing && (
+                    <span className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                      <SyncSpinner />
+                    </span>
+                  )}
+                </div>
+                <span className="text-[11px] text-fg/25 leading-tight">
+                  Path to the Claude session data directory
+                </span>
+              </FieldStack>
+            )}
+
+            <p className="text-[11px] text-fg/20 leading-relaxed pt-1">
+              Choose which AI assistant session data to display
+            </p>
+          </Section>
+
           {/* ━━━━━━━━━━ Section 3: Azure DevOps ━━━━━━━━ */}
           <Section title="Azure DevOps">
             <AdoSettings />
@@ -1311,6 +1414,21 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                 className="text-[11px] font-mono text-fg/30 hover:text-fg/50 transition-colors"
               >
                 github.com/gaburn/rocinante
+              </a>
+
+              <a
+                href="https://github.com/bradygaster/squad"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-[11px] font-mono text-fg/30 hover:text-fg/50 transition-colors"
+              >
+                Built with
+                <img
+                  src="/squad-logo.png"
+                  alt="Squad logo"
+                  className="inline-block h-[14px] w-[14px]"
+                />
+                <span className="underline underline-offset-2">Squad</span>
               </a>
             </div>
           </Section>

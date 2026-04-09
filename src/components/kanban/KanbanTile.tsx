@@ -9,6 +9,8 @@ import {
 } from '../../utils/statusColors';
 import { formatRelativeTime } from '../../utils/formatters';
 import { renderInlineMarkdown } from '../../utils/inlineMarkdown';
+import SourceBadge from '../common/SourceBadge';
+import SquadBadge from '../common/SquadBadge';
 
 interface KanbanTileProps {
   session: SessionSummary;
@@ -159,6 +161,8 @@ export default function KanbanTile({ session, isSelected, onSelect, onArchive, c
         <span className={`${onArchive ? '' : 'ml-auto'} whitespace-nowrap rounded-full bg-surface-tertiary px-1.5 py-0.5 text-[10px] text-fg/40`}>
           {agentCount} {agentCount === 1 ? 'agent' : 'agents'}
         </span>
+        <SourceBadge source={session.source} />
+        <SquadBadge isSquadSession={session.isSquadSession} />
       </div>
     </button>
   );

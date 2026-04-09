@@ -4,6 +4,8 @@ import { getStatusBorderClass } from '../../utils/statusColors';
 import { formatRelativeTime } from '../../utils/formatters';
 import StatusBadge from '../common/StatusBadge';
 import WorkstreamAutocomplete from '../common/WorkstreamAutocomplete';
+import SourceBadge from '../common/SourceBadge';
+import SquadBadge from '../common/SquadBadge';
 
 /* ────────────────────────────────────────────────────────
  * SessionCard
@@ -218,8 +220,12 @@ const SessionCard = memo(function SessionCard({
             ⚠️
           </span>
         )}
-        <span className="ml-auto">
-          {agentCount} {agentCount === 1 ? 'agent' : 'agents'}
+        <span className="ml-auto flex items-center gap-1.5">
+          <SourceBadge source={session.source} />
+          <SquadBadge isSquadSession={session.isSquadSession} />
+          <span>
+            {agentCount} {agentCount === 1 ? 'agent' : 'agents'}
+          </span>
         </span>
       </div>
     </button>
@@ -234,6 +240,8 @@ const SessionCard = memo(function SessionCard({
     prev.session.latestUserMessage === next.session.latestUserMessage &&
     prev.session.compacted === next.session.compacted &&
     prev.session.compactionCount === next.session.compactionCount &&
+    prev.session.source === next.session.source &&
+    prev.session.isSquadSession === next.session.isSquadSession &&
     prev.isSelected === next.isSelected &&
     prev.isArchived === next.isArchived &&
     prev.workstream === next.workstream &&

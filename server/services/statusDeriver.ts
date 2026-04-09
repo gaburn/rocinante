@@ -335,6 +335,58 @@ function getMostRecentTimestamp(events: ParsedEvent[]): string | null {
   return latestTimestamp || null;
 }
 
+/* ── Squad session detection ──────────────────────────────────── */
+
+const SQUAD_STRING_SIGNALS = [
+  '.squad/',
+  'squad.agent.md',
+  '"name":"scribe"',
+  '"name":"Scribe"',
+  'Squad (Coordinator)',
+];
+
+/**
+ * Detect whether a session is a Squad session by scanning event data
+ * for Squad-specific signals (agent paths, governance files, spawn patterns).
+ * Returns true only when a signal is found; undefined otherwise (for sparse DTO).
+ */
+export function detectSquadSession(events: ParsedEvent[]): boolean {
+  for (const event of events) {
+    const raw = JSON.stringify(event.data);
+    for (const signal of SQUAD_STRING_SIGNALS) {
+      if (raw.includes(signal)) {
+        return true;
+      }
+    }
+
+    // Check for task tool calls spawning squad-named agents
+    const type = event.type.toLowerCase();
+    if (
+      (type === 'tool.execution_start' || type === 'assistant.message') &&
+      event.data
+    ) {
+      const data = event.data;
+      const toolName = (data.toolName ?? data.tool_name ?? data.name) as string | undefined;
+      if (typeof toolName === 'string' && toolName.toLowerCase() === 'task') {
+        const args = (data.arguments ?? data.parameters ?? data.args) as Record<string, unknown> | undefined;
+        if (args && typeof args === 'object') {
+          const agentType = args.agent_type;
+          const agentName = args.name;
+          if (
+            agentType === 'general-purpose' &&
+            typeof agentName === 'string' &&
+            /^(scribe|amos|priya|jordan|kai|riley|squad)/i.test(agentName)
+          ) {
+            return true;
+          }
+        }
+      }
+    }
+  }
+
+  return false;
+}
+
 export function deriveSessionStatus(
   events: ParsedEvent[],
   updatedAt: string,

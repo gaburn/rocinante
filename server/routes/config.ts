@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import fs from 'node:fs';
-import { getConfig, updateConfig } from '../config.js';
+import { getConfig, updateConfig, type SessionSourceOption } from '../config.js';
 import { clearCache } from '../services/eventTailReader.js';
 
 type ConfigResponse = {
@@ -8,6 +8,8 @@ type ConfigResponse = {
   tailBytes: number;
   staleThresholdMs: number;
   maxTimelineEvents: number;
+  claudeDir: string;
+  sessionSources: SessionSourceOption;
 };
 
 type ConfigPatch = Partial<ConfigResponse>;
@@ -15,11 +17,14 @@ type ConfigPatch = Partial<ConfigResponse>;
 const ALLOWED_TAIL_BYTES = [262144, 524288, 1048576, 2097152];
 const ALLOWED_STALE_THRESHOLD_MS = [60000, 300000, 900000, 1800000];
 const ALLOWED_MAX_TIMELINE_EVENTS = [50, 100, 200, 500];
+const ALLOWED_SESSION_SOURCES: SessionSourceOption[] = ['auto', 'copilot', 'claude', 'both'];
 const ALLOWED_KEYS = new Set<keyof ConfigResponse>([
   'sessionStateDir',
   'tailBytes',
   'staleThresholdMs',
   'maxTimelineEvents',
+  'claudeDir',
+  'sessionSources',
 ]);
 
 const configRouter = Router();
@@ -30,6 +35,8 @@ function toConfigResponse(config: ReturnType<typeof getConfig>): ConfigResponse 
     tailBytes: config.tailBytes,
     staleThresholdMs: config.staleThresholdMs,
     maxTimelineEvents: config.maxTimelineEvents,
+    claudeDir: config.claudeDir,
+    sessionSources: config.sessionSources,
   };
 }
 
@@ -111,6 +118,26 @@ configRouter.patch('/config', (req, res) => {
       return;
     }
     patch.maxTimelineEvents = maxTimelineEvents;
+  }
+
+  if ('claudeDir' in body) {
+    const claudeDir = body.claudeDir;
+    if (typeof claudeDir !== 'string' || claudeDir.trim() === '') {
+      res.status(400).json({ error: 'claudeDir must be a non-empty string.' });
+      return;
+    }
+    patch.claudeDir = claudeDir;
+  }
+
+  if ('sessionSources' in body) {
+    const sessionSources = body.sessionSources;
+    if (!ALLOWED_SESSION_SOURCES.includes(sessionSources)) {
+      res.status(400).json({
+        error: `sessionSources must be one of: ${ALLOWED_SESSION_SOURCES.join(', ')}`,
+      });
+      return;
+    }
+    patch.sessionSources = sessionSources;
   }
 
   const currentConfig = getConfig();

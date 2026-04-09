@@ -13,6 +13,8 @@ export const STALE_THRESHOLD_MS = parseInt(process.env.STALE_THRESHOLD_MS || '30
 export const CACHE_TTL_MS = parseInt(process.env.CACHE_TTL_MS || '10000', 10); // 10 sec
 export const MAX_TIMELINE_EVENTS = parseInt(process.env.MAX_TIMELINE_EVENTS || '100', 10);
 
+export type SessionSourceOption = 'auto' | 'copilot' | 'claude' | 'both';
+
 export interface RuntimeConfig {
   sessionStateDir: string;
   sqliteDbPath: string;
@@ -23,6 +25,13 @@ export interface RuntimeConfig {
   maxTimelineEvents: number;
   adoOrganization: string;
   adoProject: string;
+  claudeDir: string;
+  sessionSources: SessionSourceOption;
+}
+
+function parseSessionSources(value: string | undefined): SessionSourceOption {
+  if (value === 'copilot' || value === 'claude' || value === 'both') return value;
+  return 'auto';
 }
 
 const runtimeConfig: RuntimeConfig = {
@@ -35,6 +44,8 @@ const runtimeConfig: RuntimeConfig = {
   maxTimelineEvents: parseInt(process.env.MAX_TIMELINE_EVENTS || '100', 10),
   adoOrganization: process.env.ADO_ORG || '',
   adoProject: process.env.ADO_PROJECT || '',
+  claudeDir: process.env.CLAUDE_DIR || path.join(os.homedir(), '.claude'),
+  sessionSources: parseSessionSources(process.env.SESSION_SOURCES),
 };
 
 export function getConfig(): Readonly<RuntimeConfig> {

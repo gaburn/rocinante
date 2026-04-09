@@ -1,8 +1,12 @@
+export type SessionSourceOption = 'auto' | 'copilot' | 'claude' | 'both';
+
 export interface ServerConfig {
   sessionStateDir: string;
   tailBytes: number;
   staleThresholdMs: number;
   maxTimelineEvents: number;
+  claudeDir: string;
+  sessionSources: SessionSourceOption;
 }
 
 export async function getServerConfig(): Promise<ServerConfig> {
