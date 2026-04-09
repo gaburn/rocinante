@@ -6,7 +6,7 @@
 
 *workhorse for workstreams*
 
-A real-time dashboard for organizing agentic coding sessions into workstreams and interacting with them. When you have dozens of Copilot CLI sessions running across multiple projects, Rocinante gives you a kanban board to track them all, see what each session is working on, and jump into any session with a single click.
+A real-time dashboard for organizing agentic coding sessions into workstreams and interacting with them. When you have dozens of Claude/Copilot CLI sessions running across multiple projects, Rocinante gives you a kanban board to track them all, see what each session is working on, and jump into any session with a single click.
 
 Named after the ship from *The Expanse*, which was named after Don Quixote's horse.
 
@@ -21,7 +21,7 @@ Named after the ship from *The Expanse*, which was named after Don Quixote's hor
 - **Drag-and-drop sessions**: Reassign sessions between workstreams by dragging tiles between columns (@dnd-kit)
 - **Column reorder**: Drag workstream columns by their grip handle to rearrange, order persisted to localStorage
 - **Status-coded tiles**: Emerald (active), red (blocked), amber (waiting), gray (completed). Active and blocked sessions float to the top
-- **Latest context on tiles**: Each tile shows the most recent user message and a magenta assistant-update bubble with Copilot's latest status
+- **Latest context on tiles**: Each tile shows the most recent user message and a magenta assistant-update bubble with Claude/Copilot's latest status
 - **Workstream count**: Status summary bar includes workstream count
 
 ### Session Detail
@@ -33,7 +33,7 @@ Named after the ship from *The Expanse*, which was named after Don Quixote's hor
 
 ### Other Views
 - **Neural Network View**: Animated force-directed graph visualization of all sessions and agents (d3-force + Canvas)
-- **Embedded Terminal**: Session-scoped terminals that auto-resume Copilot sessions in their working directory (xterm.js + node-pty)
+- **Embedded Terminal**: Session-scoped terminals that auto-resume Claude/Copilot sessions in their working directory (xterm.js + node-pty)
 - **Settings**: 20+ configurable options with localStorage persistence + server config API. About section shows version and GitHub repo link
 - **Light/Dark Mode**: Full theme support with system preference detection
 - **Real-time Updates**: Auto-refresh with configurable interval
