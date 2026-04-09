@@ -27,6 +27,8 @@ Named after the ship from *The Expanse*, which was named after Don Quixote's hor
 ### Session Detail
 - **Session Updates**: Fuchsia-accented scrollable list of assistant status messages with preserved line breaks
 - **Agent Hierarchy**: Collapsible tree (collapsed by default) with unified arrow icons
+- **Squad Cast List**: Team members extracted from session events, displayed with roles and emoji
+- **Source badge**: Teal (Copilot) or amber (Claude) indicator of the session source
 - **Git context**, Session Timeline, tool results, performance waterfall
 
 ### Other Views
@@ -42,7 +44,15 @@ For a comprehensive guide on using the dashboard, see **[docs/user-guide.md](./d
 
 ## Recent Changes
 
-### v1.2.1 (Latest)
+### v1.3.0 (Latest)
+- **Claude Code CLI support**: Rocinante now detects and displays sessions from Claude Code CLI alongside Copilot sessions. Sessions from `~/.claude/projects/` are auto-detected and shown with amber Claude badges. No configuration needed — just works if both CLIs are installed.
+- **Multi-source auto-detection**: Default behavior checks which data directories exist and shows all available sources (Copilot, Claude, or both). Can be overridden in Settings or via the `SESSION_SOURCES` environment variable.
+- **Source badges & filter**: Teal "Copilot" and amber "Claude" badges appear on session tiles, cards, and detail view. Header includes a source filter dropdown (All / Copilot / Claude).
+- **Squad session detection**: Sessions using Squad show a Squad logo badge on tiles with a tooltip. The detail view displays a cast list showing team members with their roles and emoji.
+- **Settings panel enhancements**: New session sources selector ("Auto-detect" / "Copilot" / "Claude" / "Both") and Claude directory path configuration option.
+- **"Built with Squad" attribution**: About section now credits Squad as a dependency.
+
+### v1.2.1
 - **Waiting for Input indicator**: Sessions using `ask_user` show a `?` icon on tiles with an amber glow. The detail pane displays the question text and available choices.
 - **Session ID search**: The search bar now supports partial session ID matching for faster session lookup.
 - **Inline markdown rendering**: Session updates properly render bold, italic, code, and table formatting.
@@ -63,7 +73,10 @@ For a comprehensive guide on using the dashboard, see **[docs/user-guide.md](./d
   - **Windows**: Visual Studio Build Tools with **Desktop development with C++**
   - **macOS**: Xcode Command Line Tools (`xcode-select --install`)
   - **Linux**: `build-essential` (and standard compiler toolchain)
-- GitHub Copilot CLI installed and configured (`~/.copilot/` directory with session data)
+- At least one of the following installed and configured:
+  - GitHub Copilot CLI (`~/.copilot/` directory with session data)
+  - Claude Code CLI (`~/.claude/projects/` directory with session data)
+  - Both CLIs for full multi-source experience
 
 ---
 
@@ -86,6 +99,21 @@ npm run dev
 
 ---
 
+## Supported Session Sources
+
+Rocinante supports sessions from multiple sources:
+
+- **Copilot**: GitHub Copilot CLI sessions (`~/.copilot/session-state/` and `~/.copilot/session-store.db`)
+- **Claude**: Claude Code CLI sessions (`~/.claude/projects/`)
+- **Auto-detect** (default): Automatically detects which sources are available based on directory existence
+
+Configure session sources via:
+1. **Settings panel** → "Session Sources" selector
+2. **Environment variable**: `SESSION_SOURCES=auto|copilot|claude|both`
+3. **Claude directory** (if using Claude): Configurable in Settings → "Claude Directory"
+
+---
+
 ## Environment Variables
 
 Create a `.env` file from `.env.example` as needed.
@@ -93,8 +121,10 @@ Create a `.env` file from `.env.example` as needed.
 | Variable | Default | Description |
 |---|---|---|
 | `API_PORT` | `3001` | Backend API/WS port used by Express and terminal WebSocket server |
+| `SESSION_SOURCES` | `auto` | Session sources to load: `auto` (detect available), `copilot`, `claude`, or `both` |
 | `SESSION_STATE_DIR` | `~/.copilot/session-state` | Directory containing per-session state folders and `events.jsonl` files |
 | `SQLITE_DB_PATH` | `~/.copilot/session-store.db` | Path to Copilot SQLite session metadata database |
+| `CLAUDE_PROJECTS_DIR` | `~/.claude/projects` | Directory containing Claude Code CLI project sessions |
 | `TAIL_BYTES` | `524288` | Number of bytes read from end of each `events.jsonl` file |
 | `STALE_THRESHOLD_MS` | `300000` | Inactivity threshold before a session is considered stale/completed |
 | `CACHE_TTL_MS` | `10000` | In-memory cache TTL for event tail reads |
@@ -118,9 +148,12 @@ Backend (Express + TypeScript)
 └── /ws/terminal: WebSocket PTY bridge (node-pty)
 
 Data Sources
-├── ~/.copilot/session-store.db: SQLite (session metadata)
-├── ~/.copilot/session-state/{id}/events.jsonl: event logs
-└── ~/.copilot/session-state/{id}/workspace.yaml: session config
+├── Copilot
+│   ├── ~/.copilot/session-store.db: SQLite (session metadata)
+│   ├── ~/.copilot/session-state/{id}/events.jsonl: event logs
+│   └── ~/.copilot/session-state/{id}/workspace.yaml: session config
+└── Claude
+    └── ~/.claude/projects/: Project directories with session metadata and event logs
 ```
 
 ### Runtime Flow (high-level)
