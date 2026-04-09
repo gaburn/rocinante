@@ -9,6 +9,8 @@ import {
 } from '../../utils/statusColors';
 import { formatRelativeTime } from '../../utils/formatters';
 import { renderInlineMarkdown } from '../../utils/inlineMarkdown';
+import SourceBadge from '../common/SourceBadge';
+import SquadBadge from '../common/SquadBadge';
 
 interface KanbanTileProps {
   session: SessionSummary;
@@ -86,11 +88,18 @@ export default function KanbanTile({ session, isSelected, onSelect, onArchive, c
         </span>
       </div>
 
-      {/* Row 1.5: repo path */}
-      {session.cwd && (
-        <p className="mt-0.5 truncate font-mono text-[10px] text-fg/25" title={session.cwd}>
-          {session.cwd}
-        </p>
+      {/* Row 1.5: repo + branch */}
+      {(session.repository || session.cwd) && (
+        <div className="mt-0.5 font-mono text-[10px] text-fg/25">
+          <p className="truncate" title={session.repository ?? session.cwd ?? undefined}>
+            {session.repository ?? session.cwd}
+          </p>
+          {session.branch && (
+            <p className="truncate" title={session.branch}>
+              ⎇ {session.branch}
+            </p>
+          )}
+        </div>
       )}
 
       {/* Row 2: latest user request */}
@@ -115,9 +124,18 @@ export default function KanbanTile({ session, isSelected, onSelect, onArchive, c
         </div>
       )}
 
-      {/* Row 3: meta — time, agent count */}
+      {/* Row 3: meta — time, compaction indicator, agent count */}
       <div className="mt-1.5 flex items-center gap-2 text-[11px] tabular-nums text-fg/30">
         <span>{timeAgo}</span>
+        {session.compacted && (
+          <span
+            className="text-amber-400/70"
+            title={`Context was compacted ${session.compactionCount ?? 1} time(s) during this session — some earlier context may have been summarized`}
+            aria-label="Context compacted"
+          >
+            ⚠️
+          </span>
+        )}
         {/* Archive session — visible on hover */}
         {onArchive && (
           <button
@@ -143,6 +161,8 @@ export default function KanbanTile({ session, isSelected, onSelect, onArchive, c
         <span className={`${onArchive ? '' : 'ml-auto'} whitespace-nowrap rounded-full bg-surface-tertiary px-1.5 py-0.5 text-[10px] text-fg/40`}>
           {agentCount} {agentCount === 1 ? 'agent' : 'agents'}
         </span>
+        <SourceBadge source={session.source} />
+        <SquadBadge isSquadSession={session.isSquadSession} />
       </div>
     </button>
   );

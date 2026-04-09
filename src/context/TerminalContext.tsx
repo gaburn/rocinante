@@ -41,30 +41,31 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
   const tabs = useTerminalTabs();
   const { selectedSession } = useSessionSelection();
 
-  /* eslint-disable react-hooks/preserve-manual-memoization */
+  const { openTab, hasTab, setActiveTab, followSession } = tabs;
+  const { openTerminal, isTerminalOpen } = panel;
+
   const openSessionTerminal = useCallback(
     (session: Session) => {
-      tabs.openTab({ id: session.id, name: session.name, cwd: session.cwd ?? null });
-      panel.openTerminal();
+      openTab({ id: session.id, name: session.name, cwd: session.cwd ?? null });
+      openTerminal();
     },
-    [tabs.openTab, panel.openTerminal],
+    [openTab, openTerminal],
   );
 
   const openShellTerminal = useCallback((session: Session) => {
-    tabs.openTab(
+    openTab(
       { id: session.id, name: `${session.name} (shell)`, cwd: session.cwd ?? null },
       'shell',
     );
-    panel.openTerminal();
-  }, [tabs.openTab, panel.openTerminal]);
-  /* eslint-enable react-hooks/preserve-manual-memoization */
+    openTerminal();
+  }, [openTab, openTerminal]);
 
   useEffect(() => {
-    if (!tabs.followSession || !selectedSession || !panel.isTerminalOpen) return;
-    if (tabs.hasTab(selectedSession.id)) {
-      tabs.setActiveTab(selectedSession.id);
+    if (!followSession || !selectedSession || !isTerminalOpen) return;
+    if (hasTab(selectedSession.id)) {
+      setActiveTab(selectedSession.id);
     }
-  }, [selectedSession?.id, tabs.followSession, panel.isTerminalOpen]);
+  }, [selectedSession, followSession, isTerminalOpen, hasTab, setActiveTab]);
 
   return (
     <TerminalContext.Provider

@@ -41,11 +41,15 @@ export interface DisplaySettings {
   autoArchiveRules: AutoArchiveRule[];
 }
 
+export type SessionSourceOption = 'auto' | 'copilot' | 'claude' | 'both';
+
 export interface DataSettings {
   sessionStateDir: string;
   maxTimelineEvents: 50 | 100 | 200 | 500;
   staleThresholdMs: 60000 | 300000 | 900000 | 1800000;
   tailBytes: 262144 | 524288 | 1048576 | 2097152;
+  sessionSources: SessionSourceOption;
+  claudeDir: string;
 }
 
 export interface NetworkViewSettings {
@@ -87,6 +91,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
     maxTimelineEvents: 100,
     staleThresholdMs: 300000,
     tailBytes: 524288,
+    sessionSources: 'auto',
+    claudeDir: '',
   },
   network: {
     animationSpeed: 1.0,

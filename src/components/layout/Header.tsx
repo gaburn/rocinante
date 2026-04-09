@@ -164,11 +164,13 @@ export default function Header() {
     autoRefreshEnabled,
     isLoading,
     viewMode,
+    sourceFilter,
   } = useSessionData()
   const {
     refreshSessions,
     toggleAutoRefresh,
     setViewMode,
+    setSourceFilter,
   } = useSessionActions()
 
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -271,6 +273,18 @@ export default function Header() {
           className="mx-0.5 hidden md:block h-5 w-px bg-border-default"
           aria-hidden="true"
         />
+
+        {/* Source filter dropdown */}
+        <select
+          value={sourceFilter}
+          onChange={(e) => setSourceFilter(e.target.value as 'copilot' | 'claude' | 'all')}
+          title="Filter by source"
+          className="hidden md:block rounded-md bg-surface-tertiary px-2 py-1 text-xs font-mono text-fg-secondary border border-border-default hover:bg-surface-hover transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-active cursor-pointer appearance-none"
+        >
+          <option value="all">All Sources</option>
+          <option value="copilot">Copilot</option>
+          <option value="claude">Claude</option>
+        </select>
 
         {/* Settings gear button */}
         <button

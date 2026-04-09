@@ -63,3 +63,110 @@
 .animate-glow-amber {
   animation: glow-amber 2s ease-in-out infinite;
 }
+
+/* Source badges — small pills indicating session provider */
+.source-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 9999px;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.source-badge--copilot {
+  background: oklch(0.55 0.12 195 / 0.15);
+  color: oklch(0.72 0.12 195);
+}
+
+.source-badge--claude {
+  background: oklch(0.60 0.14 55 / 0.15);
+  color: oklch(0.78 0.14 55);
+}
+
+.light .source-badge--copilot {
+  background: oklch(0.55 0.12 195 / 0.12);
+  color: oklch(0.45 0.12 195);
+}
+
+.light .source-badge--claude {
+  background: oklch(0.60 0.14 55 / 0.12);
+  color: oklch(0.50 0.14 55);
+}
+
+/* Squad badge — small inline logo indicator */
+.squad-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 4px;
+  border-radius: 9999px;
+  background: oklch(0.50 0.15 145 / 0.15);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.squad-badge-logo {
+  height: 14px;
+  width: auto;
+  display: block;
+}
+
+.light .squad-badge {
+  background: oklch(0.50 0.15 145 / 0.12);
+}
+
+/* Squad cast list — compact chip/pill list of squad members */
+.squad-cast-list {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid oklch(0.50 0.15 145 / 0.15);
+  background: oklch(0.50 0.15 145 / 0.06);
+}
+
+.squad-cast-member {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: oklch(0.50 0.15 145 / 0.12);
+  white-space: nowrap;
+  user-select: none;
+  line-height: 1;
+}
+
+.squad-cast-emoji {
+  font-size: 12px;
+  line-height: 1;
+}
+
+.squad-cast-name {
+  font-size: 11px;
+  font-weight: 500;
+  color: oklch(0.85 0.05 145);
+}
+
+.squad-cast-role {
+  font-size: 10px;
+  color: oklch(0.65 0.04 145);
+}
+
+.light .squad-cast-list {
+  border-color: oklch(0.50 0.15 145 / 0.12);
+  background: oklch(0.50 0.15 145 / 0.04);
+}
+
+.light .squad-cast-member {
+  background: oklch(0.50 0.15 145 / 0.10);
+}
+
+.light .squad-cast-name {
+  color: oklch(0.35 0.10 145);
+}
+
+.light .squad-cast-role {
+  color: oklch(0.50 0.08 145);
+}

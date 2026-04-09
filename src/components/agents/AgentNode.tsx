@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { SubAgent } from '../../types';
 import { getStatusDotClass } from '../../utils/statusColors';
 import { formatDuration } from '../../utils/formatters';
@@ -90,7 +90,10 @@ export default function AgentNode({
   const duration = formatDuration(agent.startedAt, agent.completedAt);
   const taskTextClass = isRunning ? 'text-fg/50' : 'text-fg/35';
   const levelLabel = depth === 0 ? 'Orchestrator' : depth === 1 ? 'Agent' : 'Sub-agent';
-  const visibleToolCalls = agent.toolCalls?.filter((tc) => tc.name !== 'report_intent') ?? [];
+  const visibleToolCalls = useMemo(
+    () => agent.toolCalls?.filter((tc) => tc.name !== 'report_intent') ?? [],
+    [agent.toolCalls],
+  );
   const renderedToolCalls = visibleToolCalls.slice(0, MAX_VISIBLE_TOOL_CALLS);
   const hiddenToolCallCount = Math.max(0, visibleToolCalls.length - MAX_VISIBLE_TOOL_CALLS);
 

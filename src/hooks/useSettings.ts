@@ -89,6 +89,8 @@ export function useSettings(): UseSettingsResult {
             tailBytes: serverConfig.tailBytes as DataSettings['tailBytes'],
             staleThresholdMs: serverConfig.staleThresholdMs as DataSettings['staleThresholdMs'],
             maxTimelineEvents: serverConfig.maxTimelineEvents as DataSettings['maxTimelineEvents'],
+            sessionSources: serverConfig.sessionSources,
+            claudeDir: serverConfig.claudeDir,
           },
         }));
       } catch (error) {
@@ -155,6 +157,8 @@ export function useSettings(): UseSettingsResult {
           tailBytes: serverConfig.tailBytes as DataSettings['tailBytes'],
           staleThresholdMs: serverConfig.staleThresholdMs as DataSettings['staleThresholdMs'],
           maxTimelineEvents: serverConfig.maxTimelineEvents as DataSettings['maxTimelineEvents'],
+          sessionSources: serverConfig.sessionSources,
+          claudeDir: serverConfig.claudeDir,
         },
       }));
     } catch (error) {

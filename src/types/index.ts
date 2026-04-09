@@ -1,3 +1,9 @@
+export interface SquadCastMember {
+  name: string;
+  role: string;
+  emoji: string;
+}
+
 export type SessionStatus = 'active' | 'blocked' | 'waiting' | 'completed';
 
 export type AgentStatus = 'running' | 'completed' | 'blocked' | 'waiting';
@@ -66,6 +72,10 @@ export interface SessionSummary {
   errorDetails?: ErrorDetail[];
   latestUserMessage?: string;
   lastAssistantUpdate?: string;
+  compacted?: boolean;
+  compactionCount?: number;
+  source?: 'copilot' | 'claude';
+  isSquadSession?: boolean;
 }
 
 /** Full session payload returned by the detail endpoint. */
@@ -74,6 +84,7 @@ export interface Session extends SessionSummary {
   events?: TimelineEvent[];
   activityBuckets?: number[];
   assistantUpdates?: string[];
+  squadCast?: SquadCastMember[];
 }
 
 export interface StatusCounts {
@@ -186,9 +197,4 @@ export interface TelemetryData {
   };
 
   agentLeaderboard: AgentLeaderboardEntry[];
-
-  modelUtilization?: {
-    totalInvocations: number;
-    byModel: ModelUsageEntry[];
-  };
 }

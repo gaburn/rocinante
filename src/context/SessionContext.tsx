@@ -19,6 +19,7 @@ export interface SessionDataContextValue {
   isLoading: boolean
   error: string | null
   statusFilter: SessionStatus | 'all'
+  sourceFilter: 'copilot' | 'claude' | 'all'
   searchQuery: string
   viewMode: 'list' | 'network' | 'stats'
   showArchived: boolean
@@ -43,6 +44,7 @@ export interface SessionSelectionContextValue {
 // ── Actions Context — stable callbacks, rarely changes ────────
 export interface SessionActionsContextValue {
   setStatusFilter: (status: SessionStatus | 'all') => void
+  setSourceFilter: (source: 'copilot' | 'claude' | 'all') => void
   setSearchQuery: (query: string) => void
   setViewMode: (mode: 'list' | 'network' | 'stats') => void
   setShowArchived: (show: boolean) => void
@@ -82,6 +84,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     isLoading: s.isLoading,
     error: s.error,
     statusFilter: s.statusFilter,
+    sourceFilter: s.sourceFilter,
     searchQuery: s.searchQuery,
     viewMode: s.viewMode,
     showArchived: s.showArchived,
@@ -94,7 +97,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     getWorkstreamNames: s.getWorkstreamNames,
   }), [
     s.sessions, s.allSessions, s.statusCounts, s.archivedCount,
-    s.isLoading, s.error, s.statusFilter, s.searchQuery, s.viewMode,
+    s.isLoading, s.error, s.statusFilter, s.sourceFilter, s.searchQuery, s.viewMode,
     s.showArchived, s.autoRefreshEnabled, s.groupedSessions,
     s.hasAnyWorkstreams, s.conversationSearchResults,
     s.isSearchingConversations, s.autoArchive, s.getWorkstreamNames,
@@ -113,6 +116,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const actionsValue = useMemo<SessionActionsContextValue>(() => ({
     setStatusFilter: s.setStatusFilter,
+    setSourceFilter: s.setSourceFilter,
     setSearchQuery: s.setSearchQuery,
     setViewMode: s.setViewMode,
     setShowArchived: s.setShowArchived,
@@ -136,7 +140,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     removeWorkstreamDescription: s.removeWorkstreamDescription,
     autoGroupByRepository: s.autoGroupByRepository,
   }), [
-    s.setStatusFilter, s.setSearchQuery, s.setViewMode, s.setShowArchived,
+    s.setStatusFilter, s.setSourceFilter, s.setSearchQuery, s.setViewMode, s.setShowArchived,
     s.refreshSessions, s.toggleAutoRefresh, s.isArchived, s.archiveSession,
     s.unarchiveSession, s.toggleArchive, s.archiveAndSelectNext,
     s.archiveAllCompleted, s.getWorkstream, s.setWorkstream,

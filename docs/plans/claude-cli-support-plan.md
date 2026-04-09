@@ -11,14 +11,18 @@ Rocinante currently only supports GitHub Copilot CLI sessions. Users who also us
 - `~/.copilot/session-state/{uuid}/events.jsonl` (append-only event stream)
 - Rich metadata: workspace.yaml, plan.md, checkpoints
 
-**Claude Code** stores data in:
-- `~/.claude/history.jsonl` (session history index)
-- Transcript files per session (JSONL conversation logs)
-- `parentUuid`-style message chaining
-- `tool_use` / `tool_result` block pairing
-- No central SQLite DB
+**Claude Code** (v2.1.x) stores data in:
+- `~/.claude/projects/<project-hash>/<session-file>.jsonl` — one JSONL file per session
+- No central SQLite DB, no `history.jsonl` central index
+- Discovery: glob `~/.claude/projects/**/*.jsonl`, exclude `agent-*` and `warmup` files
+- JSONL entry types: `summary` (metadata), `user` (prompts + tool results), `assistant` (responses + tool calls), `file-history-snapshot` (skip)
+- Content blocks: `text`, `thinking`, `tool_use` (id/name/input), `tool_result` (tool_use_id/content/is_error)
+- User entries carry `cwd`, `gitBranch`, `sessionId`, `uuid`
+- Session ID from `summary.leafUuid` or filename stem
+- Tool names: `Write`, `Edit`, `Bash`, `Read`, `TodoWrite`
+- Messages are sequential JSONL lines (no parentUuid ancestry)
 
-**Key difference:** Copilot uses centralized SQLite + per-session JSONL events. Claude uses file-based transcripts with no central DB.
+**Key difference:** Copilot uses centralized SQLite + per-session JSONL events. Claude uses per-project JSONL transcripts with filesystem-based discovery.
 
 ## Approach: Provider Abstraction
 
@@ -49,10 +53,12 @@ Multi-source config in Settings: toggle each source, set paths, show connection 
 
 ## Open Questions
 
-1. Need actual Claude Code transcript files to verify exact JSONL structure (none found on this machine yet)
-2. Real-time file watching strategy may differ from Copilot's events.jsonl approach
-3. Claude's subagent model may differ from Copilot's agent hierarchy
-4. Auto-group by repo should work if we extract repo from Claude's CWD context
+1. ~~Need actual Claude Code transcript files to verify exact JSONL structure~~ **RESOLVED** — format documented from web research + deepwiki reference (see Research Findings above)
+2. Real-time file watching: Claude appends to JSONL incrementally. Could `fs.watch` the projects dir for new/modified files (similar to Copilot's event tail approach)
+3. Claude may spawn sub-agents (files prefixed `agent-`). Show as child agents? Need sample data to decide.
+4. Auto-group by repo works — Claude's `user` entries carry `cwd` and `gitBranch`
+5. Thinking blocks: show in timeline or hide? Could be a user preference.
+6. Search: Copilot has SQLite FTS. Claude has no DB — need in-memory index or JSONL file search.
 
 ## Scope
 

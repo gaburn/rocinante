@@ -15,14 +15,71 @@ import {
   type SessionTurnData,
 } from './sqliteReader.js';
 import { readEventsTail, ParsedEvent } from './eventTailReader.js';
-import { deriveSessionStatus, DerivedStatus } from './statusDeriver.js';
+import { deriveSessionStatus, detectSquadSession, DerivedStatus } from './statusDeriver.js';
 import { buildAgentTree } from './agentTreeBuilder.js';
 import { buildEventTimeline } from './eventTimelineBuilder.js';
 import { buildActivityBuckets } from './activityBucketBuilder.js';
+import { extractSquadCast } from './squadCastExtractor.js';
+import { getActiveSources, getSourceByName } from './providers/index.js';
 
 const MAX_NAME_LENGTH = 80;
 const MAX_INTENT_LENGTH = 200;
 const UNTITLED_SESSION_NAME = 'Untitled session';
+
+/* ── Git context fallback (branch + repository from cwd) ──────── */
+
+interface GitContext {
+  repository: string | null;
+  branch: string | null;
+}
+
+const gitContextCache = new Map<string, GitContext>();
+
+/**
+ * Read the current branch from a .git/HEAD file.
+ * Returns the branch name or null if HEAD can't be read / is a detached SHA.
+ */
+function readBranchFromGitHead(cwd: string): string | null {
+  try {
+    const headPath = path.join(cwd, '.git', 'HEAD');
+    if (!fs.existsSync(headPath)) {
+      return null;
+    }
+    // If .git is a directory, headPath is a file inside it.
+    // If .git is a worktree file, headPath won't exist as a file — caught above.
+    const stat = fs.statSync(headPath);
+    if (!stat.isFile()) {
+      return null;
+    }
+    const content = fs.readFileSync(headPath, 'utf-8').trim();
+    const match = content.match(/^ref:\s+refs\/heads\/(.+)$/);
+    return match ? match[1] : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Derive repository name and branch from the working directory.
+ * Results are cached per-cwd since many sessions share the same directory.
+ */
+function resolveGitContext(cwd: string | null): GitContext {
+  if (!cwd || cwd.trim().length === 0) {
+    return { repository: null, branch: null };
+  }
+
+  const cached = gitContextCache.get(cwd);
+  if (cached) {
+    return cached;
+  }
+
+  const repository = path.basename(cwd) || null;
+  const branch = readBranchFromGitHead(cwd);
+
+  const ctx: GitContext = { repository, branch };
+  gitContextCache.set(cwd, ctx);
+  return ctx;
+}
 
 function truncate(text: string, maxLength: number): string {
   const normalized = text.trim();
@@ -106,6 +163,21 @@ function getSessionCwd(sessionId: string, sqlCwd: string | null): string | null 
 
 const MAX_ASSISTANT_UPDATES = 20;
 
+export function countCompactionEvents(events: ParsedEvent[]): { compacted: boolean; compactionCount: number } {
+  let compactionCount = 0;
+  let compacted = false;
+  for (const event of events) {
+    const t = event.type.toLowerCase();
+    if (t === 'session.compaction_complete') {
+      compactionCount++;
+      compacted = true;
+    } else if (t === 'session.compaction_start') {
+      compacted = true;
+    }
+  }
+  return { compacted, compactionCount };
+}
+
 export function extractAssistantUpdates(events: ParsedEvent[]): string[] | undefined {
   const updates: string[] = [];
   for (const event of events) {
@@ -183,6 +255,11 @@ export function mapToSession(sqlRow: SqliteSession, events: ParsedEvent[]): Sess
 
   const latestUserMessage = resolveLatestUserMessage(sqlRow.id, events, firstUserMessage);
   const assistantUpdates = extractAssistantUpdates(events);
+  const compaction = countCompactionEvents(events);
+  const resolvedCwd = getSessionCwd(sqlRow.id, sqlRow.cwd);
+  const gitFallback = resolveGitContext(resolvedCwd);
+  const isSquad = detectSquadSession(events);
+  const squadCast = isSquad ? extractSquadCast(events) : undefined;
 
   return {
     id: sqlRow.id,
@@ -200,15 +277,19 @@ export function mapToSession(sqlRow: SqliteSession, events: ParsedEvent[]): Sess
     waitingFor: derivedStatus.waitingFor,
     waitingQuestion: derivedStatus.waitingQuestion,
     waitingChoices: derivedStatus.waitingChoices,
-    cwd: getSessionCwd(sqlRow.id, sqlRow.cwd),
-    repository: sqlRow.repository ?? null,
-    branch: sqlRow.branch ?? null,
+    cwd: resolvedCwd,
+    repository: sqlRow.repository ?? gitFallback.repository,
+    branch: sqlRow.branch ?? gitFallback.branch,
     errorDetails: derivedStatus.errorDetails,
     latestUserMessage,
     lastAssistantUpdate: assistantUpdates && assistantUpdates.length > 0
       ? assistantUpdates[assistantUpdates.length - 1]
       : undefined,
     assistantUpdates,
+    compacted: compaction.compacted,
+    compactionCount: compaction.compactionCount,
+    ...(isSquad ? { isSquadSession: true } : {}),
+    ...(squadCast && squadCast.length > 0 ? { squadCast } : {}),
   };
 }
 
@@ -225,6 +306,28 @@ function countAgentsInTree(agent: SubAgent): number {
 }
 
 export function mapAllSessions(): Session[] {
+  const { sessionSources } = getConfig();
+
+  // If multi-source is configured, delegate to the provider layer
+  if (sessionSources === 'auto' || sessionSources === 'claude' || sessionSources === 'both') {
+    const activeSources = getActiveSources();
+    const allSessions: Session[] = [];
+
+    for (const source of activeSources) {
+      const summaries = source.listSessionSummaries();
+      for (const summary of summaries) {
+        const session = source.getSession(summary.id);
+        if (session) allSessions.push(session);
+      }
+    }
+
+    allSessions.sort(
+      (a, b) => toEpochMs(b.lastActivityAt) - toEpochMs(a.lastActivityAt),
+    );
+    return allSessions;
+  }
+
+  // Default: Copilot-only (original behavior)
   const rows = getAllSessions();
   const mappedSessions: Session[] = [];
 
@@ -248,6 +351,14 @@ export function mapAllSessions(): Session[] {
 }
 
 export function mapSessionById(id: string): Session | undefined {
+  // Route claude-prefixed IDs to the Claude source
+  if (id.startsWith('claude:')) {
+    const claudeSource = getSourceByName('claude');
+    if (!claudeSource) return undefined;
+    return claudeSource.getSession(id) ?? undefined;
+  }
+
+  // Default: Copilot lookup
   const row = getSessionById(id);
   if (!row) {
     return undefined;
@@ -255,7 +366,9 @@ export function mapSessionById(id: string): Session | undefined {
 
   try {
     const events = readEventsTail(id);
-    return mapToSession(row, events);
+    const session = mapToSession(row, events);
+    session.source = 'copilot';
+    return session;
   } catch (error) {
     console.warn('[sessionMapper] Failed to map session by id.', {
       sessionId: id,
@@ -310,6 +423,10 @@ export function mapSessionSummary(
   const lastAssistantUpdate = assistantUpdates && assistantUpdates.length > 0
     ? assistantUpdates[assistantUpdates.length - 1]
     : undefined;
+  const compaction = countCompactionEvents(events);
+  const resolvedCwd = getSessionCwd(sqlRow.id, sqlRow.cwd);
+  const gitFallback = resolveGitContext(resolvedCwd);
+  const isSquad = detectSquadSession(events);
 
   return {
     id: sqlRow.id,
@@ -324,20 +441,50 @@ export function mapSessionSummary(
     waitingFor: derivedStatus.waitingFor,
     waitingQuestion: derivedStatus.waitingQuestion,
     waitingChoices: derivedStatus.waitingChoices,
-    cwd: getSessionCwd(sqlRow.id, sqlRow.cwd),
-    repository: sqlRow.repository ?? null,
-    branch: sqlRow.branch ?? null,
+    cwd: resolvedCwd,
+    repository: sqlRow.repository ?? gitFallback.repository,
+    branch: sqlRow.branch ?? gitFallback.branch,
     errorDetails: derivedStatus.errorDetails,
     latestUserMessage,
     lastAssistantUpdate,
+    compacted: compaction.compacted,
+    compactionCount: compaction.compactionCount,
+    ...(isSquad ? { isSquadSession: true } : {}),
   };
 }
 
 /**
  * Map all sessions to lightweight summaries for the list endpoint.
  * Uses a single batch query for turn data instead of N+1 per-session reads.
+ * When sessionSources is 'both' or 'claude', merges results from all active providers.
  */
 export function mapAllSessionSummaries(): SessionSummary[] {
+  const { sessionSources } = getConfig();
+
+  // Multi-source merge: delegate to the provider layer
+  if (sessionSources === 'auto' || sessionSources === 'claude' || sessionSources === 'both') {
+    const activeSources = getActiveSources();
+    const allSummaries: SessionSummary[] = [];
+
+    for (const source of activeSources) {
+      try {
+        const sourceSummaries = source.listSessionSummaries();
+        allSummaries.push(...sourceSummaries);
+      } catch (error) {
+        console.warn('[sessionMapper] Source failed to list summaries. Skipping.', {
+          source: source.name,
+          error,
+        });
+      }
+    }
+
+    allSummaries.sort(
+      (a, b) => toEpochMs(b.lastActivityAt) - toEpochMs(a.lastActivityAt),
+    );
+    return allSummaries;
+  }
+
+  // Default: Copilot-only (original path)
   const rows = getAllSessions();
   const sessionIds = rows.map((r) => r.id);
   const turnDataMap = getSessionTurnDataBatch(sessionIds);
@@ -352,7 +499,9 @@ export function mapAllSessionSummaries(): SessionSummary[] {
         lastMessage: null,
         turnCount: 0,
       };
-      summaries.push(mapSessionSummary(row, events, turnData));
+      const summary = mapSessionSummary(row, events, turnData);
+      summary.source = 'copilot';
+      summaries.push(summary);
     } catch (error) {
       console.warn('[sessionMapper] Failed to map session summary. Skipping.', {
         sessionId: row.id,
