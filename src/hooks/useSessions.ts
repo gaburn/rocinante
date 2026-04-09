@@ -68,7 +68,7 @@ export interface UseSessionsResult {
   removeWorkstreamDescription: (workstreamName: string) => void
   autoGroupByRepository: () => void
   hasAnyWorkstreams: boolean
-  groupedSessions: { groups: SessionGroup[]; ungrouped: Session[] }
+  groupedSessions: { groups: SessionGroup[]; ungrouped: SessionSummary[] }
   conversationSearchResults: Map<string, ConversationMatch>
   isSearchingConversations: boolean
   // Auto-archive rules

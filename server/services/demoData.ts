@@ -344,6 +344,8 @@ function buildSession(def: DemoSessionDef): Session {
     rootAgent: buildAgentTree(def.status, def.agentCount, def.startedMinAgo),
     events: makeTimeline(8, def.startedMinAgo),
     activityBuckets: makeBuckets(),
+    agentCount: def.agentCount,
+    turnCount: Math.floor(def.agentCount * 1.5) + 2,
     latestUserMessage: def.latestUserMessage,
     assistantUpdates: def.assistantUpdates,
     cwd: '/home/dev/projects/acme-app',

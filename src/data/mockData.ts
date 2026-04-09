@@ -12,6 +12,8 @@ export const mockSessions: Session[] = [
     status: 'active',
     startedAt: minutesAgo(95),
     lastActivityAt: minutesAgo(2),
+    agentCount: 5,
+    turnCount: 12,
     rootAgent: {
       id: 'agent-001',
       name: 'planner',
@@ -64,6 +66,8 @@ export const mockSessions: Session[] = [
     status: 'active',
     startedAt: minutesAgo(58),
     lastActivityAt: minutesAgo(1),
+    agentCount: 4,
+    turnCount: 8,
     rootAgent: {
       id: 'agent-006',
       name: 'coder',
@@ -107,6 +111,8 @@ export const mockSessions: Session[] = [
     status: 'active',
     startedAt: minutesAgo(145),
     lastActivityAt: minutesAgo(3),
+    agentCount: 5,
+    turnCount: 18,
     rootAgent: {
       id: 'agent-010',
       name: 'planner',
@@ -158,6 +164,8 @@ export const mockSessions: Session[] = [
     status: 'blocked',
     startedAt: minutesAgo(77),
     lastActivityAt: minutesAgo(9),
+    agentCount: 3,
+    turnCount: 6,
     blockedReason: 'Build fails with TypeScript compile errors in session summary widgets',
     rootAgent: {
       id: 'agent-015',
@@ -193,6 +201,8 @@ export const mockSessions: Session[] = [
     status: 'blocked',
     startedAt: minutesAgo(205),
     lastActivityAt: minutesAgo(15),
+    agentCount: 3,
+    turnCount: 10,
     blockedReason: 'Terraform state lock is held by deployment job #8421',
     rootAgent: {
       id: 'agent-018',
@@ -228,6 +238,8 @@ export const mockSessions: Session[] = [
     status: 'waiting',
     startedAt: minutesAgo(188),
     lastActivityAt: minutesAgo(21),
+    agentCount: 4,
+    turnCount: 14,
     waitingFor:
       'User confirmation to deprecate legacy template IDs before migration runs',
     rootAgent: {
@@ -273,6 +285,8 @@ export const mockSessions: Session[] = [
     status: 'waiting',
     startedAt: minutesAgo(63),
     lastActivityAt: minutesAgo(11),
+    agentCount: 3,
+    turnCount: 5,
     waitingFor: 'IdP metadata XML and test credentials from the security team',
     rootAgent: {
       id: 'agent-025',
@@ -308,6 +322,8 @@ export const mockSessions: Session[] = [
     status: 'completed',
     startedAt: minutesAgo(430),
     lastActivityAt: minutesAgo(330),
+    agentCount: 4,
+    turnCount: 22,
     rootAgent: {
       id: 'agent-028',
       name: 'coder',
@@ -353,6 +369,8 @@ export const mockSessions: Session[] = [
     status: 'completed',
     startedAt: minutesAgo(910),
     lastActivityAt: minutesAgo(770),
+    agentCount: 5,
+    turnCount: 30,
     rootAgent: {
       id: 'agent-032',
       name: 'planner',
