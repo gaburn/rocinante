@@ -2,6 +2,27 @@
 
 All notable changes to Rocinante will be documented in this file.
 
+## [1.3.0] - 2026-04-09
+
+### Added
+- **Claude Code CLI support** — multi-source provider abstraction with full JSONL parser for `~/.claude/projects/`; auto-detects available session sources (Copilot, Claude, or both)
+- **Source badges** — Copilot (teal) and Claude (amber) badges on kanban tiles, session cards, and detail view
+- **Source filter** — dropdown in header to filter sessions by source (All / Copilot / Claude)
+- **Squad session detection** — `isSquadSession` flag derived from event data; Squad logo badge on tiles with tooltip
+- **Squad cast list** — extracts team members (name, role, emoji) from session events; renders in session detail view
+- **Multi-source settings** — session sources selector and Claude directory path in Settings panel
+- **"Built with Squad"** — attribution link with logo in About section
+
+### Changed
+- **Session sources default to auto-detect** — `sessionSources` defaults to `'auto'` instead of `'copilot'`; shows all available sources without manual configuration
+- **Provider architecture** — `SessionSource` interface with `CopilotSessionSource` and `ClaudeSessionSource`; provider registry with `getActiveSources()`
+
+### Fixed
+- Duplicate `modelUtilization` property in types
+- Missing `agentCount`/`turnCount` in mock and demo data
+- `SessionSummary[]` vs `Session[]` type mismatch in `useSessions`
+- 20 lint warnings/errors across 7 files (useMemo, exhaustive-deps, dead code)
+
 ## [1.2.1] - 2026-04-03
 
 ### Added
