@@ -72,3 +72,20 @@ See `history-archive.md` for detailed notes from 2025-07 through early 2026-04 (
 - **Integration:** Wired into `KanbanTile.tsx`, `SessionCard.tsx`, `SessionDetail.tsx`. Props pass `session.isSquadSession` to badge component; badge handles rendering logic internally.
 - **No new dependencies.** TypeScript clean (`tsc --noEmit` passes).
 
+### Performance Optimization Plan — Phase 3 (2026-04-10)
+- **Holden (Lead) analysis:** `GET /api/sessions` cold load ~60s with 1787 sessions. Root cause: 1787 serial per-session operations (readEventsTail + mapSessionSummary per session). Archive state is client-side only — server has no way to skip archived sessions.
+- **Phase 3 assignment (Amos + Naomi, 2 days):** Server-aware archive to reduce load time proportional to active session count.
+  - **Backend (Amos):** Add `POST /api/sessions/archive` endpoint. Server stores archived IDs in memory (+ optional JSON sidecar for persistence). `GET /api/sessions` skips archived IDs in mapping loop.
+  - **Frontend (Naomi):** Update `src/hooks/useArchive.ts` and `src/services/sessionService.ts` to push localStorage archive state to server on startup and on every archive toggle.
+- **Design:** localStorage remains authoritative; server is a performance optimization, not the source of truth. Backward compatible via graceful client degradation if server archive endpoint is unavailable.
+- **Success criteria:** Load time proportional to non-archived session count (expected <5s for typical 100–300 active sessions). Archive state persists across page reloads. No regression in status accuracy.
+
+### Phase 3 — Server-Aware Archive Frontend (Completed 2026-04-10)
+- **Purpose:** Performance optimization — push archive state to server so `GET /api/sessions` can skip archived sessions server-side, reducing load time proportional to active session count.
+- **useArchive.ts changes:** Added server sync on mount (POST localStorage archive IDs to `/api/sessions/archive`). Added fire-and-forget server calls on `archiveSession` (POST `/api/sessions/archive/add`), `unarchiveSession` (POST `/api/sessions/archive/remove`), `archiveByIds` and `clearArchive` (POST full set). Added `synced` state flag. localStorage remains source of truth — all server calls are best-effort with console warnings on failure.
+- **sessionService.ts changes:** `getSessions()` now accepts optional `includeArchived` param. Default `false` — server skips archived. When `showArchived` toggle is on, passes `?includeArchived=true`.
+- **useSessions.ts changes:** `loadSessions` passes `showArchived` to `getSessions()`. Search handler separates results into `conversationSearchResults` (in-view) and `archivedSearchResults` (archived hits not in loaded list, based on `isArchived` flag from server). `ConversationMatch` type now includes optional `isArchived` field. New exports: `archivedSearchResults`, `archiveSynced`.
+- **SessionContext.tsx changes:** Added `archivedSearchResults`, `archiveSynced` to `SessionDataContextValue` interface and provider wiring.
+- **SessionList.tsx changes:** Fixed pre-existing undefined `archivedSessions`/`activeSessions` variables (were used but never declared). Added "Also found in X archived sessions" banner section — shows when searching with archived hits, renders up to 5 compact results with session ID + snippet, click reveals archives and selects session.
+- **Backward compat:** UI feels identical — localStorage is immediate, server sync is invisible. If server is down, graceful degradation to client-only filtering.
+- **Tests:** 141 passing. Bug fix: resolved pre-existing SessionList rendering issue.
