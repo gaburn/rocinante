@@ -27,7 +27,9 @@ export interface SessionDataContextValue {
   groupedSessions: { groups: SessionGroup[]; ungrouped: SessionSummary[] }
   hasAnyWorkstreams: boolean
   conversationSearchResults: Map<string, ConversationMatch>
+  archivedSearchResults: Map<string, ConversationMatch>
   isSearchingConversations: boolean
+  archiveSynced: boolean
   autoArchive: UseAutoArchiveResult
   getWorkstreamNames: string[]
 }
@@ -92,15 +94,17 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     groupedSessions: s.groupedSessions,
     hasAnyWorkstreams: s.hasAnyWorkstreams,
     conversationSearchResults: s.conversationSearchResults,
+    archivedSearchResults: s.archivedSearchResults,
     isSearchingConversations: s.isSearchingConversations,
+    archiveSynced: s.archiveSynced,
     autoArchive: s.autoArchive,
     getWorkstreamNames: s.getWorkstreamNames,
   }), [
     s.sessions, s.allSessions, s.statusCounts, s.archivedCount,
     s.isLoading, s.error, s.statusFilter, s.sourceFilter, s.searchQuery, s.viewMode,
     s.showArchived, s.autoRefreshEnabled, s.groupedSessions,
-    s.hasAnyWorkstreams, s.conversationSearchResults,
-    s.isSearchingConversations, s.autoArchive, s.getWorkstreamNames,
+    s.hasAnyWorkstreams, s.conversationSearchResults, s.archivedSearchResults,
+    s.isSearchingConversations, s.archiveSynced, s.autoArchive, s.getWorkstreamNames,
   ])
 
   const selectionValue = useMemo<SessionSelectionContextValue>(() => ({

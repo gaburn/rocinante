@@ -15,6 +15,7 @@ import { useWorkstreams } from './useWorkstreams'
 export interface ConversationMatch {
   snippet: string
   matchType: string
+  isArchived?: boolean
 }
 
 export interface SessionGroup {
@@ -70,7 +71,9 @@ export interface UseSessionsResult {
   hasAnyWorkstreams: boolean
   groupedSessions: { groups: SessionGroup[]; ungrouped: Session[] }
   conversationSearchResults: Map<string, ConversationMatch>
+  archivedSearchResults: Map<string, ConversationMatch>
   isSearchingConversations: boolean
+  archiveSynced: boolean
   // Auto-archive rules
   autoArchive: UseAutoArchiveResult
 }
@@ -96,6 +99,7 @@ export function useSessions(): UseSessionsResult {
   const [error, setError] = useState<string | null>(null)
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true)
   const [conversationSearchResults, setConversationSearchResults] = useState<Map<string, ConversationMatch>>(new Map())
+  const [archivedSearchResults, setArchivedSearchResults] = useState<Map<string, ConversationMatch>>(new Map())
   const [isSearchingConversations, setIsSearchingConversations] = useState(false)
   const searchAbortRef = useRef<AbortController | null>(null)
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -111,7 +115,7 @@ export function useSessions(): UseSessionsResult {
     setError(null)
 
     try {
-      const sessions = await getSessions()
+      const sessions = await getSessions(showArchived)
       setAllSessions(sessions)
       const activeIds = sessions.map((session) => session.id)
       archive.pruneStaleIds(activeIds)
@@ -137,7 +141,7 @@ export function useSessions(): UseSessionsResult {
     } finally {
       setIsLoading(false)
     }
-  }, [archive.pruneStaleIds, sessionNames.pruneStaleIds, workstreams.pruneStaleIds])
+  }, [showArchived, archive.pruneStaleIds, sessionNames.pruneStaleIds, workstreams.pruneStaleIds])
 
   const sessionsWithNames = useMemo(() => {
     return allSessions.map((session) => {
@@ -214,6 +218,7 @@ export function useSessions(): UseSessionsResult {
 
     if (searchQuery.trim().length < 3) {
       setConversationSearchResults(new Map())
+      setArchivedSearchResults(new Map())
       setIsSearchingConversations(false)
       return
     }
@@ -231,15 +236,24 @@ export function useSessions(): UseSessionsResult {
           if (!res.ok) throw new Error(`Search failed: ${res.status}`)
           return res.json()
         })
-        .then((results: { sessionId: string; matchType: string; snippet: string }[]) => {
+        .then((results: { sessionId: string; matchType: string; snippet: string; isArchived?: boolean }[]) => {
           const map = new Map<string, ConversationMatch>()
+          const archivedMap = new Map<string, ConversationMatch>()
           for (const r of results) {
+            const match: ConversationMatch = { snippet: r.snippet, matchType: r.matchType, isArchived: r.isArchived }
             // Keep first (best) match per session
-            if (!map.has(r.sessionId)) {
-              map.set(r.sessionId, { snippet: r.snippet, matchType: r.matchType })
+            if (r.isArchived && !showArchived) {
+              if (!archivedMap.has(r.sessionId)) {
+                archivedMap.set(r.sessionId, match)
+              }
+            } else {
+              if (!map.has(r.sessionId)) {
+                map.set(r.sessionId, match)
+              }
             }
           }
           setConversationSearchResults(map)
+          setArchivedSearchResults(archivedMap)
           setIsSearchingConversations(false)
         })
         .catch((err) => {
@@ -256,7 +270,7 @@ export function useSessions(): UseSessionsResult {
         searchAbortRef.current.abort()
       }
     }
-  }, [searchQuery])
+  }, [searchQuery, showArchived])
 
   const sessions = useMemo(() => {
     let filtered = sessionsWithNames
@@ -516,7 +530,9 @@ export function useSessions(): UseSessionsResult {
     hasAnyWorkstreams: workstreams.hasAnyWorkstreams,
     groupedSessions,
     conversationSearchResults,
+    archivedSearchResults,
     isSearchingConversations,
+    archiveSynced: archive.synced,
     autoArchive,
   }
 }

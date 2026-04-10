@@ -16,6 +16,10 @@ import {
 } from './sqliteReader.js';
 import { readEventsTail, ParsedEvent } from './eventTailReader.js';
 import { deriveSessionStatus, detectSquadSession, DerivedStatus } from './statusDeriver.js';
+import {
+  getOrCompute as getOrComputeSummary,
+  evictStale as evictStaleSummaries,
+} from './sessionSummaryCache.js';
 import { buildAgentTree } from './agentTreeBuilder.js';
 import { buildEventTimeline } from './eventTimelineBuilder.js';
 import { buildActivityBuckets } from './activityBucketBuilder.js';
@@ -484,23 +488,39 @@ export function mapAllSessionSummaries(): SessionSummary[] {
     return allSummaries;
   }
 
-  // Default: Copilot-only (original path)
+  // Default: Copilot-only (original path) with per-session computation cache
   const rows = getAllSessions();
-  const sessionIds = rows.map((r) => r.id);
-  const turnDataMap = getSessionTurnDataBatch(sessionIds);
+  const activeIds = new Set(rows.map((r) => r.id));
+  evictStaleSummaries(activeIds);
 
+  // Batch-fetch turn data for all sessions (cheap single SQL query)
+  const allIds = rows.map((r) => r.id);
+  const turnDataMap = getSessionTurnDataBatch(allIds);
+
+  const { sessionStateDir } = getConfig();
   const summaries: SessionSummary[] = [];
 
   for (const row of rows) {
     try {
-      const events = readEventsTail(row.id);
-      const turnData = turnDataMap.get(row.id) ?? {
-        firstMessage: null,
-        lastMessage: null,
-        turnCount: 0,
-      };
-      const summary = mapSessionSummary(row, events, turnData);
-      summary.source = 'copilot';
+      const safeId = sanitizeSessionId(row.id);
+      const eventFilePath = path.join(sessionStateDir, safeId, 'events.jsonl');
+
+      const summary = getOrComputeSummary(
+        row.id,
+        eventFilePath,
+        row.updated_at,
+        () => {
+          const events = readEventsTail(row.id);
+          const turnData = turnDataMap.get(row.id) ?? {
+            firstMessage: null,
+            lastMessage: null,
+            turnCount: 0,
+          };
+          const s = mapSessionSummary(row, events, turnData);
+          s.source = 'copilot';
+          return s;
+        },
+      );
       summaries.push(summary);
     } catch (error) {
       console.warn('[sessionMapper] Failed to map session summary. Skipping.', {

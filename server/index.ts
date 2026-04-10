@@ -3,6 +3,7 @@ import express from 'express';
 import path from 'node:path';
 import { getConfig } from './config.js';
 import { initDatabase, closeDatabase } from './services/sqliteReader.js';
+import { initArchiveStore } from './services/archiveStore.js';
 import { killAllPtys } from './services/ptyManager.js';
 import sessionsRouter from './routes/sessions.js';
 import configRouter from './routes/config.js';
@@ -55,6 +56,7 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 initDatabase();
+initArchiveStore();
 
 const server = app.listen(config.apiPort, () => {
   if (DEBUG) console.log(`[server] API listening on port ${config.apiPort}`);

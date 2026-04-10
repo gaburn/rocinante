@@ -3,8 +3,26 @@ import { mapAllSessionSummaries, mapSessionById } from '../services/sessionMappe
 import { readSessionPlan } from '../services/planReader.js';
 import { generateDemoSessions, getDemoWorkstreams } from '../services/demoData.js';
 import { searchConversations } from '../services/sqliteReader.js';
+import { getConfig } from '../config.js';
+import {
+  getArchivedIds,
+  setArchivedIds,
+  addArchived,
+  removeArchived,
+  isArchived,
+  isInitialized as isArchiveInitialized,
+} from '../services/archiveStore.js';
+import type { SessionSummary } from '../../src/types/index.js';
 
 const sessionsRouter = Router();
+
+/* ── Response cache for GET /api/sessions ─────────────────────── */
+let responseCache: { data: SessionSummary[]; expires: number; includeArchived: boolean } | null = null;
+
+/** Invalidate the response cache (e.g., after a write-path event). */
+export function invalidateSessionsCache(): void {
+  responseCache = null;
+}
 
 sessionsRouter.get('/sessions', (req, res) => {
   try {
@@ -14,7 +32,25 @@ sessionsRouter.get('/sessions', (req, res) => {
       return res.json(sessions);
     }
 
-    const sessions = mapAllSessionSummaries();
+    const includeArchived = req.query.includeArchived === 'true';
+    const now = Date.now();
+
+    // Serve from cache if same includeArchived flag and within TTL
+    if (responseCache && now < responseCache.expires && responseCache.includeArchived === includeArchived) {
+      res.set('Cache-Control', 'no-cache');
+      return res.json(responseCache.data);
+    }
+
+    let sessions = mapAllSessionSummaries();
+
+    // When archive store is initialized and caller didn't ask for archived, filter them out
+    if (!includeArchived && isArchiveInitialized()) {
+      sessions = sessions.filter((s) => !isArchived(s.id));
+    }
+
+    const { cacheTtlMs } = getConfig();
+    responseCache = { data: sessions, expires: now + cacheTtlMs, includeArchived };
+
     res.set('Cache-Control', 'no-cache');
     res.json(sessions);
   } catch (error) {
@@ -33,11 +69,52 @@ sessionsRouter.get('/sessions/search', (req, res) => {
   }
   try {
     const results = searchConversations(q);
-    res.json(results);
+    // Annotate each result with archive state so frontend can render differently
+    const annotated = results.map((r) => ({
+      ...r,
+      isArchived: isArchived(r.sessionId),
+    }));
+    res.json(annotated);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     res.status(500).json({ error: message });
   }
+});
+
+/* ── Archive endpoints ────────────────────────────────────────── */
+
+sessionsRouter.get('/sessions/archive', (_req, res) => {
+  res.json({ ids: getArchivedIds() });
+});
+
+sessionsRouter.post('/sessions/archive', (req, res) => {
+  const { ids } = req.body;
+  if (!Array.isArray(ids) || !ids.every((v: unknown) => typeof v === 'string')) {
+    return res.status(400).json({ error: 'Body must include { ids: string[] }' });
+  }
+  setArchivedIds(ids);
+  invalidateSessionsCache();
+  res.json({ ids: getArchivedIds() });
+});
+
+sessionsRouter.post('/sessions/archive/add', (req, res) => {
+  const { id } = req.body;
+  if (typeof id !== 'string' || id.length === 0) {
+    return res.status(400).json({ error: 'Body must include { id: string }' });
+  }
+  addArchived(id);
+  invalidateSessionsCache();
+  res.json({ ok: true });
+});
+
+sessionsRouter.post('/sessions/archive/remove', (req, res) => {
+  const { id } = req.body;
+  if (typeof id !== 'string' || id.length === 0) {
+    return res.status(400).json({ error: 'Body must include { id: string }' });
+  }
+  removeArchived(id);
+  invalidateSessionsCache();
+  res.json({ ok: true });
 });
 
 sessionsRouter.get('/sessions/:id', (req, res) => {
