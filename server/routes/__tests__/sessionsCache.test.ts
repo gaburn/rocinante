@@ -90,7 +90,7 @@ function callGetSessions(): { statusCode: number; body: unknown; headers: Record
   };
 
   // Find the GET /sessions handler in the router's stack
-  const layer = (sessionsRouter as unknown as { stack: Array<{ route?: { path: string; methods: { get?: boolean }; stack: Array<{ handle: Function }> } }> }).stack
+  const layer = (sessionsRouter as unknown as { stack: Array<{ route?: { path: string; methods: { get?: boolean }; stack: Array<{ handle: (...args: unknown[]) => unknown }> } }> }).stack
     .find((l) => l.route?.path === '/sessions' && l.route?.methods?.get);
 
   if (!layer?.route) {
@@ -198,7 +198,7 @@ describe('GET /api/sessions — response cache', () => {
       });
       mockMapAllSessionSummaries.mockReturnValue([fullSummary]);
 
-      const res1 = callGetSessions(); // Computes
+      callGetSessions(); // Computes
       nowMs += 3000;
       const res2 = callGetSessions(); // From cache
 
