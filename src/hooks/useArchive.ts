@@ -63,11 +63,14 @@ export interface UseArchiveResult {
   archivedIds: ReadonlySet<string>
   /** Whether the initial archive sync to server succeeded */
   synced: boolean
+  /** Whether the initial sync attempt completed (success or failure) */
+  syncComplete: boolean
 }
 
 export function useArchive(): UseArchiveResult {
   const [archivedIds, setArchivedIds] = useState<Set<string>>(loadInitialArchiveIds)
   const [synced, setSynced] = useState(false)
+  const [syncComplete, setSyncComplete] = useState(false)
   const didSyncRef = useRef(false)
 
   // Persist to localStorage on every change
@@ -96,6 +99,9 @@ export function useArchive(): UseArchiveResult {
       })
       .catch((err) => {
         console.warn('[useArchive] Initial archive sync failed (continuing client-only):', err)
+      })
+      .finally(() => {
+        setSyncComplete(true)
       })
   }, [])
 
@@ -203,5 +209,6 @@ export function useArchive(): UseArchiveResult {
     clearArchive,
     archivedIds,
     synced,
+    syncComplete,
   }
 }

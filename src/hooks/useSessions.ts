@@ -86,7 +86,7 @@ export function useSessions(): UseSessionsResult {
   const workstreams = useWorkstreams()
 
   // Destructure hook properties used in dependency arrays for lint compliance
-  const { pruneStaleIds: pruneArchiveIds, isArchived, archiveByIds, archiveSession } = archive
+  const { pruneStaleIds: pruneArchiveIds, isArchived, archiveByIds, archiveSession, syncComplete: archiveSyncComplete } = archive
   const { pruneStaleIds: pruneNameIds, getCustomName } = sessionNames
   const {
     pruneStaleIds: pruneWorkstreamIds,
@@ -172,9 +172,11 @@ export function useSessions(): UseSessionsResult {
     }
   }, [sessionsWithNames, autoArchiveRules, isArchived, archiveByIds, getMatchingSessionIds])
 
+  // Wait for archive sync before first load so server has the exclude set
   useEffect(() => {
+    if (!archiveSyncComplete) return
     void loadSessions()
-  }, [loadSessions])
+  }, [loadSessions, archiveSyncComplete])
 
   // Fetch full session detail when selection changes
   useEffect(() => {
@@ -492,8 +494,8 @@ export function useSessions(): UseSessionsResult {
   }, [])
 
   const handleAutoGroupByRepository = useCallback(() => {
-    autoGroupByRepository(allSessions)
-  }, [autoGroupByRepository, allSessions])
+    autoGroupByRepository(sessions)
+  }, [autoGroupByRepository, sessions])
 
   return {
     sessions,
