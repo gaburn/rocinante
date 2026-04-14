@@ -69,7 +69,7 @@ export interface UseSessionsResult {
   removeWorkstreamDescription: (workstreamName: string) => void
   autoGroupByRepository: () => void
   hasAnyWorkstreams: boolean
-  groupedSessions: { groups: SessionGroup[]; ungrouped: Session[] }
+  groupedSessions: { groups: SessionGroup[]; ungrouped: SessionSummary[] }
   conversationSearchResults: Map<string, ConversationMatch>
   archivedSearchResults: Map<string, ConversationMatch>
   isSearchingConversations: boolean
@@ -84,6 +84,18 @@ export function useSessions(): UseSessionsResult {
   const autoArchive = useAutoArchive()
   const sessionNames = useSessionNames()
   const workstreams = useWorkstreams()
+
+  // Destructure hook properties used in dependency arrays for lint compliance
+  const { pruneStaleIds: pruneArchiveIds, isArchived, archiveByIds, archiveSession } = archive
+  const { pruneStaleIds: pruneNameIds, getCustomName } = sessionNames
+  const {
+    pruneStaleIds: pruneWorkstreamIds,
+    getWorkstream,
+    getDescription,
+    renameWorkstream,
+    autoGroupByRepository,
+  } = workstreams
+  const { rules: autoArchiveRules, getMatchingSessionIds } = autoArchive
   const [allSessions, setAllSessions] = useState<SessionSummary[]>([])
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null)
   const [selectedSessionDetail, setSelectedSessionDetail] = useState<Session | null>(null)
@@ -118,9 +130,9 @@ export function useSessions(): UseSessionsResult {
       const sessions = await getSessions(showArchived)
       setAllSessions(sessions)
       const activeIds = sessions.map((session) => session.id)
-      archive.pruneStaleIds(activeIds)
-      sessionNames.pruneStaleIds(activeIds)
-      workstreams.pruneStaleIds(activeIds)
+      pruneArchiveIds(activeIds)
+      pruneNameIds(activeIds)
+      pruneWorkstreamIds(activeIds)
 
       // Refresh selected session detail alongside list
       const currentId = selectedIdRef.current
@@ -141,25 +153,24 @@ export function useSessions(): UseSessionsResult {
     } finally {
       setIsLoading(false)
     }
-  }, [showArchived, archive.pruneStaleIds, sessionNames.pruneStaleIds, workstreams.pruneStaleIds])
+  }, [showArchived, pruneArchiveIds, pruneNameIds, pruneWorkstreamIds])
 
   const sessionsWithNames = useMemo(() => {
     return allSessions.map((session) => {
-      const customName = sessionNames.getCustomName(session.id)
+      const customName = getCustomName(session.id)
       return customName ? { ...session, name: customName } : session
     })
-  }, [allSessions, sessionNames.nameMap, sessionNames.getCustomName])
+  }, [allSessions, getCustomName])
 
   // Auto-archive: apply rules to newly loaded sessions
   useEffect(() => {
-    if (autoArchive.rules.length === 0 || sessionsWithNames.length === 0) return
-    const toArchive = autoArchive
-      .getMatchingSessionIds(sessionsWithNames)
-      .filter((id) => !archive.isArchived(id))
+    if (autoArchiveRules.length === 0 || sessionsWithNames.length === 0) return
+    const toArchive = getMatchingSessionIds(sessionsWithNames)
+      .filter((id) => !isArchived(id))
     if (toArchive.length > 0) {
-      archive.archiveByIds(toArchive)
+      archiveByIds(toArchive)
     }
-  }, [sessionsWithNames, autoArchive.rules, archive.isArchived, archive.archiveByIds, autoArchive.getMatchingSessionIds])
+  }, [sessionsWithNames, autoArchiveRules, isArchived, archiveByIds, getMatchingSessionIds])
 
   useEffect(() => {
     void loadSessions()
@@ -276,7 +287,7 @@ export function useSessions(): UseSessionsResult {
     let filtered = sessionsWithNames
 
     if (!showArchived) {
-      filtered = filtered.filter((session) => !archive.isArchived(session.id))
+      filtered = filtered.filter((session) => !isArchived(session.id))
     }
 
     if (!settings.display.showCompletedSessions) {
@@ -333,62 +344,62 @@ export function useSessions(): UseSessionsResult {
     conversationSearchResults,
     settings.display.showCompletedSessions,
     settings.display.sortOrder,
-    archive.archivedIds,
+    isArchived,
   ])
 
   const statusCounts = useMemo(() => {
     const base = showArchived
       ? sessionsWithNames
-      : sessionsWithNames.filter((session) => !archive.isArchived(session.id))
+      : sessionsWithNames.filter((session) => !isArchived(session.id))
 
     return getStatusCounts(base)
-  }, [sessionsWithNames, showArchived, archive.archivedIds])
+  }, [sessionsWithNames, showArchived, isArchived])
 
   const archiveAllCompleted = useCallback(() => {
     const completedIds = allSessions
       .filter((session) => session.status === 'completed')
       .map((session) => session.id)
-    archive.archiveByIds(completedIds)
-  }, [allSessions, archive])
+    archiveByIds(completedIds)
+  }, [allSessions, archiveByIds])
 
   const archiveAndSelectNext = useCallback(
     (id: string) => {
       // Find sibling sessions in the same workstream (or ungrouped)
-      const ws = workstreams.getWorkstream(id)
+      const ws = getWorkstream(id)
       const siblings = sessions.filter((s) => {
-        const sWs = workstreams.getWorkstream(s.id)
+        const sWs = getWorkstream(s.id)
         return ws ? sWs === ws : !sWs
       })
       const idx = siblings.findIndex((s) => s.id === id)
       // Pick next sibling, or previous, or null
       const next =
         siblings[idx + 1] ?? siblings[idx - 1] ?? null
-      archive.archiveSession(id)
+      archiveSession(id)
       if (next && next.id !== id) {
         setSelectedSessionId(next.id)
       }
     },
-    [sessions, workstreams.getWorkstream, archive.archiveSession],
+    [sessions, getWorkstream, archiveSession],
   )
 
   const archivedCount = useMemo(
-    () => allSessions.filter((session) => archive.isArchived(session.id)).length,
-    [allSessions, archive.archivedIds],
+    () => allSessions.filter((session) => isArchived(session.id)).length,
+    [allSessions, isArchived],
   )
 
   const selectedSession = useMemo<Session | null>(() => {
     if (!selectedSessionDetail) return null
     // Apply custom name to the fetched detail
-    const customName = sessionNames.getCustomName(selectedSessionDetail.id)
+    const customName = getCustomName(selectedSessionDetail.id)
     return customName ? { ...selectedSessionDetail, name: customName } : selectedSessionDetail
-  }, [selectedSessionDetail, sessionNames.getCustomName])
+  }, [selectedSessionDetail, getCustomName])
 
   const groupedSessions = useMemo(() => {
     const groups = new Map<string, SessionSummary[]>()
     const ungrouped: SessionSummary[] = []
 
     for (const session of sessions) {
-      const ws = workstreams.getWorkstream(session.id)
+      const ws = getWorkstream(session.id)
       if (ws) {
         const list = groups.get(ws) || []
         list.push(session)
@@ -403,11 +414,11 @@ export function useSessions(): UseSessionsResult {
       .map(([name, groupSessions]) => ({
         name,
         sessions: groupSessions,
-        description: workstreams.getDescription(name),
+        description: getDescription(name),
       }))
 
     return { groups: sortedGroups, ungrouped }
-  }, [sessions, workstreams.workstreamMap, workstreams.metaMap])
+  }, [sessions, getWorkstream, getDescription])
 
   const selectedWorkstream = useMemo(
     () => groupedSessions.groups.find((g) => g.name === selectedWorkstreamName) ?? null,
@@ -464,12 +475,12 @@ export function useSessions(): UseSessionsResult {
 
   const handleRenameWorkstream = useCallback(
     (oldName: string, newName: string) => {
-      workstreams.renameWorkstream(oldName, newName)
+      renameWorkstream(oldName, newName)
       if (selectedWorkstreamName === oldName) {
         setSelectedWorkstreamName(newName)
       }
     },
-    [workstreams.renameWorkstream, selectedWorkstreamName],
+    [renameWorkstream, selectedWorkstreamName],
   )
 
   const refreshSessions = useCallback(() => {
@@ -481,8 +492,8 @@ export function useSessions(): UseSessionsResult {
   }, [])
 
   const handleAutoGroupByRepository = useCallback(() => {
-    workstreams.autoGroupByRepository(allSessions)
-  }, [workstreams.autoGroupByRepository, allSessions])
+    autoGroupByRepository(allSessions)
+  }, [autoGroupByRepository, allSessions])
 
   return {
     sessions,
@@ -507,18 +518,18 @@ export function useSessions(): UseSessionsResult {
     setSearchQuery,
     setViewMode,
     setShowArchived,
-    isArchived: archive.isArchived,
-    archiveSession: archive.archiveSession,
+    isArchived,
+    archiveSession,
     unarchiveSession: archive.unarchiveSession,
     toggleArchive: archive.toggleArchive,
     archiveAndSelectNext,
     archiveAllCompleted,
     refreshSessions,
     toggleAutoRefresh,
-    getWorkstream: workstreams.getWorkstream,
+    getWorkstream,
     setWorkstream: workstreams.setWorkstream,
     removeWorkstream: workstreams.removeWorkstream,
-    getCustomName: sessionNames.getCustomName,
+    getCustomName,
     setSessionName: sessionNames.setCustomName,
     removeSessionName: sessionNames.removeCustomName,
     getWorkstreamNames: workstreams.getWorkstreamNames,

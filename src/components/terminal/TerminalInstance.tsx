@@ -51,6 +51,8 @@ export default function TerminalInstance({
   const fitRef = useRef<import('@xterm/addon-fit').FitAddon | null>(null)
   const roRef = useRef<ResizeObserver | null>(null)
   const ioRef = useRef<IntersectionObserver | null>(null)
+  const fontSizeRef = useRef(settings.display.terminalFontSize)
+  fontSizeRef.current = settings.display.terminalFontSize
 
   useEffect(() => {
     const container = containerRef.current
@@ -70,7 +72,7 @@ export default function TerminalInstance({
       const terminal = new Terminal({
         theme: getTerminalTheme(),
         fontFamily: "'JetBrains Mono', 'Fira Code', ui-monospace, monospace",
-        fontSize: settings.display.terminalFontSize,
+        fontSize: fontSizeRef.current,
         cursorBlink: true,
         scrollback: 5000,
       })

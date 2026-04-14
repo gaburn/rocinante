@@ -91,7 +91,7 @@ export default function KanbanTile({ session, isSelected, onSelect, onArchive, c
       {/* Row 1.5: repo + branch */}
       {(session.repository || session.cwd) && (
         <div className="mt-0.5 font-mono text-[10px] text-fg/25">
-          <p className="truncate" title={session.repository ?? session.cwd}>
+          <p className="truncate" title={session.repository ?? session.cwd ?? undefined}>
             {session.repository ?? session.cwd}
           </p>
           {session.branch && (

@@ -767,7 +767,7 @@ export default function SessionDetail() {
                       Waiting for
                     </p>
                     <p className="text-sm leading-relaxed text-amber-300/90">
-                      {renderInlineMarkdown(session.waitingFor)}
+                      {session.waitingFor && renderInlineMarkdown(session.waitingFor)}
                     </p>
                   </>
                 )}

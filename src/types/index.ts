@@ -197,9 +197,4 @@ export interface TelemetryData {
   };
 
   agentLeaderboard: AgentLeaderboardEntry[];
-
-  modelUtilization?: {
-    totalInvocations: number;
-    byModel: ModelUsageEntry[];
-  };
 }

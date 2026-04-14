@@ -79,6 +79,8 @@ export default function SessionList() {
 
   /* ── Virtualization for flat list modes ──────── */
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const activeSessions = sessions.filter((s) => !isArchived(s.id));
+  const archivedSessions = sessions.filter((s) => isArchived(s.id));
 
   // Derive active/archived splits for flat list rendering
   const activeSessions = sessions.filter((s) => !isArchived(s.id));
