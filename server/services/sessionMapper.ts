@@ -16,6 +16,10 @@ import {
 } from './sqliteReader.js';
 import { readEventsTail, ParsedEvent } from './eventTailReader.js';
 import { deriveSessionStatus, detectSquadSession, DerivedStatus } from './statusDeriver.js';
+import {
+  getOrCompute as getOrComputeSummary,
+  evictStale as evictStaleSummaries,
+} from './sessionSummaryCache.js';
 import { buildAgentTree } from './agentTreeBuilder.js';
 import { buildEventTimeline } from './eventTimelineBuilder.js';
 import { buildActivityBuckets } from './activityBucketBuilder.js';
@@ -458,7 +462,7 @@ export function mapSessionSummary(
  * Uses a single batch query for turn data instead of N+1 per-session reads.
  * When sessionSources is 'both' or 'claude', merges results from all active providers.
  */
-export function mapAllSessionSummaries(): SessionSummary[] {
+export function mapAllSessionSummaries(excludeIds?: Set<string>): SessionSummary[] {
   const { sessionSources } = getConfig();
 
   // Multi-source merge: delegate to the provider layer
@@ -478,29 +482,54 @@ export function mapAllSessionSummaries(): SessionSummary[] {
       }
     }
 
-    allSummaries.sort(
+    // Filter excluded IDs from multi-source results too
+    const filtered = excludeIds && excludeIds.size > 0
+      ? allSummaries.filter((s) => !excludeIds.has(s.id))
+      : allSummaries;
+
+    filtered.sort(
       (a, b) => toEpochMs(b.lastActivityAt) - toEpochMs(a.lastActivityAt),
     );
-    return allSummaries;
+    return filtered;
   }
 
-  // Default: Copilot-only (original path)
-  const rows = getAllSessions();
-  const sessionIds = rows.map((r) => r.id);
-  const turnDataMap = getSessionTurnDataBatch(sessionIds);
+  // Default: Copilot-only (original path) with per-session computation cache
+  const allRows = getAllSessions();
+  // Skip excluded sessions BEFORE any expensive per-session work
+  const rows = excludeIds && excludeIds.size > 0
+    ? allRows.filter((r) => !excludeIds.has(r.id))
+    : allRows;
+  const activeIds = new Set(rows.map((r) => r.id));
+  evictStaleSummaries(activeIds);
 
+  // Batch-fetch turn data only for non-excluded sessions
+  const allIds = rows.map((r) => r.id);
+  const turnDataMap = getSessionTurnDataBatch(allIds);
+
+  const { sessionStateDir } = getConfig();
   const summaries: SessionSummary[] = [];
 
   for (const row of rows) {
     try {
-      const events = readEventsTail(row.id);
-      const turnData = turnDataMap.get(row.id) ?? {
-        firstMessage: null,
-        lastMessage: null,
-        turnCount: 0,
-      };
-      const summary = mapSessionSummary(row, events, turnData);
-      summary.source = 'copilot';
+      const safeId = sanitizeSessionId(row.id);
+      const eventFilePath = path.join(sessionStateDir, safeId, 'events.jsonl');
+
+      const summary = getOrComputeSummary(
+        row.id,
+        eventFilePath,
+        row.updated_at,
+        () => {
+          const events = readEventsTail(row.id);
+          const turnData = turnDataMap.get(row.id) ?? {
+            firstMessage: null,
+            lastMessage: null,
+            turnCount: 0,
+          };
+          const s = mapSessionSummary(row, events, turnData);
+          s.source = 'copilot';
+          return s;
+        },
+      );
       summaries.push(summary);
     } catch (error) {
       console.warn('[sessionMapper] Failed to map session summary. Skipping.', {

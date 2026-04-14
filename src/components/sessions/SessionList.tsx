@@ -46,6 +46,7 @@ export default function SessionList() {
     isLoading,
     error,
     getWorkstreamNames,
+    archivedSearchResults,
   } = useSessionData();
   const {
     selectedSession,
@@ -78,6 +79,10 @@ export default function SessionList() {
 
   /* ── Virtualization for flat list modes ──────── */
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const activeSessions = sessions.filter((s) => !isArchived(s.id));
+  const archivedSessions = sessions.filter((s) => isArchived(s.id));
+
+  // Derive active/archived splits for flat list rendering
   const activeSessions = sessions.filter((s) => !isArchived(s.id));
   const archivedSessions = sessions.filter((s) => isArchived(s.id));
 
@@ -445,6 +450,58 @@ export default function SessionList() {
             })}
           </div>
         ) : null}
+
+        {/* ── Archived search results banner ──────────────
+         *  When searching and there are matches in archived
+         *  sessions that aren't in the current view, show a
+         *  compact "Also found in archived" section.
+         * ──────────────────────────────────────────────── */}
+        {searchQuery.trim().length >= 3 && archivedSearchResults.size > 0 && !showArchived && (
+          <div className="mt-4 rounded-lg border border-border-default/40 bg-surface-secondary/50 p-3">
+            <div className="flex items-center gap-2 text-xs font-medium text-fg/40 mb-2">
+              <svg
+                aria-hidden="true"
+                className="h-3.5 w-3.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <rect x="2" y="3" width="20" height="6" rx="1" />
+                <path d="M2 9v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9" />
+                <path d="M10 13h4" />
+              </svg>
+              Also found in {archivedSearchResults.size} archived session{archivedSearchResults.size !== 1 ? 's' : ''}
+            </div>
+            <div className="space-y-1.5">
+              {Array.from(archivedSearchResults.entries()).slice(0, 5).map(([sessionId, match]) => (
+                <button
+                  key={sessionId}
+                  type="button"
+                  onClick={() => {
+                    setShowArchived(true)
+                    selectSession(sessionId)
+                  }}
+                  className="w-full text-left rounded px-2 py-1.5 text-xs transition-colors hover:bg-surface-tertiary/60 cursor-pointer"
+                >
+                  <span className="font-mono text-fg/30 text-[10px]">{sessionId.slice(0, 8)}…</span>
+                  <span className="ml-2 text-fg/50">{match.snippet.slice(0, 80)}{match.snippet.length > 80 ? '…' : ''}</span>
+                </button>
+              ))}
+              {archivedSearchResults.size > 5 && (
+                <button
+                  type="button"
+                  onClick={() => setShowArchived(true)}
+                  className="text-[11px] text-border-active transition-colors hover:text-fg/70 px-2 cursor-pointer"
+                >
+                  Show all archived results →
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );

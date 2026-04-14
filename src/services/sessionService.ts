@@ -1,7 +1,8 @@
 import type { Session, SessionSummary, SessionPlan, SessionStatus, StatusCounts } from '../types';
 
-export async function getSessions(): Promise<SessionSummary[]> {
-  const response = await fetch('/api/sessions');
+export async function getSessions(includeArchived = false): Promise<SessionSummary[]> {
+  const url = includeArchived ? '/api/sessions?includeArchived=true' : '/api/sessions';
+  const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`Failed to fetch sessions: ${response.status} ${response.statusText}`);
   }

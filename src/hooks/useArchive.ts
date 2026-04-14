@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 const ARCHIVE_STORAGE_KEY = 'rocinante-archived-sessions'
 
@@ -21,6 +21,37 @@ function loadInitialArchiveIds(): Set<string> {
   }
 }
 
+// Fire-and-forget server calls — log warnings but never throw
+function syncArchiveToServer(ids: string[]): void {
+  fetch('/api/sessions/archive', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids }),
+  }).catch((err) => {
+    console.warn('[useArchive] Failed to sync archive to server:', err)
+  })
+}
+
+function serverArchiveAdd(id: string): void {
+  fetch('/api/sessions/archive/add', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id }),
+  }).catch((err) => {
+    console.warn('[useArchive] Failed to add archive on server:', err)
+  })
+}
+
+function serverArchiveRemove(id: string): void {
+  fetch('/api/sessions/archive/remove', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id }),
+  }).catch((err) => {
+    console.warn('[useArchive] Failed to remove archive on server:', err)
+  })
+}
+
 export interface UseArchiveResult {
   isArchived: (id: string) => boolean
   archiveSession: (id: string) => void
@@ -30,11 +61,19 @@ export interface UseArchiveResult {
   pruneStaleIds: (activeIds: string[]) => void
   clearArchive: () => void
   archivedIds: ReadonlySet<string>
+  /** Whether the initial archive sync to server succeeded */
+  synced: boolean
+  /** Whether the initial sync attempt completed (success or failure) */
+  syncComplete: boolean
 }
 
 export function useArchive(): UseArchiveResult {
   const [archivedIds, setArchivedIds] = useState<Set<string>>(loadInitialArchiveIds)
+  const [synced, setSynced] = useState(false)
+  const [syncComplete, setSyncComplete] = useState(false)
+  const didSyncRef = useRef(false)
 
+  // Persist to localStorage on every change
   useEffect(() => {
     try {
       window.localStorage.setItem(ARCHIVE_STORAGE_KEY, JSON.stringify(Array.from(archivedIds)))
@@ -42,6 +81,29 @@ export function useArchive(): UseArchiveResult {
       // Ignore localStorage write errors so archive state remains usable.
     }
   }, [archivedIds])
+
+  // On mount: push localStorage archive state to server
+  useEffect(() => {
+    if (didSyncRef.current) return
+    didSyncRef.current = true
+
+    const ids = Array.from(loadInitialArchiveIds())
+    fetch('/api/sessions/archive', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
+    })
+      .then((res) => {
+        if (res.ok) setSynced(true)
+        else console.warn('[useArchive] Server sync returned', res.status)
+      })
+      .catch((err) => {
+        console.warn('[useArchive] Initial archive sync failed (continuing client-only):', err)
+      })
+      .finally(() => {
+        setSyncComplete(true)
+      })
+  }, [])
 
   const isArchived = useCallback(
     (id: string) => {
@@ -59,6 +121,7 @@ export function useArchive(): UseArchiveResult {
       next.add(id)
       return next
     })
+    serverArchiveAdd(id)
   }, [])
 
   const unarchiveSession = useCallback((id: string) => {
@@ -70,6 +133,7 @@ export function useArchive(): UseArchiveResult {
       next.delete(id)
       return next
     })
+    serverArchiveRemove(id)
   }, [])
 
   const toggleArchive = useCallback((id: string) => {
@@ -77,8 +141,10 @@ export function useArchive(): UseArchiveResult {
       const next = new Set(current)
       if (next.has(id)) {
         next.delete(id)
+        serverArchiveRemove(id)
       } else {
         next.add(id)
+        serverArchiveAdd(id)
       }
       return next
     })
@@ -94,6 +160,8 @@ export function useArchive(): UseArchiveResult {
       for (const id of ids) {
         next.add(id)
       }
+      // Sync full set to server
+      syncArchiveToServer(Array.from(next))
       return next
     })
   }, [])
@@ -126,6 +194,7 @@ export function useArchive(): UseArchiveResult {
       if (current.size === 0) {
         return current
       }
+      syncArchiveToServer([])
       return new Set<string>()
     })
   }, [])
@@ -139,5 +208,7 @@ export function useArchive(): UseArchiveResult {
     pruneStaleIds,
     clearArchive,
     archivedIds,
+    synced,
+    syncComplete,
   }
 }
