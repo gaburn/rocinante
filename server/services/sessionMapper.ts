@@ -462,7 +462,7 @@ export function mapSessionSummary(
  * Uses a single batch query for turn data instead of N+1 per-session reads.
  * When sessionSources is 'both' or 'claude', merges results from all active providers.
  */
-export function mapAllSessionSummaries(): SessionSummary[] {
+export function mapAllSessionSummaries(excludeIds?: Set<string>): SessionSummary[] {
   const { sessionSources } = getConfig();
 
   // Multi-source merge: delegate to the provider layer
@@ -482,18 +482,27 @@ export function mapAllSessionSummaries(): SessionSummary[] {
       }
     }
 
-    allSummaries.sort(
+    // Filter excluded IDs from multi-source results too
+    const filtered = excludeIds && excludeIds.size > 0
+      ? allSummaries.filter((s) => !excludeIds.has(s.id))
+      : allSummaries;
+
+    filtered.sort(
       (a, b) => toEpochMs(b.lastActivityAt) - toEpochMs(a.lastActivityAt),
     );
-    return allSummaries;
+    return filtered;
   }
 
   // Default: Copilot-only (original path) with per-session computation cache
-  const rows = getAllSessions();
+  const allRows = getAllSessions();
+  // Skip excluded sessions BEFORE any expensive per-session work
+  const rows = excludeIds && excludeIds.size > 0
+    ? allRows.filter((r) => !excludeIds.has(r.id))
+    : allRows;
   const activeIds = new Set(rows.map((r) => r.id));
   evictStaleSummaries(activeIds);
 
-  // Batch-fetch turn data for all sessions (cheap single SQL query)
+  // Batch-fetch turn data only for non-excluded sessions
   const allIds = rows.map((r) => r.id);
   const turnDataMap = getSessionTurnDataBatch(allIds);
 

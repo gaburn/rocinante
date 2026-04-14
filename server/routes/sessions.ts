@@ -41,12 +41,12 @@ sessionsRouter.get('/sessions', (req, res) => {
       return res.json(responseCache.data);
     }
 
-    let sessions = mapAllSessionSummaries();
+    // Build exclude set BEFORE mapping so archived sessions are never processed
+    const excludeIds = (!includeArchived && isArchiveInitialized())
+      ? new Set(getArchivedIds())
+      : undefined;
 
-    // When archive store is initialized and caller didn't ask for archived, filter them out
-    if (!includeArchived && isArchiveInitialized()) {
-      sessions = sessions.filter((s) => !isArchived(s.id));
-    }
+    const sessions = mapAllSessionSummaries(excludeIds);
 
     const { cacheTtlMs } = getConfig();
     responseCache = { data: sessions, expires: now + cacheTtlMs, includeArchived };

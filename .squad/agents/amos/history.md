@@ -6,6 +6,10 @@
 - **Role:** Backend Dev
 - **Joined:** 2026-04-02T01:03:50.178Z
 
+## Learnings
+
+**Archive pre-filter fix (critical perf):** The archive filter was applied AFTER `mapAllSessionSummaries()` did all expensive per-session work (fs.statSync, event reads, agent tree building) for all 1787 sessions. Moved filtering BEFORE the loop by adding `excludeIds?: Set<string>` parameter to the mapper. Now excluded sessions never touch disk. Cold load becomes proportional to non-archived sessions (~100-200) instead of all sessions (1787). Both Copilot-only and multi-source paths handle the exclude set. 141 tests pass.
+
 ## Active Learnings Summary (2026-04)
 
 **Security hardening (P0 audit):** Path traversal + shell injection fixed via `sanitize.ts` (sessionId validation, shell allowlist, `execFileSync` over `execSync`). 35 test cases covering injection vectors.
