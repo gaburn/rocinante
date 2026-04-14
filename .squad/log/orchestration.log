@@ -1,9 +1,0 @@
-[2026-04-08T20:44:24Z] Round: Amos (Backend Dev) Round 2. Tasks: claude-parser, claude-mapper, merge-sources. Mode: background. Files produced: server/services/providers/claudeSource.ts, server/services/providers/__tests__/fixtures/claude-session-sample.jsonl. Files modified: server/services/providers/index.ts, server/services/sessionMapper.ts. Outcome: SUCCESS — full Claude JSONL parser + multi-source merge, tsc clean.
-
-[2026-04-08T20:44:24Z] Round: Naomi (Frontend Dev) Round 1. Task: ui-source-badge. Mode: background. Files produced: src/components/common/SourceBadge.tsx. Files modified: src/components/kanban/KanbanTile.tsx, src/components/sessions/SessionCard.tsx, src/components/sessions/SessionDetail.tsx, src/components/layout/Header.tsx, src/context/SessionContext.tsx, src/hooks/useSessions.ts, src/index.css. Outcome: SUCCESS — source badge on tiles/cards/detail + source filter dropdown, tsc clean.
-
-[2026-04-08T20:44:24Z] Round: Naomi (Frontend Dev) Round 2. Task: settings-multi-source. Mode: background. Files modified: src/services/settingsService.ts, src/types/settings.ts, src/hooks/useSettings.ts, src/components/settings/SettingsPanel.tsx. Outcome: SUCCESS — session sources selector + Claude dir input in settings, tsc clean.
-
-[2026-04-14T22:19:00Z] Round: Amos (Backend Dev) Race 1. Task: Fix archive sync race condition. Mode: background. Files modified: src/hooks/useArchive.ts (added syncComplete flag), src/hooks/useSessions.ts (gate loadSessions on sync). Outcome: SUCCESS — sessions now wait for archive sync before first load. 141 tests pass.
-
-[2026-04-14T22:19:00Z] Round: Naomi (Frontend Dev) Race 1. Task: Fix auto-group using allSessions instead of filtered sessions. Mode: background. Files modified: src/hooks/useSessions.ts (autoGroupByRepository uses sessions instead of allSessions). Outcome: SUCCESS — auto-group now respects archive filter. 141 tests pass.
