@@ -10,6 +10,10 @@
 
 <!-- Append learnings below -->
 
+### Archive Sync Race + Auto-Group Filter Fix (2026-04-14)
+- **Sync race:** On startup, `useArchive` POST and `useSessions` GET fired independently. If GET arrived first, server archive store was empty → all 1787 sessions returned unfiltered. Fix: added `syncComplete` flag to `useArchive` (resolves on success OR failure via `.finally()`). `useSessions` gates initial `loadSessions()` on `archiveSynced`, ensuring server has archive set before session fetch. 141 tests pass.
+- **Auto-group filter:** `autoGroupByRepository()` was grouping `allSessions` (unfiltered) instead of filtered `sessions`. When `showArchived=false`, auto-group created ghost groups with archived sessions. Fix: pass filtered `sessions` array to auto-group function. Now grouped view consistent with flat view. 141 tests pass.
+
 ### Context Split + List Virtualization (2026-04)
 - **Purpose:** Performance optimization — split monolithic SessionContext into 3 focused providers, memoize SessionCard, lazy-mount WorkstreamAutocomplete, virtualize SessionList.
 - **Context split:** `SessionContext.tsx` now exports three contexts: `SessionDataContext` (session list, loading, filters, counts), `SessionSelectionContext` (selected session/workstream + select/clear), `SessionActionsContext` (stable callbacks — archive, workstream, filter setters). Each provider value is `useMemo`'d.

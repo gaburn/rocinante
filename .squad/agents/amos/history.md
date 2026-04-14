@@ -8,6 +8,8 @@
 
 ## Learnings
 
+**Archive sync race condition fix (critical startup):** On app startup, `useArchive` POST and `useSessions` GET fired independently. If GET arrived first, server archive store was empty → all 1787 sessions returned unfiltered. Fix: added `syncComplete` flag to `useArchive` (resolves on success OR failure via `.finally()`). `useSessions` now gates initial `loadSessions()` on `archiveSyncComplete`, ensuring server has archive set before session list is fetched. The sidecar file (`initArchiveStore()`) loads on server startup, so this race only mattered on first-ever use or stale sidecar. 141 tests pass.
+
 **Archive pre-filter fix (critical perf):** The archive filter was applied AFTER `mapAllSessionSummaries()` did all expensive per-session work (fs.statSync, event reads, agent tree building) for all 1787 sessions. Moved filtering BEFORE the loop by adding `excludeIds?: Set<string>` parameter to the mapper. Now excluded sessions never touch disk. Cold load becomes proportional to non-archived sessions (~100-200) instead of all sessions (1787). Both Copilot-only and multi-source paths handle the exclude set. 141 tests pass.
 
 ## Active Learnings Summary (2026-04)
