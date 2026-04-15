@@ -129,10 +129,18 @@ export function useSessions(): UseSessionsResult {
     try {
       const sessions = await getSessions(showArchived)
       setAllSessions(sessions)
-      const activeIds = sessions.map((session) => session.id)
-      pruneArchiveIds(activeIds)
-      pruneNameIds(activeIds)
-      pruneWorkstreamIds(activeIds)
+
+      // Only prune stale IDs when we have the FULL session list.
+      // When showArchived=false the server excludes archived sessions,
+      // so their IDs are absent from the response. Pruning against that
+      // partial list would incorrectly wipe the client-side archive,
+      // workstream assignments, and custom names for every archived session.
+      if (showArchived) {
+        const activeIds = sessions.map((session) => session.id)
+        pruneArchiveIds(activeIds)
+        pruneNameIds(activeIds)
+        pruneWorkstreamIds(activeIds)
+      }
 
       // Refresh selected session detail alongside list
       const currentId = selectedIdRef.current
