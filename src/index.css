@@ -112,6 +112,7 @@
   height: 14px;
   width: auto;
   display: block;
+  opacity: 0.6;
 }
 
 .light .squad-badge {
