@@ -44,7 +44,32 @@ For a comprehensive guide on using the dashboard, see **[docs/user-guide.md](./d
 
 ## Recent Changes
 
-### v1.3.0 (Latest)
+### v1.4.0 (Latest)
+
+**Performance**
+- Body-parser limit increased to 2 MB (fixes `PayloadTooLargeError` on archive sync with large session stores)
+- Multi-source provider now wires `excludeIds` + computation cache (was completely bypassed on `auto` config — the default)
+- Claude session source pre-filter bug fixed
+- `AbortController` on session polling (prevents stale request pileup on slow connections)
+- Vite `optimizeDeps.include` added (dev startup 9 s → 6.1 s)
+- `GET /api/sessions` benchmark: avg 2.23 ms (was ~60 s for large session stores)
+
+**Features**
+- Universal plan reader: supports checkboxes (`- [x]`/`- [ ]`), numbered lists, markdown tables, nested bullets, code blocks, `#` headings
+- Hybrid plan completion model (file-sourced checkboxes + localStorage toggles)
+- Session Plan loads correctly on initial session selection (fixed race condition)
+
+**UI / Dark Mode**
+- Brightened repo/branch/folder icons for dark-mode visibility
+- Brightened section headers (Latest Prompt, Cast, Session Updates, Agents)
+- Squad badge logo opacity adjusted for dark mode
+
+**Quality**
+- 233 tests passing (was ~195)
+- 38 lint errors fixed (`no-explicit-any` + `no-unused-vars`)
+- TypeScript clean (server + client)
+
+### v1.3.0
 - **Claude Code CLI support**: Rocinante now detects and displays sessions from Claude Code CLI alongside Copilot sessions. Sessions from `~/.claude/projects/` are auto-detected and shown with amber Claude badges. No configuration needed — just works if both CLIs are installed.
 - **Multi-source auto-detection**: Default behavior checks which data directories exist and shows all available sources (Copilot, Claude, or both). Can be overridden in Settings or via the `SESSION_SOURCES` environment variable.
 - **Source badges & filter**: Teal "Copilot" and amber "Claude" badges appear on session tiles, cards, and detail view. Header includes a source filter dropdown (All / Copilot / Claude).
