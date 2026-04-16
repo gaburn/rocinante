@@ -1,16 +1,16 @@
 import type { Session, SessionSummary, SessionPlan, SessionStatus, StatusCounts } from '../types';
 
-export async function getSessions(includeArchived = false): Promise<SessionSummary[]> {
+export async function getSessions(includeArchived = false, signal?: AbortSignal): Promise<SessionSummary[]> {
   const url = includeArchived ? '/api/sessions?includeArchived=true' : '/api/sessions';
-  const response = await fetch(url);
+  const response = await fetch(url, { signal });
   if (!response.ok) {
     throw new Error(`Failed to fetch sessions: ${response.status} ${response.statusText}`);
   }
   return response.json();
 }
 
-export async function getSessionById(id: string): Promise<Session | undefined> {
-  const response = await fetch(`/api/sessions/${id}`);
+export async function getSessionById(id: string, signal?: AbortSignal): Promise<Session | undefined> {
+  const response = await fetch(`/api/sessions/${id}`, { signal });
   if (response.status === 404) return undefined;
   if (!response.ok) {
     throw new Error(`Failed to fetch session: ${response.status} ${response.statusText}`);

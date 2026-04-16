@@ -484,8 +484,9 @@ export class ClaudeSessionSource implements SessionSource {
     for (const file of discovered) {
       try {
         // Pre-filter: skip archived sessions before expensive file parsing
-        if (excludeIds && excludeIds.size > 0 && excludeIds.has(SOURCE_PREFIX + file.sessionId)) {
-          continue;
+        if (excludeIds && excludeIds.size > 0) {
+          const meta = buildFileMeta(file);
+          if (meta && excludeIds.has(meta.id)) continue;
         }
         const summary = this.buildSummaryFromFile(file);
         if (summary) summaries.push(summary);
