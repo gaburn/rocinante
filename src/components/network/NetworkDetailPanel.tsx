@@ -141,7 +141,7 @@ const KNOWN_KEYS = new Set([...KNOWN_FIELDS.map((f) => f.key), 'prompt']);
 function GitRepoIcon() {
   return (
     <svg
-      className="h-3.5 w-3.5 shrink-0"
+      className="h-3.5 w-3.5 shrink-0 text-fg/50"
       viewBox="0 0 16 16"
       fill="none"
       stroke="currentColor"
@@ -161,7 +161,7 @@ function GitRepoIcon() {
 function GitBranchIcon() {
   return (
     <svg
-      className="h-3.5 w-3.5 shrink-0"
+      className="h-3.5 w-3.5 shrink-0 text-fg/50"
       viewBox="0 0 16 16"
       fill="none"
       stroke="currentColor"
@@ -182,7 +182,7 @@ function GitBranchIcon() {
 function FolderIcon() {
   return (
     <svg
-      className="h-3.5 w-3.5 shrink-0"
+      className="h-3.5 w-3.5 shrink-0 text-fg/50"
       viewBox="0 0 16 16"
       fill="none"
       stroke="currentColor"

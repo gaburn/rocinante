@@ -1,4 +1,5 @@
 import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { Session, SessionSummary } from '../../../src/types/index.js';
 import { getConfig } from '../../config.js';
 import { SessionSource, SessionSourceName } from './types.js';
@@ -9,6 +10,8 @@ import {
 } from '../sqliteReader.js';
 import { readEventsTail } from '../eventTailReader.js';
 import { mapToSession, mapSessionSummary } from '../sessionMapper.js';
+import { getOrCompute as getOrComputeSummary, evictStale as evictStaleSummaries } from '../sessionSummaryCache.js';
+import { sanitizeSessionId } from '../../utils/sanitize.js';
 
 function toEpochMs(timestamp: string): number {
   const parsed = Date.parse(timestamp);
@@ -23,23 +26,43 @@ export class CopilotSessionSource implements SessionSource {
     return fs.existsSync(sqliteDbPath);
   }
 
-  listSessionSummaries(): SessionSummary[] {
-    const rows = getAllSessions();
+  listSessionSummaries(excludeIds?: Set<string>): SessionSummary[] {
+    const allRows = getAllSessions();
+    // Pre-filter: skip archived sessions BEFORE any expensive per-session work
+    const rows = excludeIds && excludeIds.size > 0
+      ? allRows.filter((r) => !excludeIds.has(r.id))
+      : allRows;
+
+    const activeIds = new Set(rows.map((r) => r.id));
+    evictStaleSummaries(activeIds);
+
     const sessionIds = rows.map((r) => r.id);
     const turnDataMap = getSessionTurnDataBatch(sessionIds);
+    const { sessionStateDir } = getConfig();
 
     const summaries: SessionSummary[] = [];
 
     for (const row of rows) {
       try {
-        const events = readEventsTail(row.id);
-        const turnData = turnDataMap.get(row.id) ?? {
-          firstMessage: null,
-          lastMessage: null,
-          turnCount: 0,
-        };
-        const summary = mapSessionSummary(row, events, turnData);
-        summary.source = 'copilot';
+        const safeId = sanitizeSessionId(row.id);
+        const eventFilePath = path.join(sessionStateDir, safeId, 'events.jsonl');
+
+        const summary = getOrComputeSummary(
+          row.id,
+          eventFilePath,
+          row.updated_at,
+          () => {
+            const events = readEventsTail(row.id);
+            const turnData = turnDataMap.get(row.id) ?? {
+              firstMessage: null,
+              lastMessage: null,
+              turnCount: 0,
+            };
+            const s = mapSessionSummary(row, events, turnData);
+            s.source = 'copilot';
+            return s;
+          },
+        );
         summaries.push(summary);
       } catch (error) {
         console.warn('[CopilotSessionSource] Failed to map session summary. Skipping.', {

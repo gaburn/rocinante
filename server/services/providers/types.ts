@@ -4,7 +4,7 @@ export type SessionSourceName = 'copilot' | 'claude';
 
 export interface SessionSource {
   readonly name: SessionSourceName;
-  listSessionSummaries(): SessionSummary[];
+  listSessionSummaries(excludeIds?: Set<string>): SessionSummary[];
   getSession(id: string): Session | null;
   isAvailable(): boolean;
 }

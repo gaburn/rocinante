@@ -115,6 +115,7 @@ export function useSessions(): UseSessionsResult {
   const [isSearchingConversations, setIsSearchingConversations] = useState(false)
   const searchAbortRef = useRef<AbortController | null>(null)
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const loadSessionsAbortRef = useRef<AbortController | null>(null)
   const selectedIdRef = useRef<string | null>(null)
 
   // Keep ref in sync so loadSessions can refresh the selected detail
@@ -123,35 +124,67 @@ export function useSessions(): UseSessionsResult {
   }, [selectedSessionId])
 
   const loadSessions = useCallback(async () => {
+    // Abort any in-flight request to prevent stale responses arriving out-of-order
+    if (loadSessionsAbortRef.current) {
+      loadSessionsAbortRef.current.abort()
+    }
+    const controller = new AbortController()
+    loadSessionsAbortRef.current = controller
+
     setIsLoading(true)
     setError(null)
 
     try {
-      const sessions = await getSessions(showArchived)
+      const sessions = await getSessions(showArchived, controller.signal)
       setAllSessions(sessions)
-      const activeIds = sessions.map((session) => session.id)
-      pruneArchiveIds(activeIds)
-      pruneNameIds(activeIds)
-      pruneWorkstreamIds(activeIds)
+
+      // Only prune stale IDs when we have the FULL session list.
+      // When showArchived=false the server excludes archived sessions,
+      // so their IDs are absent from the response. Pruning against that
+      // partial list would incorrectly wipe the client-side archive,
+      // workstream assignments, and custom names for every archived session.
+      if (showArchived) {
+        const activeIds = sessions.map((session) => session.id)
+        pruneArchiveIds(activeIds)
+        pruneNameIds(activeIds)
+        pruneWorkstreamIds(activeIds)
+      }
+
+      // Eagerly auto-select the first session on initial load so the
+      // detail refresh below can fetch it in the same async flow. This
+      // avoids an extra render cycle where the auto-select effect sets
+      // the ID in one render and the detail-fetch effect starts the
+      // request in the next — a gap that caused PlanViewer to not mount
+      // in time to trigger its own plan fetch.
+      if (!selectedIdRef.current && sessions.length > 0) {
+        selectedIdRef.current = sessions[0].id
+        setSelectedSessionId(sessions[0].id)
+      }
 
       // Refresh selected session detail alongside list
       const currentId = selectedIdRef.current
       if (currentId) {
         try {
-          const detail = await getSessionById(currentId)
+          const detail = await getSessionById(currentId, controller.signal)
           if (detail && selectedIdRef.current === currentId) {
             setSelectedSessionDetail(detail)
           }
         } catch { /* detail refresh is best-effort */ }
       }
     } catch (loadError) {
+      // Silently ignore abort errors — a newer request has taken over
+      if (loadError instanceof DOMException && loadError.name === 'AbortError') return
       const message =
         loadError instanceof Error
           ? loadError.message
           : 'Failed to load sessions.'
       setError(message)
     } finally {
-      setIsLoading(false)
+      // Only clear loading state if this controller is still current
+      // (i.e., no newer request has superseded us)
+      if (loadSessionsAbortRef.current === controller) {
+        setIsLoading(false)
+      }
     }
   }, [showArchived, pruneArchiveIds, pruneNameIds, pruneWorkstreamIds])
 
@@ -177,6 +210,15 @@ export function useSessions(): UseSessionsResult {
     if (!archiveSyncComplete) return
     void loadSessions()
   }, [loadSessions, archiveSyncComplete])
+
+  // Abort any in-flight session load on unmount
+  useEffect(() => {
+    return () => {
+      if (loadSessionsAbortRef.current) {
+        loadSessionsAbortRef.current.abort()
+      }
+    }
+  }, [])
 
   // Fetch full session detail when selection changes
   useEffect(() => {

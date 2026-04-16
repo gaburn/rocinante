@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import type { PlanTask } from '../types'
 
 const PLAN_STATUS_STORAGE_KEY = 'rocinante-plan-status'
 
@@ -37,7 +38,11 @@ function loadInitialPlanStatus(): PlanStatusBySession {
 export interface UsePlanStatusResult {
   isTaskChecked: (sessionId: string, taskId: string) => boolean
   toggleTask: (sessionId: string, taskId: string) => void
-  getProgress: (sessionId: string, totalTasks: number) => { checked: number; total: number }
+  getProgress: (
+    sessionId: string,
+    totalTasks: number,
+    allTasks?: PlanTask[],
+  ) => { checked: number; total: number }
   clearSession: (sessionId: string) => void
 }
 
@@ -93,9 +98,24 @@ export function usePlanStatus(): UsePlanStatusResult {
   }, [])
 
   const getProgress = useCallback(
-    (sessionId: string, totalTasks: number) => {
-      const checked = planStatusBySession[sessionId]?.length ?? 0
-      return { checked, total: totalTasks }
+    (sessionId: string, totalTasks: number, allTasks?: PlanTask[]) => {
+      // Count file-checked tasks
+      const fileCheckedIds = new Set<string>()
+      let fileCheckedCount = 0
+      if (allTasks) {
+        for (const task of allTasks) {
+          if (task.checkedFromFile) {
+            fileCheckedIds.add(task.id)
+            if (task.checked) fileCheckedCount++
+          }
+        }
+      }
+
+      // Count localStorage-checked tasks, excluding any that are file-managed
+      const localIds = planStatusBySession[sessionId] ?? []
+      const localCheckedCount = localIds.filter((id) => !fileCheckedIds.has(id)).length
+
+      return { checked: fileCheckedCount + localCheckedCount, total: totalTasks }
     },
     [planStatusBySession],
   )

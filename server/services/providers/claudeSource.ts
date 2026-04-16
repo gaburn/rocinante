@@ -476,13 +476,18 @@ export class ClaudeSessionSource implements SessionSource {
     return fs.existsSync(projectsDir);
   }
 
-  listSessionSummaries(): SessionSummary[] {
+  listSessionSummaries(excludeIds?: Set<string>): SessionSummary[] {
     const { claudeDir } = getConfig();
     const discovered = discoverSessionFiles(claudeDir);
     const summaries: SessionSummary[] = [];
 
     for (const file of discovered) {
       try {
+        // Pre-filter: skip archived sessions before expensive file parsing
+        if (excludeIds && excludeIds.size > 0) {
+          const meta = buildFileMeta(file);
+          if (meta && excludeIds.has(meta.id)) continue;
+        }
         const summary = this.buildSummaryFromFile(file);
         if (summary) summaries.push(summary);
       } catch (error) {

@@ -148,7 +148,7 @@ function InfoCircleIcon() {
 function GitRepoIcon() {
   return (
     <svg
-      className="h-3.5 w-3.5 shrink-0"
+      className="h-3.5 w-3.5 shrink-0 text-fg/50"
       viewBox="0 0 16 16"
       fill="none"
       stroke="currentColor"
@@ -169,7 +169,7 @@ function GitRepoIcon() {
 function GitBranchIcon() {
   return (
     <svg
-      className="h-3.5 w-3.5 shrink-0"
+      className="h-3.5 w-3.5 shrink-0 text-fg/50"
       viewBox="0 0 16 16"
       fill="none"
       stroke="currentColor"
@@ -211,7 +211,7 @@ function ChatBubbleIcon() {
 function FolderIcon() {
   return (
     <svg
-      className="h-3.5 w-3.5 shrink-0"
+      className="h-3.5 w-3.5 shrink-0 text-fg/50"
       viewBox="0 0 16 16"
       fill="none"
       stroke="currentColor"
@@ -632,7 +632,7 @@ export default function SessionDetail() {
 
           {/* Repo path */}
           {session.cwd && (
-            <p className="font-mono text-[11px] leading-none text-fg/25 select-all truncate" title={session.cwd}>
+            <p className="font-mono text-[11px] leading-none text-fg/50 select-all truncate" title={session.cwd}>
               📂 {session.cwd}
             </p>
           )}
@@ -673,7 +673,7 @@ export default function SessionDetail() {
           </div>
 
           {/* Latest user message — truncated with expand option */}
-          <h3 className="font-mono text-[11px] font-medium uppercase tracking-widest text-fg/25">
+          <h3 className="font-mono text-[11px] font-medium uppercase tracking-widest text-fg/60">
             Latest Prompt
           </h3>
           <ExpandablePrompt text={session.latestUserMessage || session.intent} />
@@ -804,7 +804,7 @@ export default function SessionDetail() {
           <section className="space-y-2">
             <div className="flex items-center gap-1.5">
               <ChatBubbleIcon />
-              <h3 className="font-mono text-[11px] font-medium uppercase tracking-widest text-fg/25">
+              <h3 className="font-mono text-[11px] font-medium uppercase tracking-widest text-fg/60">
                 Session Updates
               </h3>
             </div>
@@ -869,7 +869,7 @@ export default function SessionDetail() {
         {panes.quickStats && (
           <section className="space-y-2">
             <div className="flex items-baseline gap-2">
-              <h3 className="font-mono text-[11px] font-medium uppercase tracking-widest text-fg/25">
+              <h3 className="font-mono text-[11px] font-medium uppercase tracking-widest text-fg/60">
                 Agents
               </h3>
               <span className="font-mono text-[11px] tabular-nums text-fg/20">
@@ -887,7 +887,7 @@ export default function SessionDetail() {
         )}
 
         {panes.sessionPlan && (
-          <PlanViewer sessionId={session.id} />
+          <PlanViewer key={session.id} sessionId={session.id} />
         )}
 
         {/* ── 2b · Performance waterfall ────────────────── */}

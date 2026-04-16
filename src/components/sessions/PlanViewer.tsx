@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { getSessionPlan } from '../../services/sessionService';
 import { usePlanStatus } from '../../hooks/usePlanStatus';
-import type { SessionPlan, PlanSection } from '../../types';
+import type { SessionPlan, PlanSection, PlanTask } from '../../types';
 
 interface PlanViewerProps {
   sessionId: string;
@@ -38,25 +38,32 @@ function TaskRow({
   title,
   description,
   checked,
+  readOnly,
   onToggle,
 }: {
   taskId: string;
   title: string;
   description?: string;
   checked: boolean;
+  readOnly?: boolean;
   onToggle: () => void;
 }) {
   return (
     <label
       htmlFor={`plan-task-${taskId}`}
-      className="flex cursor-pointer items-start gap-2 px-4 py-1 transition-colors duration-100 hover:bg-surface-hover/30"
+      className={`flex items-start gap-2 px-4 py-1 transition-colors duration-100 ${
+        readOnly ? 'cursor-default' : 'cursor-pointer hover:bg-surface-hover/30'
+      }`}
     >
       <input
         id={`plan-task-${taskId}`}
         type="checkbox"
         checked={checked}
-        onChange={onToggle}
-        className="mt-0.5 shrink-0 accent-border-active"
+        onChange={readOnly ? undefined : onToggle}
+        disabled={readOnly}
+        className={`mt-0.5 shrink-0 ${
+          readOnly ? 'opacity-70 accent-fg/40' : 'accent-border-active'
+        }`}
       />
       <span className="min-w-0">
         <span
@@ -65,6 +72,11 @@ function TaskRow({
           }`}
         >
           {title}
+          {readOnly && (
+            <span className="ml-1.5 text-[10px] text-fg/30" title="Checked in plan file">
+              ✦
+            </span>
+          )}
         </span>
         {description && (
           <span className="mt-0.5 block text-xs leading-snug text-fg/40">
@@ -93,7 +105,10 @@ function Section({
         {section.title}
       </h3>
       {section.tasks.map((task) => {
-        const checked = planStatus.isTaskChecked(sessionId, task.id);
+        const isFileManaged = !!task.checkedFromFile;
+        const checked = isFileManaged
+          ? !!task.checked
+          : planStatus.isTaskChecked(sessionId, task.id);
         return (
           <TaskRow
             key={task.id}
@@ -101,12 +116,18 @@ function Section({
             title={task.title}
             description={task.description}
             checked={checked}
+            readOnly={isFileManaged}
             onToggle={() => planStatus.toggleTask(sessionId, task.id)}
           />
         );
       })}
     </div>
   );
+}
+
+/** Collect all tasks from all sections into a flat array. */
+function flattenTasks(sections: PlanSection[]): PlanTask[] {
+  return sections.flatMap((s) => s.tasks);
 }
 
 /* ── PlanViewer ─────────────────────────────────────────────── */
@@ -131,13 +152,14 @@ export default function PlanViewer({ sessionId }: PlanViewerProps) {
     setIsLoading(true);
     setError(null);
 
-    getSessionPlan(sessionId)
+    getSessionPlan(sessionId, controller.signal)
       .then((data) => {
         if (controller.signal.aborted) return;
         setPlan(data ?? null);
       })
       .catch((err: unknown) => {
         if (controller.signal.aborted) return;
+        if (err instanceof DOMException && err.name === 'AbortError') return;
         setError(
           err instanceof Error ? err.message : 'Failed to load plan',
         );
@@ -153,9 +175,9 @@ export default function PlanViewer({ sessionId }: PlanViewerProps) {
   if (!isLoading && !error && plan === null) return null;
 
   /* ── Progress stats ────────────────────────────────────── */
-  const totalTasks =
-    plan?.sections.reduce((sum, s) => sum + s.tasks.length, 0) ?? 0;
-  const progress = planStatus.getProgress(sessionId, totalTasks);
+  const allTasks = plan ? flattenTasks(plan.sections) : [];
+  const totalTasks = allTasks.length;
+  const progress = planStatus.getProgress(sessionId, totalTasks, allTasks);
 
   return (
     <div className="rounded-lg border border-border-default bg-surface-secondary">
