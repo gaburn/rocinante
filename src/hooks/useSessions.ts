@@ -150,6 +150,17 @@ export function useSessions(): UseSessionsResult {
         pruneWorkstreamIds(activeIds)
       }
 
+      // Eagerly auto-select the first session on initial load so the
+      // detail refresh below can fetch it in the same async flow. This
+      // avoids an extra render cycle where the auto-select effect sets
+      // the ID in one render and the detail-fetch effect starts the
+      // request in the next — a gap that caused PlanViewer to not mount
+      // in time to trigger its own plan fetch.
+      if (!selectedIdRef.current && sessions.length > 0) {
+        selectedIdRef.current = sessions[0].id
+        setSelectedSessionId(sessions[0].id)
+      }
+
       // Refresh selected session detail alongside list
       const currentId = selectedIdRef.current
       if (currentId) {

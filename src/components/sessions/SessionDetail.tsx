@@ -887,7 +887,7 @@ export default function SessionDetail() {
         )}
 
         {panes.sessionPlan && (
-          <PlanViewer sessionId={session.id} />
+          <PlanViewer key={session.id} sessionId={session.id} />
         )}
 
         {/* ── 2b · Performance waterfall ────────────────── */}

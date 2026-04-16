@@ -152,13 +152,14 @@ export default function PlanViewer({ sessionId }: PlanViewerProps) {
     setIsLoading(true);
     setError(null);
 
-    getSessionPlan(sessionId)
+    getSessionPlan(sessionId, controller.signal)
       .then((data) => {
         if (controller.signal.aborted) return;
         setPlan(data ?? null);
       })
       .catch((err: unknown) => {
         if (controller.signal.aborted) return;
+        if (err instanceof DOMException && err.name === 'AbortError') return;
         setError(
           err instanceof Error ? err.message : 'Failed to load plan',
         );

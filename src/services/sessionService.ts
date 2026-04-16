@@ -18,8 +18,8 @@ export async function getSessionById(id: string, signal?: AbortSignal): Promise<
   return response.json();
 }
 
-export async function getSessionPlan(sessionId: string): Promise<SessionPlan | null> {
-  const response = await fetch(`/api/sessions/${sessionId}/plan`);
+export async function getSessionPlan(sessionId: string, signal?: AbortSignal): Promise<SessionPlan | null> {
+  const response = await fetch(`/api/sessions/${sessionId}/plan`, { signal });
   if (response.status === 404) return null;
   if (!response.ok) throw new Error(`Failed to fetch plan: ${response.status}`);
   return response.json();
