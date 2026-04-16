@@ -148,7 +148,7 @@ function InfoCircleIcon() {
 function GitRepoIcon() {
   return (
     <svg
-      className="h-3.5 w-3.5 shrink-0"
+      className="h-3.5 w-3.5 shrink-0 text-fg/50"
       viewBox="0 0 16 16"
       fill="none"
       stroke="currentColor"
@@ -169,7 +169,7 @@ function GitRepoIcon() {
 function GitBranchIcon() {
   return (
     <svg
-      className="h-3.5 w-3.5 shrink-0"
+      className="h-3.5 w-3.5 shrink-0 text-fg/50"
       viewBox="0 0 16 16"
       fill="none"
       stroke="currentColor"
@@ -211,7 +211,7 @@ function ChatBubbleIcon() {
 function FolderIcon() {
   return (
     <svg
-      className="h-3.5 w-3.5 shrink-0"
+      className="h-3.5 w-3.5 shrink-0 text-fg/50"
       viewBox="0 0 16 16"
       fill="none"
       stroke="currentColor"
