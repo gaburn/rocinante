@@ -5,6 +5,7 @@ import { getConfig } from './config.js';
 import { initDatabase, closeDatabase } from './services/sqliteReader.js';
 import { initArchiveStore } from './services/archiveStore.js';
 import { killAllPtys } from './services/ptyManager.js';
+import { shutdownMcpClient } from './services/adoMcpClient.js';
 import sessionsRouter from './routes/sessions.js';
 import configRouter from './routes/config.js';
 import adoRouter from './routes/ado.js';
@@ -91,6 +92,7 @@ function shutdown(signal: 'SIGINT' | 'SIGTERM'): void {
   isShuttingDown = true;
   if (DEBUG) console.log(`[server] Received ${signal}. Shutting down...`);
   killAllPtys();
+  shutdownMcpClient().catch(() => {});
   closeDatabase();
   process.exit(0);
 }

@@ -8,6 +8,11 @@ import {
   getWorkItemsForPullRequest,
   testAdoConnection,
 } from '../services/adoClient.js';
+import {
+  mcpListPullRequests,
+  mcpGetPullRequest,
+  mcpGetWorkItemsBatch,
+} from '../services/adoMcpClient.js';
 
 const adoRouter = Router();
 
@@ -149,34 +154,86 @@ adoRouter.get('/ado/session-deliverables', async (req, res) => {
     return;
   }
 
+  const config = getConfig();
+  const project = config.adoProject;
+  const trimmedBranch = branch.trim();
+
+  // Try MCP path first, fall back to direct REST on failure
   try {
-    const pullRequests = await getPullRequestsByBranches([branch.trim()]);
+    const result = await fetchDeliverablesViaMcp(project, trimmedBranch);
+    res.json(result);
+    return;
+  } catch {
+    // MCP unavailable — fall through to REST
+  }
 
-    const workItemResults = await Promise.allSettled(
-      pullRequests
-        .filter((pr) => pr.repositoryId)
-        .map((pr) => getWorkItemsForPullRequest(pr.repositoryId!, pr.id)),
-    );
-
-    const workItemMap = new Map<number, import('../../src/types/ado.js').AdoWorkItem>();
-    for (const result of workItemResults) {
-      if (result.status === 'fulfilled') {
-        for (const wi of result.value) {
-          workItemMap.set(wi.id, wi);
-        }
-      }
-    }
-
-    res.json({
-      pullRequests,
-      workItems: Array.from(workItemMap.values()),
-    });
+  try {
+    const result = await fetchDeliverablesViaRest(trimmedBranch);
+    res.json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const status = isLikelyUpstreamError(error) ? 502 : 500;
     res.status(status).json({ error: message });
   }
 });
+
+async function fetchDeliverablesViaMcp(project: string, branch: string) {
+  const pullRequests = await mcpListPullRequests({
+    project,
+    sourceRefName: `refs/heads/${branch}`,
+    status: 'All',
+  });
+
+  // For each PR with a repository, fetch linked work item IDs
+  const workItemIdResults = await Promise.allSettled(
+    pullRequests
+      .filter((pr) => pr.repositoryId)
+      .map((pr) =>
+        mcpGetPullRequest({
+          project,
+          repositoryId: pr.repositoryId!,
+          pullRequestId: pr.id,
+          includeWorkItemRefs: true,
+        }),
+      ),
+  );
+
+  const allWorkItemIds = new Set<number>();
+  for (const result of workItemIdResults) {
+    if (result.status === 'fulfilled') {
+      for (const id of result.value.workItemIds) {
+        allWorkItemIds.add(id);
+      }
+    }
+  }
+
+  const workItems = allWorkItemIds.size > 0
+    ? await mcpGetWorkItemsBatch(project, Array.from(allWorkItemIds))
+    : [];
+
+  return { pullRequests, workItems };
+}
+
+async function fetchDeliverablesViaRest(branch: string) {
+  const pullRequests = await getPullRequestsByBranches([branch]);
+
+  const workItemResults = await Promise.allSettled(
+    pullRequests
+      .filter((pr) => pr.repositoryId)
+      .map((pr) => getWorkItemsForPullRequest(pr.repositoryId!, pr.id)),
+  );
+
+  const workItemMap = new Map<number, import('../../src/types/ado.js').AdoWorkItem>();
+  for (const result of workItemResults) {
+    if (result.status === 'fulfilled') {
+      for (const wi of result.value) {
+        workItemMap.set(wi.id, wi);
+      }
+    }
+  }
+
+  return { pullRequests, workItems: Array.from(workItemMap.values()) };
+}
 
 adoRouter.post('/ado/test', async (req, res) => {
   if (!isAdoConfigured()) {
