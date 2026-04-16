@@ -673,7 +673,7 @@ export default function SessionDetail() {
           </div>
 
           {/* Latest user message — truncated with expand option */}
-          <h3 className="font-mono text-[11px] font-medium uppercase tracking-widest text-fg/25">
+          <h3 className="font-mono text-[11px] font-medium uppercase tracking-widest text-fg/60">
             Latest Prompt
           </h3>
           <ExpandablePrompt text={session.latestUserMessage || session.intent} />
@@ -804,7 +804,7 @@ export default function SessionDetail() {
           <section className="space-y-2">
             <div className="flex items-center gap-1.5">
               <ChatBubbleIcon />
-              <h3 className="font-mono text-[11px] font-medium uppercase tracking-widest text-fg/25">
+              <h3 className="font-mono text-[11px] font-medium uppercase tracking-widest text-fg/60">
                 Session Updates
               </h3>
             </div>
@@ -869,7 +869,7 @@ export default function SessionDetail() {
         {panes.quickStats && (
           <section className="space-y-2">
             <div className="flex items-baseline gap-2">
-              <h3 className="font-mono text-[11px] font-medium uppercase tracking-widest text-fg/25">
+              <h3 className="font-mono text-[11px] font-medium uppercase tracking-widest text-fg/60">
                 Agents
               </h3>
               <span className="font-mono text-[11px] tabular-nums text-fg/20">
