@@ -76,6 +76,8 @@ export interface SessionSummary {
   compactionCount?: number;
   source?: 'copilot' | 'claude';
   isSquadSession?: boolean;
+  adoPrCount?: number;
+  adoWorkItemCount?: number;
 }
 
 /** Full session payload returned by the detail endpoint. */
