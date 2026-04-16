@@ -14,6 +14,8 @@
 
 **Archive pre-filter fix (critical perf):** The archive filter was applied AFTER `mapAllSessionSummaries()` did all expensive per-session work (fs.statSync, event reads, agent tree building) for all 1787 sessions. Moved filtering BEFORE the loop by adding `excludeIds?: Set<string>` parameter to the mapper. Now excluded sessions never touch disk. Cold load becomes proportional to non-archived sessions (~100-200) instead of all sessions (1787). Both Copilot-only and multi-source paths handle the exclude set. 141 tests pass.
 
+**Provider-layer pre-filter + cache bypass fix (critical perf):** The previous pre-filter fix only applied in the Copilot-only direct path inside `mapAllSessionSummaries()`, but the default config (`sessionSources: 'auto'`) routes through the multi-source provider path. `CopilotSessionSource.listSessionSummaries()` was processing ALL 1787 sessions with no `excludeIds` pre-filter and no per-session computation cache — both optimizations existed only in the dead Copilot-only codepath. Fix: (1) Added `excludeIds?: Set<string>` to `SessionSource` interface. (2) `CopilotSessionSource.listSessionSummaries()` now pre-filters rows AND uses `getOrComputeSummary()` cache. (3) `ClaudeSessionSource` pre-filters too. (4) `mapAllSessionSummaries()` passes `excludeIds` through to each source. Removed redundant post-hoc `.filter()`. 195 tests pass, TypeScript clean.
+
 ## Active Learnings Summary (2026-04)
 
 **Security hardening (P0 audit):** Path traversal + shell injection fixed via `sanitize.ts` (sessionId validation, shell allowlist, `execFileSync` over `execSync`). 35 test cases covering injection vectors.

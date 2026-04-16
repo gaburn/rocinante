@@ -472,7 +472,7 @@ export function mapAllSessionSummaries(excludeIds?: Set<string>): SessionSummary
 
     for (const source of activeSources) {
       try {
-        const sourceSummaries = source.listSessionSummaries();
+        const sourceSummaries = source.listSessionSummaries(excludeIds);
         allSummaries.push(...sourceSummaries);
       } catch (error) {
         console.warn('[sessionMapper] Source failed to list summaries. Skipping.', {
@@ -482,15 +482,11 @@ export function mapAllSessionSummaries(excludeIds?: Set<string>): SessionSummary
       }
     }
 
-    // Filter excluded IDs from multi-source results too
-    const filtered = excludeIds && excludeIds.size > 0
-      ? allSummaries.filter((s) => !excludeIds.has(s.id))
-      : allSummaries;
-
-    filtered.sort(
+    // Sources already pre-filtered by excludeIds — no post-hoc filter needed
+    allSummaries.sort(
       (a, b) => toEpochMs(b.lastActivityAt) - toEpochMs(a.lastActivityAt),
     );
-    return filtered;
+    return allSummaries;
   }
 
   // Default: Copilot-only (original path) with per-session computation cache
