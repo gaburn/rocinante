@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { readSessionPlan } from '../planReader.js';
+import type { PlanTask } from '../../../src/types/index.js';
 
 // Mock filesystem and config so we can feed arbitrary markdown to the parser
 vi.mock('node:fs');
@@ -102,22 +103,22 @@ describe('planReader — checkbox format', () => {
     const result = parsePlan('## S\n- [ ] Unchecked task');
     const task = result!.sections[0].tasks[0];
     expect(task.title).toBe('Unchecked task');
-    expect((task as any).checked).toBe(false);
-    expect((task as any).checkedFromFile).toBe(true);
+    expect(task.checked).toBe(false);
+    expect(task.checkedFromFile).toBe(true);
   });
 
   it('lowercase x checkbox creates task with checked: true', () => {
     const result = parsePlan('## S\n- [x] Done task');
     const task = result!.sections[0].tasks[0];
     expect(task.title).toBe('Done task');
-    expect((task as any).checked).toBe(true);
-    expect((task as any).checkedFromFile).toBe(true);
+    expect(task.checked).toBe(true);
+    expect(task.checkedFromFile).toBe(true);
   });
 
   it('uppercase X checkbox creates task with checked: true', () => {
     const result = parsePlan('## S\n- [X] Also done');
     const task = result!.sections[0].tasks[0];
-    expect((task as any).checked).toBe(true);
+    expect(task.checked).toBe(true);
   });
 
   it('checkbox title does NOT include the bracket prefix', () => {
@@ -132,8 +133,8 @@ describe('planReader — checkbox format', () => {
     const task = result!.sections[0].tasks[0];
     expect(task.title).toBe('Deploy');
     expect(task.description).toBe('push to prod');
-    expect((task as any).checked).toBe(true);
-    expect((task as any).checkedFromFile).toBe(true);
+    expect(task.checked).toBe(true);
+    expect(task.checkedFromFile).toBe(true);
   });
 
   it('mixed checkboxes and plain bullets in same section', () => {
@@ -147,12 +148,12 @@ describe('planReader — checkbox format', () => {
     const tasks = result!.sections[0].tasks;
     expect(tasks).toHaveLength(3);
 
-    expect((tasks[0] as any).checked).toBe(false);
-    expect((tasks[0] as any).checkedFromFile).toBe(true);
-    expect((tasks[1] as any).checked).toBe(true);
-    expect((tasks[1] as any).checkedFromFile).toBe(true);
+    expect(tasks[0].checked).toBe(false);
+    expect(tasks[0].checkedFromFile).toBe(true);
+    expect(tasks[1].checked).toBe(true);
+    expect(tasks[1].checkedFromFile).toBe(true);
     // Plain bullet should NOT have checkedFromFile
-    expect((tasks[2] as any).checkedFromFile).toBeUndefined();
+    expect(tasks[2].checkedFromFile).toBeUndefined();
   });
 });
 
@@ -225,7 +226,7 @@ describe('planReader — markdown table format', () => {
     ].join('\n');
     const result = parsePlan(md);
     const task = result!.sections[0].tasks[0];
-    expect((task as any).checked).toBe(true);
+    expect(task.checked).toBe(true);
   });
 
   it('table with ❌ in status column → unchecked task', () => {
@@ -237,7 +238,7 @@ describe('planReader — markdown table format', () => {
     ].join('\n');
     const result = parsePlan(md);
     const task = result!.sections[0].tasks[0];
-    expect((task as any).checked).toBe(false);
+    expect(task.checked).toBe(false);
   });
 
   it('table with "Pending" in status column → unchecked task', () => {
@@ -249,7 +250,7 @@ describe('planReader — markdown table format', () => {
     ].join('\n');
     const result = parsePlan(md);
     const task = result!.sections[0].tasks[0];
-    expect((task as any).checked).toBe(false);
+    expect(task.checked).toBe(false);
   });
 
   it('table with no status column → unchecked tasks', () => {
@@ -263,7 +264,7 @@ describe('planReader — markdown table format', () => {
     const task = result!.sections[0].tasks[0];
     expect(task.title).toBe('Some task');
     // No status column → should not be checked
-    expect((task as any).checked).toBeFalsy();
+    expect(task.checked).toBeFalsy();
   });
 
   it('table separator row is skipped (not parsed as task)', () => {
@@ -443,8 +444,8 @@ describe('planReader — mixed format plans', () => {
     const checkboxes = result!.sections[1];
     expect(checkboxes.title).toBe('Checkboxes');
     expect(checkboxes.tasks).toHaveLength(2);
-    expect((checkboxes.tasks[0] as any).checked).toBe(false);
-    expect((checkboxes.tasks[1] as any).checked).toBe(true);
+    expect(checkboxes.tasks[0].checked).toBe(false);
+    expect(checkboxes.tasks[1].checked).toBe(true);
 
     // Section 2: Numbered
     const numbered = result!.sections[2];
@@ -458,7 +459,7 @@ describe('planReader — mixed format plans', () => {
     expect(table.title).toBe('Table');
     expect(table.tasks).toHaveLength(1);
     expect(table.tasks[0].title).toBe('Row task');
-    expect((table.tasks[0] as any).checked).toBe(true);
+    expect(table.tasks[0].checked).toBe(true);
   });
 
   it('numbered checkbox items parse both number and check state', () => {
@@ -471,9 +472,9 @@ describe('planReader — mixed format plans', () => {
     const tasks = result!.sections[0].tasks;
     expect(tasks).toHaveLength(2);
     expect(tasks[0].title).toBe('Numbered unchecked');
-    expect((tasks[0] as any).checked).toBe(false);
+    expect(tasks[0].checked).toBe(false);
     expect(tasks[1].title).toBe('Numbered checked');
-    expect((tasks[1] as any).checked).toBe(true);
+    expect(tasks[1].checked).toBe(true);
   });
 });
 
@@ -540,10 +541,10 @@ describe('planReader — integration: realistic plan samples', () => {
     const backend = result!.sections[2];
     expect(backend.title).toBe('Backend Tasks');
     expect(backend.tasks).toHaveLength(4);
-    expect((backend.tasks[0] as any).checked).toBe(true);
-    expect((backend.tasks[0] as any).checkedFromFile).toBe(true);
-    expect((backend.tasks[1] as any).checked).toBe(true);
-    expect((backend.tasks[2] as any).checked).toBe(false);
+    expect(backend.tasks[0].checked).toBe(true);
+    expect(backend.tasks[0].checkedFromFile).toBe(true);
+    expect(backend.tasks[1].checked).toBe(true);
+    expect(backend.tasks[2].checked).toBe(false);
     // Bold checkbox with nested bullets
     expect(backend.tasks[3].title).toBe('Rate limiter');
     expect(backend.tasks[3].description).toContain('sliding-window');
@@ -554,17 +555,17 @@ describe('planReader — integration: realistic plan samples', () => {
     const frontend = result!.sections[3];
     expect(frontend.title).toBe('Frontend Tasks');
     expect(frontend.tasks).toHaveLength(3);
-    const frontendChecked = frontend.tasks.filter((t: any) => t.checked);
+    const frontendChecked = frontend.tasks.filter((t: PlanTask) => t.checked);
     expect(frontendChecked).toHaveLength(1);
 
     // --- Test Matrix table: 4 tasks, 2 ✅ and 2 ❌ ---
     const testMatrix = result!.sections[4];
     expect(testMatrix.title).toBe('Test Matrix');
     expect(testMatrix.tasks).toHaveLength(4);
-    expect((testMatrix.tasks[0] as any).checked).toBe(true);   // Login happy path ✅
-    expect((testMatrix.tasks[1] as any).checked).toBe(false);  // Expired token ❌
-    expect((testMatrix.tasks[2] as any).checked).toBe(true);   // Invalid token ✅
-    expect((testMatrix.tasks[3] as any).checked).toBe(false);  // Rate limit ❌
+    expect(testMatrix.tasks[0].checked).toBe(true);   // Login happy path ✅
+    expect(testMatrix.tasks[1].checked).toBe(false);  // Expired token ❌
+    expect(testMatrix.tasks[2].checked).toBe(true);   // Invalid token ✅
+    expect(testMatrix.tasks[3].checked).toBe(false);  // Rate limit ❌
 
     // --- Notes section: 1 plain task ---
     const notes = result!.sections[5];
@@ -582,7 +583,7 @@ describe('planReader — integration: realistic plan samples', () => {
     // Total file-checked completed: 2 backend + 1 frontend + 2 table = 5
     const totalChecked = result!.sections
       .flatMap(s => s.tasks)
-      .filter((t: any) => t.checked === true).length;
+      .filter((t: PlanTask) => t.checked === true).length;
     expect(totalChecked).toBe(5);
   });
 
@@ -631,10 +632,10 @@ describe('planReader — integration: realistic plan samples', () => {
     expect(ownership.title).toBe('Component Ownership');
     expect(ownership.tasks).toHaveLength(3);
     expect(ownership.tasks[0].title).toBe('API Gateway');
-    expect((ownership.tasks[0] as any).checked).toBe(true);
+    expect(ownership.tasks[0].checked).toBe(true);
     expect(ownership.tasks[1].title).toBe('Auth Service');
-    expect((ownership.tasks[1] as any).checked).toBe(false);
-    expect((ownership.tasks[2] as any).checked).toBe(true);
+    expect(ownership.tasks[1].checked).toBe(false);
+    expect(ownership.tasks[2].checked).toBe(true);
 
     // --- Implementation Tasks: 3 bold-bullet tasks with nested details ---
     const impl = result!.sections[1];
@@ -652,10 +653,10 @@ describe('planReader — integration: realistic plan samples', () => {
     const criteria = result!.sections[2];
     expect(criteria.title).toBe('Acceptance Criteria');
     expect(criteria.tasks).toHaveLength(4);
-    expect((criteria.tasks[0] as any).checked).toBe(true);   // All endpoints
-    expect((criteria.tasks[1] as any).checked).toBe(false);  // Auth redirects
-    expect((criteria.tasks[2] as any).checked).toBe(true);   // DB schema
-    expect((criteria.tasks[3] as any).checked).toBe(false);  // Load test Pending
+    expect(criteria.tasks[0].checked).toBe(true);   // All endpoints
+    expect(criteria.tasks[1].checked).toBe(false);  // Auth redirects
+    expect(criteria.tasks[2].checked).toBe(true);   // DB schema
+    expect(criteria.tasks[3].checked).toBe(false);  // Load test Pending
 
     // --- Risks: 2 tasks, one bold with nested mitigation ---
     const risks = result!.sections[3];
@@ -672,7 +673,7 @@ describe('planReader — integration: realistic plan samples', () => {
     // File-checked completed: 2 ownership + 2 criteria = 4
     const totalChecked = result!.sections
       .flatMap(s => s.tasks)
-      .filter((t: any) => t.checked === true).length;
+      .filter((t: PlanTask) => t.checked === true).length;
     expect(totalChecked).toBe(4);
   });
 
@@ -724,15 +725,15 @@ describe('planReader — integration: realistic plan samples', () => {
     const phase1 = result!.sections[1];
     expect(phase1.title).toBe('Phase 1: Infra');
     expect(phase1.tasks).toHaveLength(3);
-    expect((phase1.tasks[0] as any).checkedFromFile).toBeUndefined(); // plain numbered
-    expect((phase1.tasks[1] as any).checked).toBe(true);
-    expect((phase1.tasks[2] as any).checked).toBe(false);
+    expect(phase1.tasks[0].checkedFromFile).toBeUndefined(); // plain numbered
+    expect(phase1.tasks[1].checked).toBe(true);
+    expect(phase1.tasks[2].checked).toBe(false);
 
     // Phase 2: 3 tasks (checkbox-bold, checkbox-bold with nested, plain)
     const phase2 = result!.sections[2];
     expect(phase2.title).toBe('Phase 2: Features');
     expect(phase2.tasks).toHaveLength(3);
-    expect((phase2.tasks[0] as any).checked).toBe(true);
+    expect(phase2.tasks[0].checked).toBe(true);
     expect(phase2.tasks[1].title).toBe('Caching layer');
     expect(phase2.tasks[1].description).toContain('LRU');
     expect(phase2.tasks[1].description).toContain('256 MB');
@@ -742,9 +743,9 @@ describe('planReader — integration: realistic plan samples', () => {
     const dashboard = result!.sections[3];
     expect(dashboard.title).toBe('Status Dashboard');
     expect(dashboard.tasks).toHaveLength(3);
-    expect((dashboard.tasks[0] as any).checked).toBe(true);
-    expect((dashboard.tasks[1] as any).checked).toBe(false);
-    expect((dashboard.tasks[2] as any).checked).toBe(false); // Pending
+    expect(dashboard.tasks[0].checked).toBe(true);
+    expect(dashboard.tasks[1].checked).toBe(false);
+    expect(dashboard.tasks[2].checked).toBe(false); // Pending
 
     // YAML code block content must NOT leak
     const allTitles = result!.sections.flatMap(s => s.tasks.map(t => t.title));
@@ -754,7 +755,7 @@ describe('planReader — integration: realistic plan samples', () => {
     const wrapup = result!.sections[4];
     expect(wrapup.title).toBe('Wrap-up');
     expect(wrapup.tasks).toHaveLength(2);
-    expect((wrapup.tasks[1] as any).checked).toBe(false);
+    expect(wrapup.tasks[1].checked).toBe(false);
 
     // Total: 3 + 3 + 3 + 2 = 11
     const totalTasks = result!.sections.reduce((sum, s) => sum + s.tasks.length, 0);
@@ -763,7 +764,7 @@ describe('planReader — integration: realistic plan samples', () => {
     // Checked: 1 phase1 + 1 phase2 + 1 dashboard = 3
     const totalChecked = result!.sections
       .flatMap(s => s.tasks)
-      .filter((t: any) => t.checked === true).length;
+      .filter((t: PlanTask) => t.checked === true).length;
     expect(totalChecked).toBe(3);
   });
 });

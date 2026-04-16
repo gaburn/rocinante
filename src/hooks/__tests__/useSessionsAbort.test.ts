@@ -79,7 +79,7 @@ describe('loadSessions AbortController pattern', () => {
   });
 
   it('passes an AbortSignal to the fetch function', async () => {
-    const fetchFn = vi.fn(async (_signal: AbortSignal) => ['session1']);
+    const fetchFn = vi.fn(async () => ['session1']);
     await loader.load(fetchFn);
 
     expect(fetchFn).toHaveBeenCalledTimes(1);
@@ -119,7 +119,7 @@ describe('loadSessions AbortController pattern', () => {
   });
 
   it('propagates non-abort errors normally', async () => {
-    const fetchFn = vi.fn(async (_signal: AbortSignal) => {
+    const fetchFn = vi.fn(async () => {
       throw new Error('Network failure');
     });
 
@@ -140,7 +140,7 @@ describe('loadSessions AbortController pattern', () => {
   });
 
   it('creates a fresh controller for each load call', async () => {
-    const fetchFn = vi.fn(async (_signal: AbortSignal) => []);
+    const fetchFn = vi.fn(async () => []);
 
     await loader.load(fetchFn);
     const controller1 = loader.getCurrentController();
