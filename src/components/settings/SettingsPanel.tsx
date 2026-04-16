@@ -433,6 +433,8 @@ function AdoSettings() {
     setIsTesting(true);
     setConnectionResult(null);
     try {
+      // Save config to server first so the test endpoint sees current values
+      await updateAdoConfig({ organization, project });
       const result = await testAdoConnection();
       setConnectionResult(result);
     } catch (err) {
