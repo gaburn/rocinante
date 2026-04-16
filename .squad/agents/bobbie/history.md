@@ -10,6 +10,32 @@
 
 <!-- Append learnings below -->
 
+### 2026-07-16: Sprint 1 Verification — Cold Load Performance Fix
+
+**Context:** Verified all Sprint 1 changes after Amos's body-parser fix (`express.json({ limit: '2mb' })`).
+
+**Results:**
+- **Test suite:** 195 tests passing across 11 files, 0 failures (duration: 1.48s)
+- **TypeScript:** `npx tsc --noEmit` clean, exit code 0
+- **Benchmark:** `npm run bench:server` exists (20 iterations, measures /api/sessions, session detail, /api/telemetry) but requires a running server instance — not run in this verification pass
+- **Body-parser fix:** Confirmed on line 23 of `server/index.ts`: `express.json({ limit: '2mb' })`
+
+**Amos's Integration Tests (archiveSync.test.ts — 12 tests):**
+- ✅ Large payload: 1787 UUIDs accepted (200 OK)
+- ✅ Near-limit: 2500 UUIDs accepted
+- ✅ Round-trip: POST sync → GET returns same IDs
+- ✅ Empty array handled
+- ✅ Single UUID handled
+- ✅ Replace previous archive on subsequent sync
+- ✅ Validation: missing ids (400), non-array (400), non-string elements (400)
+- ✅ Payload size assertion: 1787 UUIDs < 2MB but > 50KB
+
+**Sprint 1 Success Criteria:**
+- ✅ PayloadTooLargeError eliminated (2mb limit replaces 100kb default)
+- ✅ Test count ≥ 180 (195 tests, up from 176)
+
+**No issues found.** Sprint 1 verification passes clean.
+
 ### 2026-04-04: statusDeriver ask_user Detection Tests
 
 **Context:** Wrote comprehensive test suite for ask_user detection in `statusDeriver.ts` before implementation (TDD approach). Tests are ready for when Amos implements the feature.

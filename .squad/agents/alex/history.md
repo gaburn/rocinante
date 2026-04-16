@@ -28,3 +28,32 @@
 **Sprint 2 Task:** Vendor chunk splitting in Vite build output (0.25d). Reduce main bundle stress.
 
 **Full plan:** 3 sprints, target cold load <5s. Amos owns critical path (body-parser fix).
+
+---
+
+### Sprint 1, Item H2 — Vite Dev Startup Optimization (2026-04)
+
+**Status:** ✅ Complete
+
+**What was done:**
+- Added `optimizeDeps.include` to vite.config.ts with 11 heavy dependencies:
+  - React core: `react`, `react-dom`
+  - dnd-kit drag-drop: `@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/utilities`
+  - Terminal emulator: `@xterm/xterm`, `@xterm/addon-fit`, `@xterm/addon-web-links`
+  - Visualization: `d3-force`
+  - Component libs: `@tanstack/react-virtual`, `js-yaml`
+
+**Outcome:**
+- Vite dev startup: **6144ms** (baseline ~9035ms)
+- **32% improvement** from baseline
+- TypeScript check: ✅ clean (no errors)
+- No errors on cold start
+
+**Why this works:**
+- Pre-bundling heavy dependencies during first startup means Vite scans them once, caches the bundle in `node_modules/.vite`, then reuses it on subsequent restarts
+- Without this, Vite re-scans and re-bundles all deps on every cold start
+- Vite 8 uses esbuild under the hood, which is fast but still incurs overhead per scan
+
+**Next steps for further optimization (Sprint 2):**
+- Vendor chunk splitting in build output (Vite build performance)
+- Server pre-warming / connection pooling improvements

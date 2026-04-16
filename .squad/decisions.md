@@ -1,8 +1,64 @@
 # Team Decisions Log
 
-**Last Updated:** 2026-04-09T08:43:25Z
+**Last Updated:** 2026-04-16T00:00:00Z
 
 ## Architecture
+
+### Body-parser limit raised to 2MB
+
+**Author:** Amos (Backend Dev)  
+**Date:** 2026-04-16  
+**Status:** Implemented  
+**Sprint:** 1, Item C1  
+
+**Context:** `express.json()` in `server/index.ts` used the default 100KB body limit. The `POST /api/sessions/archive` startup sync sends ~1787 UUIDs (~75KB JSON), which was intermittently hitting this limit due to overhead. The 413 PayloadTooLargeError was caught silently by the frontend, causing the server to map ALL 1787 sessions on the first GET — producing a ~60s cold load.
+
+**Decision:** Changed `express.json()` → `express.json({ limit: '2mb' })`. This applies globally to all JSON endpoints.
+
+**Trade-offs:** 2MB is generous headroom (current payload is ~75KB). If the archive grows to 50K+ sessions, this may need revisiting — but that's a distant concern. Global limit means all endpoints accept up to 2MB. No other endpoint receives payloads anywhere near this, so the risk is minimal. If per-route limits are needed later, use per-route middleware.
+
+**Validation:** 188 tests passing (12 new archive sync tests), `npx tsc --noEmit` clean.
+
+### AbortController on Session Polling
+
+**Author:** Naomi (Frontend Dev)
+**Date:** 2026-04-16
+**Status:** Implemented
+**Sprint:** 1, Item H3
+
+**Context:** `loadSessions()` polls `GET /api/sessions` on an interval but didn't abort prior in-flight requests. During cold start, multiple requests queue and stale responses arrive out-of-order, causing UI flicker.
+
+**Decision:** Added `AbortController` to `loadSessions()` — same pattern already used by the search feature in the same file.
+
+**Changes:**
+- **`sessionService.ts`**: `getSessions()` and `getSessionById()` now accept optional `signal?: AbortSignal`, forwarded to `fetch()`.
+- **`useSessions.ts`**: Added `loadSessionsAbortRef`. Each `loadSessions()` call aborts the previous controller, creates a fresh one, and passes its signal. AbortErrors are silently ignored. `finally` only clears `isLoading` if the controller is still current. Unmount effect aborts pending requests.
+- **Tests**: 7 new tests in `useSessionsAbort.test.ts`.
+
+**Validation:** `npx tsc --noEmit` clean, 195 tests passing (7 new).
+
+### Vite optimizeDeps Configuration for Dev Startup
+
+**Author:** Alex (DevOps)  
+**Date:** 2026-04  
+**Status:** Implemented  
+**Scope:** Vite build configuration  
+
+**Context:** Vite dev server startup was taking ~9035ms because Vite re-scanned and re-bundled all dependencies on every cold start. No `optimizeDeps` configuration existed.
+
+**Decision:** Added `optimizeDeps.include` to `vite.config.ts` with 11 heavy dependencies that are always used together in the Rocinante app:
+- react, react-dom, @dnd-kit/core, @dnd-kit/sortable, @dnd-kit/utilities, @xterm/xterm, @xterm/addon-fit, @xterm/addon-web-links, d3-force, @tanstack/react-virtual, js-yaml
+
+**Result:**
+- **Startup time:** 6144ms (down from ~9035ms)
+- **Improvement:** 32% faster
+- **Cache mechanism:** Vite caches pre-bundled deps in `node_modules/.vite`, reusing them on subsequent restarts
+
+**Rationale:** Pre-bundling large, rarely-changed dependencies upfront eliminates re-scanning overhead. These 11 packages are heavy (React, terminal emulator, D3 force layout, drag-drop kit). Esbuild is fast but still incurs per-scan overhead; this is front-loaded.
+
+**Notes:** Did not add `server.warmup` — Vite 8 does not support it. TypeScript check passes clean. No breaking changes to build or test pipeline.
+
+## Architecture (continued)
 
 ### Squad Cast Extraction (Amos + Naomi)
 - **Decision:** Extract and render squad cast members from session event descriptions and prompts
