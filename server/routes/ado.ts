@@ -5,6 +5,7 @@ import {
   clearTokenCache,
   getPullRequestsByBranches,
   getWorkItems,
+  getWorkItemsForPullRequest,
   testAdoConnection,
 } from '../services/adoClient.js';
 
@@ -134,6 +135,47 @@ adoRouter.patch('/ado/config', (req, res) => {
     organization: updated.adoOrganization,
     project: updated.adoProject,
   });
+});
+
+adoRouter.get('/ado/session-deliverables', async (req, res) => {
+  if (!isAdoConfigured()) {
+    res.status(403).json({ error: 'Azure DevOps is not configured.' });
+    return;
+  }
+
+  const branch = req.query.branch;
+  if (typeof branch !== 'string' || branch.trim() === '') {
+    res.status(400).json({ error: 'branch query parameter is required.' });
+    return;
+  }
+
+  try {
+    const pullRequests = await getPullRequestsByBranches([branch.trim()]);
+
+    const workItemResults = await Promise.allSettled(
+      pullRequests
+        .filter((pr) => pr.repositoryId)
+        .map((pr) => getWorkItemsForPullRequest(pr.repositoryId!, pr.id)),
+    );
+
+    const workItemMap = new Map<number, import('../../src/types/ado.js').AdoWorkItem>();
+    for (const result of workItemResults) {
+      if (result.status === 'fulfilled') {
+        for (const wi of result.value) {
+          workItemMap.set(wi.id, wi);
+        }
+      }
+    }
+
+    res.json({
+      pullRequests,
+      workItems: Array.from(workItemMap.values()),
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const status = isLikelyUpstreamError(error) ? 502 : 500;
+    res.status(status).json({ error: message });
+  }
 });
 
 adoRouter.post('/ado/test', async (req, res) => {
