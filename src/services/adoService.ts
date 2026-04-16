@@ -1,4 +1,4 @@
-import type { AdoWorkItem, AdoPullRequest, AdoStatus } from '../types/ado';
+import type { AdoWorkItem, AdoPullRequest, AdoStatus, SessionDeliverables } from '../types/ado';
 
 export async function getAdoStatus(): Promise<AdoStatus> {
   const res = await fetch('/api/ado/status');
@@ -30,6 +30,12 @@ export async function updateAdoConfig(config: { organization?: string; project?:
     const data = await res.json().catch(() => ({ error: 'Unknown error' }));
     throw new Error(data.error || `Failed: ${res.status}`);
   }
+  return res.json();
+}
+
+export async function getSessionDeliverables(branch: string): Promise<SessionDeliverables> {
+  const res = await fetch(`/api/ado/session-deliverables?branch=${encodeURIComponent(branch)}`);
+  if (!res.ok) throw new Error(`Failed to fetch session deliverables: ${res.status}`);
   return res.json();
 }
 
