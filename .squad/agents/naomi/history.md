@@ -48,6 +48,16 @@
 - **Solution - SessionCard memoization:** Wrapped in `React.memo` with custom comparator checking session id, status, selection, workstream, etc. Prevents re-render when parent re-renders but card props unchanged.
 - **Solution - Lazy WorkstreamAutocomplete:** SessionCard no longer mounts full autocomplete on every render. Shows simple inline pill/button; full autocomplete mounts only on edit click. Added `autoFocus`, `onEditEnd` props.
 - **Solution - List virtualization:** Installed `@tanstack/react-virtual` (~3KB gzipped, zero transitive deps). Flat list views use `useVirtualizer` with 110px row height, `measureElement`, 5-row overscan, 10px gap. Grouped view left un-virtualized (nested collapse layout doesn't map well to flat virtualization; KanbanBoard is primary view).
+
+---
+
+## Sprint 1 Assignment: Rocinante Performance Plan (2026-04-16)
+
+**Sprint 1 Task:** AbortController on session polling (0.5d). Prevent request pileup during cold start when `loadSessions()` loops. Cancel in-flight requests if a new poll is triggered before the previous completes.
+
+**Sprint 1 owners:** Amos (body-parser fix, critical), Alex (Vite deps), Bobbie (verify).
+
+**Full plan:** 3 sprints, target cold load <5s.
 - **Impact:** Clicking session only re-renders SelectionContext consumers. Polling only re-renders DataContext consumers. Scrolling large lists no longer janky.
 - **Files changed:** 17 consumer files migrated to focused hooks. `src/context/SessionContext.tsx` rewritten. SessionCard + SessionList updated. `@tanstack/react-virtual` added to package.json.
 
