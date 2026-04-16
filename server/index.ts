@@ -20,7 +20,7 @@ const allowedOrigins = (
   .split(',')
   .map((s) => s.trim());
 
-app.use(express.json());
+app.use(express.json({ limit: '2mb' }));
 
 app.use((req, res, next) => {
   const origin = req.headers.origin;
