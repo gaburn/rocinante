@@ -632,7 +632,7 @@ export default function SessionDetail() {
 
           {/* Repo path */}
           {session.cwd && (
-            <p className="font-mono text-[11px] leading-none text-fg/25 select-all truncate" title={session.cwd}>
+            <p className="font-mono text-[11px] leading-none text-fg/50 select-all truncate" title={session.cwd}>
               📂 {session.cwd}
             </p>
           )}

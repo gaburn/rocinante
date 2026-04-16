@@ -99,6 +99,8 @@ export interface PlanTask {
   id: string;
   title: string;
   description?: string;
+  checked?: boolean;
+  checkedFromFile?: boolean;
 }
 
 export interface PlanSection {
