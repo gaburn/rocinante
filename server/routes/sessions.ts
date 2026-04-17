@@ -5,7 +5,7 @@ import { generateDemoSessions, getDemoWorkstreams } from '../services/demoData.j
 import { searchConversations } from '../services/sqliteReader.js';
 import { getConfig, isAdoConfigured } from '../config.js';
 import { mcpListPullRequests, mcpGetPullRequest } from '../services/adoMcpClient.js';
-import { getPullRequestsByBranches, getWorkItemsForPullRequest } from '../services/adoClient.js';
+// REST ADO client intentionally NOT imported here — execSync blocks event loop, breaks timeout
 import type { AdoPullRequest } from '../../src/types/ado.js';
 import {
   getArchivedIds,
@@ -24,7 +24,7 @@ const ADO_ENRICHMENT_TIMEOUT_MS = 10_000;
 
 /**
  * Enrich session summaries with ADO PR and work-item counts.
- * Mutates sessions in place. Uses MCP client first, falls back to REST.
+ * Mutates sessions in place. MCP only — no REST fallback (execSync blocks event loop).
  */
 async function enrichSessionsWithAdoCounts(sessions: SessionSummary[]): Promise<void> {
   const branchSet = new Set<string>();
@@ -41,10 +41,11 @@ async function enrichSessionsWithAdoCounts(sessions: SessionSummary[]): Promise<
   const branches = Array.from(branchSet);
   console.log(`[ENRICH] ${new Date().toISOString()} starting ADO enrichment for ${branches.length} branches`);
 
-  // Step 1: Fetch PRs per branch (MCP first, REST fallback) — all branches in parallel
+  // Step 1: Fetch PRs per branch (MCP only) — all branches in parallel
   console.log(`[ENRICH] ${new Date().toISOString()} step 1: fetching PRs per branch...`);
   const branchPrResults = await Promise.allSettled(
     branches.map(async (branch): Promise<{ branch: string; prs: AdoPullRequest[] }> => {
+      // MCP only — no REST fallback in enrichment (execSync blocks event loop, breaks timeout)
       try {
         const prs = await mcpListPullRequests({
           project,
@@ -52,9 +53,9 @@ async function enrichSessionsWithAdoCounts(sessions: SessionSummary[]): Promise<
           status: 'All',
         });
         return { branch, prs };
-      } catch {
-        const prs = await getPullRequestsByBranches([branch]);
-        return { branch, prs };
+      } catch (err) {
+        console.log(`[ENRICH] ${new Date().toISOString()} skipping branch ${branch} — MCP unavailable`);
+        throw err;
       }
     }),
   );
@@ -74,6 +75,7 @@ async function enrichSessionsWithAdoCounts(sessions: SessionSummary[]): Promise<
           prs
             .filter((pr) => pr.repositoryId)
             .map(async (pr) => {
+              // MCP only — no REST fallback (execSync blocks event loop, breaks timeout)
               try {
                 const detail = await mcpGetPullRequest({
                   project,
@@ -82,9 +84,9 @@ async function enrichSessionsWithAdoCounts(sessions: SessionSummary[]): Promise<
                   includeWorkItemRefs: true,
                 });
                 return detail.workItemIds;
-              } catch {
-                const items = await getWorkItemsForPullRequest(pr.repositoryId!, pr.id);
-                return items.map((wi) => wi.id);
+              } catch (err) {
+                console.log(`[ENRICH] ${new Date().toISOString()} skipping work items for PR ${pr.id} — MCP unavailable`);
+                throw err;
               }
             }),
         );

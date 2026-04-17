@@ -185,9 +185,8 @@ describe('GET /api/sessions — ADO enrichment', () => {
     const sessions = [makeSummary('s1', { branch: 'feature/x' })];
     mockMapAllSessionSummaries.mockReturnValue(sessions);
 
-    // Both MCP and REST fail
+    // MCP fails — no REST fallback in enrichment path
     mockMcpListPullRequests.mockRejectedValue(new Error('MCP down'));
-    mockGetPullRequestsByBranches.mockRejectedValue(new Error('REST down too'));
 
     const res = await callGetSessions();
     // Should still return 200 with sessions — counts stay undefined
@@ -195,6 +194,8 @@ describe('GET /api/sessions — ADO enrichment', () => {
     const body = res.body as SessionSummary[];
     expect(body).toHaveLength(1);
     expect(body[0].id).toBe('s1');
+    // REST should NOT be called — no fallback in enrichment
+    expect(mockGetPullRequestsByBranches).not.toHaveBeenCalled();
   });
 
   it('timeout is respected — slow ADO does not block sessions', async () => {
@@ -236,25 +237,22 @@ describe('GET /api/sessions — ADO enrichment', () => {
     expect(mockGetPullRequestsByBranches).not.toHaveBeenCalled();
   });
 
-  it('falls back to REST when MCP fails for enrichment', async () => {
+  it('skips enrichment gracefully when MCP fails — no REST fallback', async () => {
     mockAdoConfigured = true;
     const sessions = [makeSummary('s1', { branch: 'feature/x' })];
     mockMapAllSessionSummaries.mockReturnValue(sessions);
 
-    // Both MCP calls fail
+    // MCP fails — enrichment should bail, not fall back to REST
     mockMcpListPullRequests.mockRejectedValue(new Error('nope'));
-    mockMcpGetPullRequest.mockRejectedValue(new Error('nope'));
-    // REST succeeds
-    mockGetPullRequestsByBranches.mockResolvedValue([
-      { id: 5, repositoryId: 'r1', title: 'PR', status: 'active', sourceBranch: 'feature/x', targetBranch: 'main', repositoryName: 'repo', createdBy: 'dev', reviewers: [], url: '' },
-    ]);
-    mockGetWorkItemsForPullRequest.mockResolvedValue([
-      { id: 20, title: 'WI', state: 'Active', assignedTo: null, workItemType: 'Task', url: '' },
-    ]);
 
     const res = await callGetSessions();
     const body = res.body as SessionSummary[];
-    expect(body[0].adoPrCount).toBe(1);
-    expect(body[0].adoWorkItemCount).toBe(1);
+    // Sessions returned without ADO counts
+    expect(res.statusCode).toBe(200);
+    expect(body[0].adoPrCount).toBeUndefined();
+    expect(body[0].adoWorkItemCount).toBeUndefined();
+    // REST should NOT be called — execSync blocks event loop, breaks timeout
+    expect(mockGetPullRequestsByBranches).not.toHaveBeenCalled();
+    expect(mockGetWorkItemsForPullRequest).not.toHaveBeenCalled();
   });
 });
