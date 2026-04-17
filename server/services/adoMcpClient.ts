@@ -34,14 +34,22 @@ let CachedStdioTransport: typeof import('@modelcontextprotocol/sdk/client/stdio.
 export async function warmupMcpSdk(): Promise<void> {
   try {
     console.log('[MCP]', new Date().toISOString(), 'pre-importing SDK at startup...');
-    const clientMod = await import('@modelcontextprotocol/sdk/client/index.js');
-    const stdioMod = await import('@modelcontextprotocol/sdk/client/stdio.js');
+    // 10s timeout — if tsx watch hangs the import, bail out
+    const clientMod = await withTimeout(
+      import('@modelcontextprotocol/sdk/client/index.js'),
+      10_000,
+      'SDK client import timed out during warmup',
+    );
+    const stdioMod = await withTimeout(
+      import('@modelcontextprotocol/sdk/client/stdio.js'),
+      10_000,
+      'SDK stdio import timed out during warmup',
+    );
     CachedClient = clientMod.Client;
     CachedStdioTransport = stdioMod.StdioClientTransport;
     console.log('[MCP]', new Date().toISOString(), 'SDK pre-imported successfully');
   } catch (err) {
-    console.log('[MCP]', new Date().toISOString(), 'SDK pre-import failed:', err instanceof Error ? err.message : String(err));
-    // Not fatal — getMcpClient will try again lazily, or fall through to REST
+    console.log('[MCP]', new Date().toISOString(), 'SDK warmup failed:', err instanceof Error ? err.message : String(err));
   }
 }
 

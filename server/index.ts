@@ -59,8 +59,10 @@ if (process.env.NODE_ENV === 'production') {
 initDatabase();
 initArchiveStore();
 
-// Pre-load MCP SDK while event loop is free (before accepting requests)
-await warmupMcpSdk();
+// Fire-and-forget — don't block server startup. MCP becomes available when it finishes.
+warmupMcpSdk().catch(() => {
+  console.log('[MCP] SDK warmup failed — MCP will use lazy import on first request');
+});
 
 const server = app.listen(config.apiPort, () => {
   if (DEBUG) console.log(`[server] API listening on port ${config.apiPort}`);
