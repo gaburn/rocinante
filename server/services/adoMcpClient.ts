@@ -2,6 +2,24 @@ import { getConfig, isAdoConfigured } from '../config.js';
 import type { AdoPullRequest, AdoWorkItem } from '../../src/types/ado.js';
 
 // ---------------------------------------------------------------------------
+// Timeout helper — races a promise against a timer so nothing hangs forever
+// ---------------------------------------------------------------------------
+
+function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(message)), ms);
+    promise.then(
+      (val) => { clearTimeout(timer); resolve(val); },
+      (err) => { clearTimeout(timer); reject(err); },
+    );
+  });
+}
+
+const CONNECTION_TIMEOUT_MS = 15_000;
+const CALL_TIMEOUT_MS = 10_000;
+const CONNECTION_COOLDOWN_MS = 60_000;
+
+// ---------------------------------------------------------------------------
 // Lightweight interfaces so we don't need the MCP SDK imported at top level.
 // The SDK is loaded lazily inside getMcpClient() to avoid blocking startup.
 // ---------------------------------------------------------------------------
@@ -71,7 +89,15 @@ let mcpClient: McpClientHandle | null = null;
 let mcpTransport: McpTransportHandle | null = null;
 let currentOrg: string | null = null;
 
+// Circuit breaker — after a connection failure, skip retries for a cooldown period
+let mcpConnectionFailed = false;
+let connectionCooldownTimer: ReturnType<typeof setTimeout> | null = null;
+
 async function getMcpClient(): Promise<McpClientHandle> {
+  if (mcpConnectionFailed) {
+    throw new McpClientError('MCP connection previously failed — skipping (cooldown active)');
+  }
+
   const config = getConfig();
   const org = config.adoOrganization;
 
@@ -112,7 +138,11 @@ async function getMcpClient(): Promise<McpClientHandle> {
       currentOrg = null;
     };
 
-    await client.connect(transport);
+    await withTimeout(
+      client.connect(transport),
+      CONNECTION_TIMEOUT_MS,
+      `MCP server connection timed out after ${CONNECTION_TIMEOUT_MS / 1000}s. The @azure-devops/mcp server may need to be installed first — run "npx -y @azure-devops/mcp" manually to verify.`,
+    );
 
     mcpClient = client as unknown as McpClientHandle;
     mcpTransport = transport as unknown as McpTransportHandle;
@@ -122,6 +152,15 @@ async function getMcpClient(): Promise<McpClientHandle> {
     mcpClient = null;
     mcpTransport = null;
     currentOrg = null;
+
+    // Activate circuit breaker — prevent retry storm for cooldown period
+    mcpConnectionFailed = true;
+    if (connectionCooldownTimer) clearTimeout(connectionCooldownTimer);
+    connectionCooldownTimer = setTimeout(() => {
+      mcpConnectionFailed = false;
+      connectionCooldownTimer = null;
+    }, CONNECTION_COOLDOWN_MS);
+
     const message = err instanceof Error ? err.message : String(err);
     throw new McpClientError(
       `Failed to start ADO MCP server. Ensure npx and Node.js are available. Error: ${message}`,
@@ -147,6 +186,11 @@ export async function shutdownMcpClient(): Promise<void> {
   mcpClient = null;
   mcpTransport = null;
   currentOrg = null;
+  mcpConnectionFailed = false;
+  if (connectionCooldownTimer) {
+    clearTimeout(connectionCooldownTimer);
+    connectionCooldownTimer = null;
+  }
   cache.clear();
 }
 
@@ -180,9 +224,17 @@ function parseToolResult(result: ToolResult): unknown {
 async function callTool(name: string, args: Record<string, unknown>): Promise<unknown> {
   const client = await getMcpClient();
   try {
-    const result = await client.callTool({ name, arguments: args });
+    const result = await withTimeout(
+      client.callTool({ name, arguments: args }),
+      CALL_TIMEOUT_MS,
+      `MCP tool "${name}" timed out after ${CALL_TIMEOUT_MS / 1000}s`,
+    );
     return parseToolResult(result);
   } catch (err) {
+    // If it timed out, tear down the client so next call retries fresh
+    if (err instanceof Error && err.message.includes('timed out')) {
+      await shutdownMcpClient();
+    }
     const message = err instanceof Error ? err.message : String(err);
     throw new McpClientError(`MCP tool "${name}" failed: ${message}`);
   }
