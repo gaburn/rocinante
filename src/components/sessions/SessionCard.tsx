@@ -221,7 +221,7 @@ const SessionCard = memo(function SessionCard({
           </span>
         )}
         {((session.adoPrCount ?? 0) > 0 || (session.adoWorkItemCount ?? 0) > 0) && (
-          <span className="text-[10px] font-mono text-fg/25" aria-label="Deliverables">
+          <span className="text-[10px] font-mono text-fg/25" aria-label="ADO">
             🔗{' '}
             {[
               (session.adoPrCount ?? 0) > 0 ? `${session.adoPrCount} PR${session.adoPrCount === 1 ? '' : 's'}` : null,

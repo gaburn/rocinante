@@ -952,7 +952,7 @@ export default function SessionDetail() {
                   <path d="M5 6l3 3 3-3" />
                 </svg>
                 <h3 className="font-mono text-[11px] font-medium uppercase tracking-widest text-fg/60">
-                  Deliverables
+                  ADO
                 </h3>
                 {!deliverables.isLoading && deliverablesCount > 0 && (
                   <span className="font-mono text-[11px] tabular-nums text-fg/20">
@@ -970,7 +970,7 @@ export default function SessionDetail() {
                   {deliverables.isLoading && deliverablesCount === 0 && (
                     <div className="flex items-center gap-2 py-3">
                       <div className="h-3 w-3 animate-spin rounded-full border border-fg/10 border-t-fg/30" />
-                      <span className="font-mono text-[11px] text-fg/50">Loading deliverables…</span>
+                      <span className="font-mono text-[11px] text-fg/50">Loading ADO data…</span>
                     </div>
                   )}
 
@@ -1005,7 +1005,7 @@ export default function SessionDetail() {
                   {/* Empty state */}
                   {!deliverables.isLoading && !deliverables.error && deliverablesCount === 0 && (
                     <p className="py-2 font-mono text-[11px] text-fg/50">
-                      No deliverables found
+                      No ADO data found
                     </p>
                   )}
 
