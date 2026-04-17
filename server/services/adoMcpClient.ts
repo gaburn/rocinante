@@ -24,7 +24,7 @@ const CONNECTION_COOLDOWN_MS = 60_000;
 // under tsx watch. Skip MCP entirely when running via tsx.
 // ---------------------------------------------------------------------------
 
-const isTsxWatch = process.argv.some(arg => arg.includes('tsx'));
+const isTsxWatch = process.execArgv.some(arg => arg.includes('tsx'));
 
 // ---------------------------------------------------------------------------
 // Lightweight interfaces so we don't need the MCP SDK imported at top level.
