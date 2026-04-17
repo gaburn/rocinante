@@ -20,8 +20,33 @@ const CALL_TIMEOUT_MS = 10_000;
 const CONNECTION_COOLDOWN_MS = 60_000;
 
 // ---------------------------------------------------------------------------
+// Pre-loaded SDK modules — populated by warmupMcpSdk(), used by initMcpClient()
+// ---------------------------------------------------------------------------
+
+let CachedClient: typeof import('@modelcontextprotocol/sdk/client/index.js').Client | null = null;
+let CachedStdioTransport: typeof import('@modelcontextprotocol/sdk/client/stdio.js').StdioClientTransport | null = null;
+
+/**
+ * Pre-import the MCP SDK at startup while the event loop is idle.
+ * Call this BEFORE app.listen() so the modules are cached in memory
+ * and initMcpClient() never needs a dynamic import under load.
+ */
+export async function warmupMcpSdk(): Promise<void> {
+  try {
+    console.log('[MCP]', new Date().toISOString(), 'pre-importing SDK at startup...');
+    const clientMod = await import('@modelcontextprotocol/sdk/client/index.js');
+    const stdioMod = await import('@modelcontextprotocol/sdk/client/stdio.js');
+    CachedClient = clientMod.Client;
+    CachedStdioTransport = stdioMod.StdioClientTransport;
+    console.log('[MCP]', new Date().toISOString(), 'SDK pre-imported successfully');
+  } catch (err) {
+    console.log('[MCP]', new Date().toISOString(), 'SDK pre-import failed:', err instanceof Error ? err.message : String(err));
+    // Not fatal — getMcpClient will try again lazily, or fall through to REST
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Lightweight interfaces so we don't need the MCP SDK imported at top level.
-// The SDK is loaded lazily inside getMcpClient() to avoid blocking startup.
 // ---------------------------------------------------------------------------
 
 interface McpClientHandle {
@@ -148,10 +173,21 @@ async function getMcpClient(): Promise<McpClientHandle> {
 
 // Separate async function so we can wrap it in withTimeout
 async function initMcpClient(org: string): Promise<McpClientHandle> {
-  console.log(`[MCP] ${new Date().toISOString()} importing SDK...`);
-  const { Client } = await import('@modelcontextprotocol/sdk/client/index.js');
-  const { StdioClientTransport } = await import('@modelcontextprotocol/sdk/client/stdio.js');
-  console.log(`[MCP] ${new Date().toISOString()} SDK imported`);
+  let Client: typeof import('@modelcontextprotocol/sdk/client/index.js').Client;
+  let StdioClientTransport: typeof import('@modelcontextprotocol/sdk/client/stdio.js').StdioClientTransport;
+
+  if (CachedClient && CachedStdioTransport) {
+    console.log(`[MCP] ${new Date().toISOString()} using pre-imported SDK`);
+    Client = CachedClient;
+    StdioClientTransport = CachedStdioTransport;
+  } else {
+    console.log(`[MCP] ${new Date().toISOString()} importing SDK (not pre-cached)...`);
+    const clientMod = await import('@modelcontextprotocol/sdk/client/index.js');
+    const stdioMod = await import('@modelcontextprotocol/sdk/client/stdio.js');
+    Client = clientMod.Client;
+    StdioClientTransport = stdioMod.StdioClientTransport;
+    console.log(`[MCP] ${new Date().toISOString()} SDK imported`);
+  }
 
   console.log(`[MCP] ${new Date().toISOString()} creating transport...`);
   const transport = new StdioClientTransport({

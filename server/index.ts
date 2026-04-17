@@ -5,7 +5,7 @@ import { getConfig } from './config.js';
 import { initDatabase, closeDatabase } from './services/sqliteReader.js';
 import { initArchiveStore } from './services/archiveStore.js';
 import { killAllPtys } from './services/ptyManager.js';
-import { shutdownMcpClient } from './services/adoMcpClient.js';
+import { shutdownMcpClient, warmupMcpSdk } from './services/adoMcpClient.js';
 import sessionsRouter from './routes/sessions.js';
 import configRouter from './routes/config.js';
 import adoRouter from './routes/ado.js';
@@ -58,6 +58,9 @@ if (process.env.NODE_ENV === 'production') {
 
 initDatabase();
 initArchiveStore();
+
+// Pre-load MCP SDK while event loop is free (before accepting requests)
+await warmupMcpSdk();
 
 const server = app.listen(config.apiPort, () => {
   if (DEBUG) console.log(`[server] API listening on port ${config.apiPort}`);
