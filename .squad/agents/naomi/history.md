@@ -49,8 +49,11 @@ See `history-archive.md` for detailed notes from 2025-07 through 2026-04-15 (pru
 - **Styling helpers:** Duplicated badge functions as file-local (prefixed `deliverable*`) to avoid coupling to WorkstreamDetail. Extract to shared utils on 3rd consumer.
 - **Validation:** 233 tests passing, eslint clean, no new TypeScript errors.
 
-### AbortController on Session Polling (Sprint 1 — H3) (2026-04-16)
-- **Problem:** `loadSessions()` polls on an interval but didn't abort prior in-flight requests. During cold start (slow server), multiple requests queue and stale responses arrive out-of-order causing UI flicker.
-- **Fix:** Added `loadSessionsAbortRef` (mirrors existing `searchAbortRef` pattern). Before each `loadSessions()` call, previous in-flight request is aborted via `AbortController.abort()`. Signal is passed to both `getSessions()` and `getSessionById()`. AbortErrors are silently ignored (a newer request has taken over). `finally` block only clears `isLoading` if the controller is still current — prevents premature loading-state reset when superseded. Unmount cleanup effect aborts any pending request.
-- **Service layer:** Added optional `signal?: AbortSignal` parameter to `getSessions()` and `getSessionById()` in `sessionService.ts`, forwarded to `fetch()`.
-- **Tests:** 7 new tests in `useSessionsAbort.test.ts` covering: signal passing, abort-on-re-call, abort-on-unmount, non-abort error propagation, fresh controller per call, rapid sequential calls (only last wins). All 195 tests pass. TypeScript clean.
+### Kanban Tile Deliverable Badges — T7 (2026-07)
+- **What:** Added inline deliverable badges to `SessionCard.tsx` showing ADO PR and work item counts when available.
+- **Type changes:** Added `adoPrCount?: number` and `adoWorkItemCount?: number` to `SessionSummary` in `src/types/index.ts`.
+- **Badge logic:** Conditional render — only when at least one count > 0. Handles PR-only, WI-only, and both cases with `·` separator. Pluralization handled inline.
+- **Styling:** `text-[10px] font-mono text-fg/25` — very muted, consistent with existing meta row elements (time-ago, agent count).
+- **Position:** In the meta row, between compaction indicator and the `ml-auto` source/agent section.
+- **Memo:** Added `adoPrCount` and `adoWorkItemCount` to the memo comparator so tile re-renders when counts change.
+- **Validation:** 233 tests passing, eslint clean, no new TS errors.

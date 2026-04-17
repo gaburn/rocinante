@@ -50,7 +50,7 @@ See `history-archive.md` for detailed notes on all 2026-04 implementation work.
 
 ---
 
-## Sprint 1 Assignment: Rocinante Performance Plan (2026-04-16)
+**Sprint 1 Assignment: Rocinante Performance Plan (2026-04-16)**
 
 **Critical Path:** Fix `express.json()` body-parser limit (0.25d). Archive sync payload (1787 UUIDs) exceeds 100KB default. Changing to 2MB limit unblocks all downstream caching and archive-filtering work.
 
@@ -60,3 +60,13 @@ See `history-archive.md` for detailed notes on all 2026-04 implementation work.
 3. Bounded caches w/ LRU eviction (Sprint 2, 0.5d)
 
 **Full plan:** 3 sprints, target cold load <5s. Naomi owns AbortController polling, Alex owns Vite deps caching.
+
+---
+
+## 2026-07 MCP Integration Sprint
+
+**ADO MCP Client Integration (2026-07):** Created `server/services/adoMcpClient.ts` — a typed MCP client wrapper that spawns `@azure-devops/mcp` as a stdio subprocess via `npx -y @azure-devops/mcp {org} -d core repositories work-items`. Uses `@modelcontextprotocol/sdk` `Client` + `StdioClientTransport`. Lazy singleton pattern (one client per org), auto-reconnects if subprocess dies, 5-min response cache. Exports: `mcpListPullRequests`, `mcpGetPullRequest`, `mcpGetWorkItemsBatch`, `mcpTestConnection`, `shutdownMcpClient`, `clearMcpCache`. Refactored `GET /api/ado/session-deliverables` in `server/routes/ado.ts` to MCP-first with REST fallback — if MCP client fails to init (e.g., npx unavailable), catches and falls through to existing `adoClient.ts` direct REST functions. Wired `shutdownMcpClient()` into `server/index.ts` graceful shutdown. Key design: `@azure-devops/mcp` is NOT a project dependency — it's a standalone MCP server invoked via npx at runtime. Only `@modelcontextprotocol/sdk` is installed (^1.29.0). 233 tests pass, eslint clean, server tsc clean.
+
+**Session Deliverables Endpoint + PR Work Items (2026-07):** Added `getWorkItemsForPullRequest(repositoryId, prId)` to `server/services/adoClient.ts` — fetches work item refs from the PR endpoint, extracts IDs, batch-fetches full details via existing `getWorkItems()`. Uses `cachedFetch` (5-min TTL), handles 404 gracefully (returns []). Added `repositoryId` to `AdoPullRequest` type and PR mapping. New `GET /api/ado/session-deliverables?branch=` endpoint in `server/routes/ado.ts` fetches PRs for a branch, collects linked work items across all PRs (deduped by ID), returns `{ pullRequests, workItems }`. Added `SessionDeliverables` interface to `src/types/ado.ts`. 233 tests pass, eslint clean, server tsc clean.
+
+**ADO Session Summary Enrichment (2026-07):** Added inline ADO deliverable counts to `GET /api/sessions` response. `enrichSessionsWithAdoCounts()` in `server/routes/sessions.ts` collects unique branches from sessions, fetches PRs per branch (MCP-first via `mcpListPullRequests`, REST fallback via `getPullRequestsByBranches`), then fetches work-item IDs per PR (`mcpGetPullRequest` with `includeWorkItemRefs: true`, REST fallback via `getWorkItemsForPullRequest`). Builds `Map<branch, {prCount, workItemCount}>` and stamps `adoPrCount`/`adoWorkItemCount` on each session. Key safeguards: (1) `isAdoConfigured()` gate — zero overhead for non-ADO users, (2) `Promise.allSettled` for all branch and PR lookups, (3) 10s timeout via `Promise.race` — enrichment silently skipped on timeout/error, (4) handler converted to async but runs synchronously when ADO not configured (tests remain sync-compatible). Updated `sessionsCache.test.ts` with mocks for `isAdoConfigured`, `adoMcpClient`, and `adoClient`. 233 tests pass, eslint clean, server tsc clean.
