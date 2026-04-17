@@ -3,10 +3,7 @@ import { mapAllSessionSummaries, mapSessionById } from '../services/sessionMappe
 import { readSessionPlan } from '../services/planReader.js';
 import { generateDemoSessions, getDemoWorkstreams } from '../services/demoData.js';
 import { searchConversations } from '../services/sqliteReader.js';
-import { getConfig, isAdoConfigured } from '../config.js';
-import { mcpListPullRequests, mcpGetPullRequest } from '../services/adoMcpClient.js';
-// REST ADO client intentionally NOT imported here — execSync blocks event loop, breaks timeout
-import type { AdoPullRequest } from '../../src/types/ado.js';
+import { getConfig } from '../config.js';
 import {
   getArchivedIds,
   setArchivedIds,
@@ -18,116 +15,6 @@ import {
 import type { SessionSummary } from '../../src/types/index.js';
 
 const sessionsRouter = Router();
-
-/* ── ADO enrichment for session summaries ─────────────────────── */
-const ADO_ENRICHMENT_TIMEOUT_MS = 10_000;
-
-/**
- * Enrich session summaries with ADO PR and work-item counts.
- * Mutates sessions in place. MCP only — no REST fallback (execSync blocks event loop).
- */
-async function enrichSessionsWithAdoCounts(sessions: SessionSummary[]): Promise<void> {
-  const branchSet = new Set<string>();
-  for (const s of sessions) {
-    if (s.branch) branchSet.add(s.branch);
-  }
-  if (branchSet.size === 0) {
-    console.log(`[ENRICH] ${new Date().toISOString()} no branches to enrich — skipping`);
-    return;
-  }
-
-  const config = getConfig();
-  const project = config.adoProject;
-  const branches = Array.from(branchSet);
-  console.log(`[ENRICH] ${new Date().toISOString()} starting ADO enrichment for ${branches.length} branches`);
-
-  // Step 1: Fetch PRs per branch (MCP only) — all branches in parallel
-  console.log(`[ENRICH] ${new Date().toISOString()} step 1: fetching PRs per branch...`);
-  const branchPrResults = await Promise.allSettled(
-    branches.map(async (branch): Promise<{ branch: string; prs: AdoPullRequest[] }> => {
-      // MCP only — no REST fallback in enrichment (execSync blocks event loop, breaks timeout)
-      try {
-        const prs = await mcpListPullRequests({
-          project,
-          sourceRefName: `refs/heads/${branch}`,
-          status: 'All',
-        });
-        return { branch, prs };
-      } catch (err) {
-        console.log(`[ENRICH] ${new Date().toISOString()} skipping branch ${branch} — MCP unavailable`);
-        throw err;
-      }
-    }),
-  );
-  console.log(`[ENRICH] ${new Date().toISOString()} step 1 complete: ${branchPrResults.filter((r) => r.status === 'fulfilled').length}/${branchPrResults.length} succeeded`);
-
-  // Step 2: For each branch's PRs, fetch work-item IDs — all branches in parallel
-  console.log(`[ENRICH] ${new Date().toISOString()} step 2: fetching work-item IDs...`);
-  const countResults = await Promise.allSettled(
-    branchPrResults
-      .filter((r): r is PromiseFulfilledResult<{ branch: string; prs: AdoPullRequest[] }> =>
-        r.status === 'fulfilled')
-      .map(async (r) => {
-        const { branch, prs } = r.value;
-        const workItemIds = new Set<number>();
-
-        const wiResults = await Promise.allSettled(
-          prs
-            .filter((pr) => pr.repositoryId)
-            .map(async (pr) => {
-              // MCP only — no REST fallback (execSync blocks event loop, breaks timeout)
-              try {
-                const detail = await mcpGetPullRequest({
-                  project,
-                  repositoryId: pr.repositoryId!,
-                  pullRequestId: pr.id,
-                  includeWorkItemRefs: true,
-                });
-                return detail.workItemIds;
-              } catch (err) {
-                console.log(`[ENRICH] ${new Date().toISOString()} skipping work items for PR ${pr.id} — MCP unavailable`);
-                throw err;
-              }
-            }),
-        );
-
-        for (const wiResult of wiResults) {
-          if (wiResult.status === 'fulfilled') {
-            for (const id of wiResult.value) {
-              workItemIds.add(id);
-            }
-          }
-        }
-
-        return { branch, prCount: prs.length, workItemCount: workItemIds.size };
-      }),
-  );
-  console.log(`[ENRICH] ${new Date().toISOString()} step 2 complete: ${countResults.filter((r) => r.status === 'fulfilled').length}/${countResults.length} succeeded`);
-
-  // Step 3: Build branch → counts map and stamp sessions
-  const branchCountMap = new Map<string, { prCount: number; workItemCount: number }>();
-  for (const result of countResults) {
-    if (result.status === 'fulfilled') {
-      branchCountMap.set(result.value.branch, {
-        prCount: result.value.prCount,
-        workItemCount: result.value.workItemCount,
-      });
-    }
-  }
-
-  for (const session of sessions) {
-    if (session.branch) {
-      const counts = branchCountMap.get(session.branch);
-      if (counts) {
-        session.adoPrCount = counts.prCount;
-        session.adoWorkItemCount = counts.workItemCount;
-      }
-    }
-  }
-  console.log(`[ENRICH] ${new Date().toISOString()} enrichment complete — stamped ${branchCountMap.size} branches`);
-}
-
-/* ── Response cache for GET /api/sessions ─────────────────────── */
 let responseCache: { data: SessionSummary[]; expires: number; includeArchived: boolean } | null = null;
 
 /** Invalidate the response cache (e.g., after a write-path event). */
@@ -159,21 +46,11 @@ sessionsRouter.get('/sessions', async (req, res) => {
 
     const sessions = mapAllSessionSummaries(excludeIds);
 
-    // Enrich with ADO deliverable counts when configured
-    if (isAdoConfigured()) {
-      console.log(`[ENRICH] ${new Date().toISOString()} GET /api/sessions — ADO configured, starting enrichment (timeout ${ADO_ENRICHMENT_TIMEOUT_MS}ms)`);
-      try {
-        await Promise.race([
-          enrichSessionsWithAdoCounts(sessions),
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('ADO enrichment timeout')), ADO_ENRICHMENT_TIMEOUT_MS),
-          ),
-        ]);
-        console.log(`[ENRICH] ${new Date().toISOString()} GET /api/sessions — enrichment finished within timeout`);
-      } catch (enrichErr) {
-        console.log(`[ENRICH] ${new Date().toISOString()} GET /api/sessions — enrichment failed/timed out:`, enrichErr instanceof Error ? enrichErr.message : String(enrichErr));
-      }
-    }
+    // ADO enrichment disabled — the MCP SDK dynamic import blocks the Node.js
+    // event loop under tsx watch, and the REST fallback uses execSync which also
+    // blocks. Deliverables are available per-session via the useSessionDeliverables
+    // hook and GET /api/ado/session-deliverables?branch=X endpoint instead.
+    // TODO: Re-enable when running with compiled JS (node dist/) in production.
 
     const { cacheTtlMs } = getConfig();
     responseCache = { data: sessions, expires: now + cacheTtlMs, includeArchived };
