@@ -3,7 +3,10 @@ import { mapAllSessionSummaries, mapSessionById } from '../services/sessionMappe
 import { readSessionPlan } from '../services/planReader.js';
 import { generateDemoSessions, getDemoWorkstreams } from '../services/demoData.js';
 import { searchConversations } from '../services/sqliteReader.js';
-import { getConfig } from '../config.js';
+import { getConfig, isAdoConfigured } from '../config.js';
+import { mcpListPullRequests, mcpGetPullRequest } from '../services/adoMcpClient.js';
+import { getPullRequestsByBranches, getWorkItemsForPullRequest } from '../services/adoClient.js';
+import type { AdoPullRequest } from '../../src/types/ado.js';
 import {
   getArchivedIds,
   setArchivedIds,
@@ -16,6 +19,103 @@ import type { SessionSummary } from '../../src/types/index.js';
 
 const sessionsRouter = Router();
 
+/* ── ADO enrichment for session summaries ─────────────────────── */
+const ADO_ENRICHMENT_TIMEOUT_MS = 10_000;
+
+/**
+ * Enrich session summaries with ADO PR and work-item counts.
+ * Mutates sessions in place. Uses MCP client first, falls back to REST.
+ */
+async function enrichSessionsWithAdoCounts(sessions: SessionSummary[]): Promise<void> {
+  const branchSet = new Set<string>();
+  for (const s of sessions) {
+    if (s.branch) branchSet.add(s.branch);
+  }
+  if (branchSet.size === 0) return;
+
+  const config = getConfig();
+  const project = config.adoProject;
+  const branches = Array.from(branchSet);
+
+  // Step 1: Fetch PRs per branch (MCP first, REST fallback) — all branches in parallel
+  const branchPrResults = await Promise.allSettled(
+    branches.map(async (branch): Promise<{ branch: string; prs: AdoPullRequest[] }> => {
+      try {
+        const prs = await mcpListPullRequests({
+          project,
+          sourceRefName: `refs/heads/${branch}`,
+          status: 'All',
+        });
+        return { branch, prs };
+      } catch {
+        const prs = await getPullRequestsByBranches([branch]);
+        return { branch, prs };
+      }
+    }),
+  );
+
+  // Step 2: For each branch's PRs, fetch work-item IDs — all branches in parallel
+  const countResults = await Promise.allSettled(
+    branchPrResults
+      .filter((r): r is PromiseFulfilledResult<{ branch: string; prs: AdoPullRequest[] }> =>
+        r.status === 'fulfilled')
+      .map(async (r) => {
+        const { branch, prs } = r.value;
+        const workItemIds = new Set<number>();
+
+        const wiResults = await Promise.allSettled(
+          prs
+            .filter((pr) => pr.repositoryId)
+            .map(async (pr) => {
+              try {
+                const detail = await mcpGetPullRequest({
+                  project,
+                  repositoryId: pr.repositoryId!,
+                  pullRequestId: pr.id,
+                  includeWorkItemRefs: true,
+                });
+                return detail.workItemIds;
+              } catch {
+                const items = await getWorkItemsForPullRequest(pr.repositoryId!, pr.id);
+                return items.map((wi) => wi.id);
+              }
+            }),
+        );
+
+        for (const wiResult of wiResults) {
+          if (wiResult.status === 'fulfilled') {
+            for (const id of wiResult.value) {
+              workItemIds.add(id);
+            }
+          }
+        }
+
+        return { branch, prCount: prs.length, workItemCount: workItemIds.size };
+      }),
+  );
+
+  // Step 3: Build branch → counts map and stamp sessions
+  const branchCountMap = new Map<string, { prCount: number; workItemCount: number }>();
+  for (const result of countResults) {
+    if (result.status === 'fulfilled') {
+      branchCountMap.set(result.value.branch, {
+        prCount: result.value.prCount,
+        workItemCount: result.value.workItemCount,
+      });
+    }
+  }
+
+  for (const session of sessions) {
+    if (session.branch) {
+      const counts = branchCountMap.get(session.branch);
+      if (counts) {
+        session.adoPrCount = counts.prCount;
+        session.adoWorkItemCount = counts.workItemCount;
+      }
+    }
+  }
+}
+
 /* ── Response cache for GET /api/sessions ─────────────────────── */
 let responseCache: { data: SessionSummary[]; expires: number; includeArchived: boolean } | null = null;
 
@@ -24,7 +124,7 @@ export function invalidateSessionsCache(): void {
   responseCache = null;
 }
 
-sessionsRouter.get('/sessions', (req, res) => {
+sessionsRouter.get('/sessions', async (req, res) => {
   try {
     if (process.env.DEMO_MODE === 'true') {
       const sessions = generateDemoSessions();
@@ -47,6 +147,20 @@ sessionsRouter.get('/sessions', (req, res) => {
       : undefined;
 
     const sessions = mapAllSessionSummaries(excludeIds);
+
+    // Enrich with ADO deliverable counts when configured
+    if (isAdoConfigured()) {
+      try {
+        await Promise.race([
+          enrichSessionsWithAdoCounts(sessions),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('ADO enrichment timeout')), ADO_ENRICHMENT_TIMEOUT_MS),
+          ),
+        ]);
+      } catch {
+        // ADO enrichment failed or timed out — skip silently, counts stay undefined
+      }
+    }
 
     const { cacheTtlMs } = getConfig();
     responseCache = { data: sessions, expires: now + cacheTtlMs, includeArchived };

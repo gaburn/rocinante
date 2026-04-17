@@ -52,7 +52,18 @@ vi.mock('../../config.js', () => ({
     sessionStateDir: '/mock/session-state',
     staleThresholdMs: 300000,
   })),
+  isAdoConfigured: vi.fn(() => false),
   CACHE_TTL_MS: 10000,
+}));
+
+vi.mock('../../services/adoMcpClient.js', () => ({
+  mcpListPullRequests: vi.fn(),
+  mcpGetPullRequest: vi.fn(),
+}));
+
+vi.mock('../../services/adoClient.js', () => ({
+  getPullRequestsByBranches: vi.fn(),
+  getWorkItemsForPullRequest: vi.fn(),
 }));
 
 import type { SessionSummary } from '../../../src/types/index.js';
