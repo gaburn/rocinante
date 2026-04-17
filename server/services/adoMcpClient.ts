@@ -281,6 +281,15 @@ function normalizeBranch(refName: string | undefined): string {
   return refName.replace(/^refs\/heads\//, '');
 }
 
+function buildPrUrl(webUrl: string | undefined, repoName: string | undefined, prId: number): string {
+  if (webUrl) {
+    return `${webUrl}/pullrequest/${prId}`;
+  }
+  const config = getConfig();
+  const repoSegment = repoName ? `${repoName}/` : '';
+  return `https://dev.azure.com/${config.adoOrganization}/${config.adoProject}/_git/${repoSegment}pullrequest/${prId}`;
+}
+
 // ---------------------------------------------------------------------------
 // Typed wrapper methods
 // ---------------------------------------------------------------------------
@@ -455,8 +464,6 @@ function mapPullRequest(item: Record<string, unknown>): AdoPullRequest {
       displayName: (r.displayName as string) ?? '',
       vote: typeof r.vote === 'number' ? r.vote : 0,
     })),
-    url: repo.webUrl
-      ? `${repo.webUrl}/pullrequest/${item.pullRequestId}`
-      : '',
+    url: buildPrUrl(repo.webUrl as string | undefined, repo.name as string | undefined, (item.pullRequestId as number) ?? 0),
   };
 }

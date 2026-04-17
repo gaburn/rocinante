@@ -219,6 +219,15 @@ function normalizeBranch(refName: string | undefined): string {
   return refName.replace(/^refs\/heads\//, '');
 }
 
+function buildPrUrl(webUrl: string | undefined, repoName: string | undefined, prId: number): string {
+  if (webUrl) {
+    return `${webUrl}/pullrequest/${prId}`;
+  }
+  const config = getConfig();
+  const repoSegment = repoName ? `${repoName}/` : '';
+  return `https://dev.azure.com/${config.adoOrganization}/${config.adoProject}/_git/${repoSegment}pullrequest/${prId}`;
+}
+
 export async function getPullRequestsByBranches(branches: string[]): Promise<AdoPullRequest[]> {
   if (branches.length === 0) {
     return [];
@@ -257,7 +266,7 @@ export async function getPullRequestsByBranches(branches: string[]): Promise<Ado
           displayName: reviewer.displayName ?? '',
           vote: typeof reviewer.vote === 'number' ? reviewer.vote : 0,
         })),
-        url: `${pr.repository?.webUrl ?? ''}/pullrequest/${pr.pullRequestId}`,
+        url: buildPrUrl(pr.repository?.webUrl, pr.repository?.name, pr.pullRequestId),
       });
     }
   }
