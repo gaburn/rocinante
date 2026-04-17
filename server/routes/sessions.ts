@@ -31,13 +31,18 @@ async function enrichSessionsWithAdoCounts(sessions: SessionSummary[]): Promise<
   for (const s of sessions) {
     if (s.branch) branchSet.add(s.branch);
   }
-  if (branchSet.size === 0) return;
+  if (branchSet.size === 0) {
+    console.log(`[ENRICH] ${new Date().toISOString()} no branches to enrich — skipping`);
+    return;
+  }
 
   const config = getConfig();
   const project = config.adoProject;
   const branches = Array.from(branchSet);
+  console.log(`[ENRICH] ${new Date().toISOString()} starting ADO enrichment for ${branches.length} branches`);
 
   // Step 1: Fetch PRs per branch (MCP first, REST fallback) — all branches in parallel
+  console.log(`[ENRICH] ${new Date().toISOString()} step 1: fetching PRs per branch...`);
   const branchPrResults = await Promise.allSettled(
     branches.map(async (branch): Promise<{ branch: string; prs: AdoPullRequest[] }> => {
       try {
@@ -53,8 +58,10 @@ async function enrichSessionsWithAdoCounts(sessions: SessionSummary[]): Promise<
       }
     }),
   );
+  console.log(`[ENRICH] ${new Date().toISOString()} step 1 complete: ${branchPrResults.filter((r) => r.status === 'fulfilled').length}/${branchPrResults.length} succeeded`);
 
   // Step 2: For each branch's PRs, fetch work-item IDs — all branches in parallel
+  console.log(`[ENRICH] ${new Date().toISOString()} step 2: fetching work-item IDs...`);
   const countResults = await Promise.allSettled(
     branchPrResults
       .filter((r): r is PromiseFulfilledResult<{ branch: string; prs: AdoPullRequest[] }> =>
@@ -93,6 +100,7 @@ async function enrichSessionsWithAdoCounts(sessions: SessionSummary[]): Promise<
         return { branch, prCount: prs.length, workItemCount: workItemIds.size };
       }),
   );
+  console.log(`[ENRICH] ${new Date().toISOString()} step 2 complete: ${countResults.filter((r) => r.status === 'fulfilled').length}/${countResults.length} succeeded`);
 
   // Step 3: Build branch → counts map and stamp sessions
   const branchCountMap = new Map<string, { prCount: number; workItemCount: number }>();
@@ -114,6 +122,7 @@ async function enrichSessionsWithAdoCounts(sessions: SessionSummary[]): Promise<
       }
     }
   }
+  console.log(`[ENRICH] ${new Date().toISOString()} enrichment complete — stamped ${branchCountMap.size} branches`);
 }
 
 /* ── Response cache for GET /api/sessions ─────────────────────── */
@@ -150,6 +159,7 @@ sessionsRouter.get('/sessions', async (req, res) => {
 
     // Enrich with ADO deliverable counts when configured
     if (isAdoConfigured()) {
+      console.log(`[ENRICH] ${new Date().toISOString()} GET /api/sessions — ADO configured, starting enrichment (timeout ${ADO_ENRICHMENT_TIMEOUT_MS}ms)`);
       try {
         await Promise.race([
           enrichSessionsWithAdoCounts(sessions),
@@ -157,8 +167,9 @@ sessionsRouter.get('/sessions', async (req, res) => {
             setTimeout(() => reject(new Error('ADO enrichment timeout')), ADO_ENRICHMENT_TIMEOUT_MS),
           ),
         ]);
-      } catch {
-        // ADO enrichment failed or timed out — skip silently, counts stay undefined
+        console.log(`[ENRICH] ${new Date().toISOString()} GET /api/sessions — enrichment finished within timeout`);
+      } catch (enrichErr) {
+        console.log(`[ENRICH] ${new Date().toISOString()} GET /api/sessions — enrichment failed/timed out:`, enrichErr instanceof Error ? enrichErr.message : String(enrichErr));
       }
     }
 

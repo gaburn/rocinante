@@ -143,6 +143,8 @@ adoRouter.patch('/ado/config', (req, res) => {
 });
 
 adoRouter.get('/ado/session-deliverables', async (req, res) => {
+  console.log(`[ADO] ${new Date().toISOString()} session-deliverables hit, branch:`, req.query.branch);
+
   if (!isAdoConfigured()) {
     res.status(403).json({ error: 'Azure DevOps is not configured.' });
     return;
@@ -159,18 +161,23 @@ adoRouter.get('/ado/session-deliverables', async (req, res) => {
   const trimmedBranch = branch.trim();
 
   // Try MCP path first, fall back to direct REST on failure
+  console.log(`[ADO] ${new Date().toISOString()} trying MCP path...`);
   try {
     const result = await fetchDeliverablesViaMcp(project, trimmedBranch);
+    console.log(`[ADO] ${new Date().toISOString()} MCP path succeeded:`, result.pullRequests.length, 'PRs,', result.workItems.length, 'WIs');
     res.json(result);
     return;
-  } catch {
-    // MCP unavailable — fall through to REST
+  } catch (err) {
+    console.log(`[ADO] ${new Date().toISOString()} MCP path failed:`, err instanceof Error ? err.message : String(err));
   }
 
+  console.log(`[ADO] ${new Date().toISOString()} trying REST path...`);
   try {
     const result = await fetchDeliverablesViaRest(trimmedBranch);
+    console.log(`[ADO] ${new Date().toISOString()} REST path succeeded:`, result.pullRequests.length, 'PRs,', result.workItems.length, 'WIs');
     res.json(result);
   } catch (error) {
+    console.log(`[ADO] ${new Date().toISOString()} REST path failed:`, error instanceof Error ? error.message : String(error));
     const message = error instanceof Error ? error.message : String(error);
     const status = isLikelyUpstreamError(error) ? 502 : 500;
     res.status(status).json({ error: message });

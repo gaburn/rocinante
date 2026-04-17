@@ -94,12 +94,16 @@ let mcpConnectionFailed = false;
 let connectionCooldownTimer: ReturnType<typeof setTimeout> | null = null;
 
 async function getMcpClient(): Promise<McpClientHandle> {
+  console.log(`[MCP] ${new Date().toISOString()} getMcpClient called`, { mcpConnectionFailed, hasClient: !!mcpClient, currentOrg });
+
   if (mcpConnectionFailed) {
+    console.log(`[MCP] ${new Date().toISOString()} circuit breaker active — skipping`);
     throw new McpClientError('MCP connection previously failed — skipping (cooldown active)');
   }
 
   const config = getConfig();
   const org = config.adoOrganization;
+  console.log(`[MCP] ${new Date().toISOString()} org:`, org);
 
   if (!org) {
     throw new McpClientError('Azure DevOps organization is not configured.');
@@ -107,24 +111,30 @@ async function getMcpClient(): Promise<McpClientHandle> {
 
   // If org changed, tear down existing client
   if (mcpClient && currentOrg !== org) {
+    console.log(`[MCP] ${new Date().toISOString()} org changed, tearing down existing client`);
     await shutdownMcpClient();
   }
 
   // Return existing healthy client
   if (mcpClient) {
+    console.log(`[MCP] ${new Date().toISOString()} returning existing client`);
     return mcpClient;
   }
 
   // Lazy-load MCP SDK — avoids blocking server startup when ADO is unconfigured
+  console.log(`[MCP] ${new Date().toISOString()} importing SDK...`);
   const { Client } = await import('@modelcontextprotocol/sdk/client/index.js');
   const { StdioClientTransport } = await import('@modelcontextprotocol/sdk/client/stdio.js');
+  console.log(`[MCP] ${new Date().toISOString()} SDK imported`);
 
   // Spawn the MCP server as a subprocess
   try {
+    console.log(`[MCP] ${new Date().toISOString()} creating transport...`);
     const transport = new StdioClientTransport({
       command: 'npx',
       args: ['-y', '@azure-devops/mcp', org, '-d', 'core', 'repositories', 'work-items'],
     });
+    console.log(`[MCP] ${new Date().toISOString()} transport created`);
 
     const client = new Client({
       name: 'rocinante',
@@ -133,22 +143,27 @@ async function getMcpClient(): Promise<McpClientHandle> {
 
     // Wire up close handler so we know if subprocess dies
     transport.onclose = () => {
+      console.log(`[MCP] ${new Date().toISOString()} transport onclose fired — subprocess died`);
       mcpClient = null;
       mcpTransport = null;
       currentOrg = null;
     };
 
+    console.log(`[MCP] ${new Date().toISOString()} connecting (timeout ${CONNECTION_TIMEOUT_MS}ms)...`);
     await withTimeout(
       client.connect(transport),
       CONNECTION_TIMEOUT_MS,
       `MCP server connection timed out after ${CONNECTION_TIMEOUT_MS / 1000}s. The @azure-devops/mcp server may need to be installed first — run "npx -y @azure-devops/mcp" manually to verify.`,
     );
+    console.log(`[MCP] ${new Date().toISOString()} connected!`);
 
     mcpClient = client as unknown as McpClientHandle;
     mcpTransport = transport as unknown as McpTransportHandle;
     currentOrg = org;
     return mcpClient;
   } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.log(`[MCP] ${new Date().toISOString()} connection failed:`, message);
     mcpClient = null;
     mcpTransport = null;
     currentOrg = null;
@@ -161,7 +176,6 @@ async function getMcpClient(): Promise<McpClientHandle> {
       connectionCooldownTimer = null;
     }, CONNECTION_COOLDOWN_MS);
 
-    const message = err instanceof Error ? err.message : String(err);
     throw new McpClientError(
       `Failed to start ADO MCP server. Ensure npx and Node.js are available. Error: ${message}`,
     );
@@ -222,20 +236,25 @@ function parseToolResult(result: ToolResult): unknown {
 }
 
 async function callTool(name: string, args: Record<string, unknown>): Promise<unknown> {
+  console.log(`[MCP] ${new Date().toISOString()} callTool: ${name}`, JSON.stringify(args).slice(0, 200));
   const client = await getMcpClient();
+  console.log(`[MCP] ${new Date().toISOString()} callTool: ${name} — client acquired, calling...`);
   try {
     const result = await withTimeout(
       client.callTool({ name, arguments: args }),
       CALL_TIMEOUT_MS,
       `MCP tool "${name}" timed out after ${CALL_TIMEOUT_MS / 1000}s`,
     );
+    console.log(`[MCP] ${new Date().toISOString()} callTool: ${name} — got result`);
     return parseToolResult(result);
   } catch (err) {
     // If it timed out, tear down the client so next call retries fresh
     if (err instanceof Error && err.message.includes('timed out')) {
+      console.log(`[MCP] ${new Date().toISOString()} callTool: ${name} — timed out, tearing down client`);
       await shutdownMcpClient();
     }
     const message = err instanceof Error ? err.message : String(err);
+    console.log(`[MCP] ${new Date().toISOString()} callTool: ${name} — failed:`, message);
     throw new McpClientError(`MCP tool "${name}" failed: ${message}`);
   }
 }
