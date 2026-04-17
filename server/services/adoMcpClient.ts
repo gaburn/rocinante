@@ -1,7 +1,25 @@
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { getConfig, isAdoConfigured } from '../config.js';
 import type { AdoPullRequest, AdoWorkItem } from '../../src/types/ado.js';
+
+// ---------------------------------------------------------------------------
+// Lightweight interfaces so we don't need the MCP SDK imported at top level.
+// The SDK is loaded lazily inside getMcpClient() to avoid blocking startup.
+// ---------------------------------------------------------------------------
+
+interface McpClientHandle {
+  callTool: (req: { name: string; arguments: Record<string, unknown> }) => Promise<ToolResult>;
+  close: () => Promise<void>;
+  connect: (transport: McpTransportHandle) => Promise<void>;
+}
+
+interface McpTransportHandle {
+  close: () => Promise<void>;
+  onclose?: (() => void) | null;
+}
+
+interface ToolResult {
+  content: Array<{ type: string; text?: string }>;
+}
 
 // ---------------------------------------------------------------------------
 // Error type — mirrors AdoApiError from adoClient.ts for consistent handling
@@ -49,11 +67,11 @@ export function clearMcpCache(): void {
 // Singleton MCP client — lazy init, one per org
 // ---------------------------------------------------------------------------
 
-let mcpClient: Client | null = null;
-let mcpTransport: StdioClientTransport | null = null;
+let mcpClient: McpClientHandle | null = null;
+let mcpTransport: McpTransportHandle | null = null;
 let currentOrg: string | null = null;
 
-async function getMcpClient(): Promise<Client> {
+async function getMcpClient(): Promise<McpClientHandle> {
   const config = getConfig();
   const org = config.adoOrganization;
 
@@ -70,6 +88,10 @@ async function getMcpClient(): Promise<Client> {
   if (mcpClient) {
     return mcpClient;
   }
+
+  // Lazy-load MCP SDK — avoids blocking server startup when ADO is unconfigured
+  const { Client } = await import('@modelcontextprotocol/sdk/client/index.js');
+  const { StdioClientTransport } = await import('@modelcontextprotocol/sdk/client/stdio.js');
 
   // Spawn the MCP server as a subprocess
   try {
@@ -92,10 +114,10 @@ async function getMcpClient(): Promise<Client> {
 
     await client.connect(transport);
 
-    mcpClient = client;
-    mcpTransport = transport;
+    mcpClient = client as unknown as McpClientHandle;
+    mcpTransport = transport as unknown as McpTransportHandle;
     currentOrg = org;
-    return client;
+    return mcpClient;
   } catch (err) {
     mcpClient = null;
     mcpTransport = null;
@@ -132,7 +154,7 @@ export async function shutdownMcpClient(): Promise<void> {
 // Tool-call helpers
 // ---------------------------------------------------------------------------
 
-function parseToolResult(result: Awaited<ReturnType<Client['callTool']>>): unknown {
+function parseToolResult(result: ToolResult): unknown {
   // MCP SDK result has .content array with typed content blocks
   const content = result.content;
   if (!Array.isArray(content) || content.length === 0) {
