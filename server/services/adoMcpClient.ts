@@ -121,54 +121,19 @@ async function getMcpClient(): Promise<McpClientHandle> {
     return mcpClient;
   }
 
-  // Lazy-load MCP SDK — avoids blocking server startup when ADO is unconfigured
-  console.log(`[MCP] ${new Date().toISOString()} importing SDK...`);
-  const { Client } = await import('@modelcontextprotocol/sdk/client/index.js');
-  const { StdioClientTransport } = await import('@modelcontextprotocol/sdk/client/stdio.js');
-  console.log(`[MCP] ${new Date().toISOString()} SDK imported`);
-
-  // Spawn the MCP server as a subprocess
+  // Wrap the ENTIRE init sequence (import + spawn + connect) in a single timeout
   try {
-    console.log(`[MCP] ${new Date().toISOString()} creating transport...`);
-    const transport = new StdioClientTransport({
-      command: 'npx',
-      args: ['-y', '@azure-devops/mcp', org, '-d', 'core', 'repositories', 'work-items'],
-    });
-    console.log(`[MCP] ${new Date().toISOString()} transport created`);
-
-    const client = new Client({
-      name: 'rocinante',
-      version: '1.0.0',
-    });
-
-    // Wire up close handler so we know if subprocess dies
-    transport.onclose = () => {
-      console.log(`[MCP] ${new Date().toISOString()} transport onclose fired — subprocess died`);
-      mcpClient = null;
-      mcpTransport = null;
-      currentOrg = null;
-    };
-
-    console.log(`[MCP] ${new Date().toISOString()} connecting (timeout ${CONNECTION_TIMEOUT_MS}ms)...`);
-    await withTimeout(
-      client.connect(transport),
+    const client = await withTimeout(
+      initMcpClient(org),
       CONNECTION_TIMEOUT_MS,
-      `MCP server connection timed out after ${CONNECTION_TIMEOUT_MS / 1000}s. The @azure-devops/mcp server may need to be installed first — run "npx -y @azure-devops/mcp" manually to verify.`,
+      `MCP initialization timed out after ${CONNECTION_TIMEOUT_MS / 1000}s (SDK import or server connection). Run "npx -y @azure-devops/mcp" manually to verify the package installs correctly.`,
     );
-    console.log(`[MCP] ${new Date().toISOString()} connected!`);
-
-    mcpClient = client as unknown as McpClientHandle;
-    mcpTransport = transport as unknown as McpTransportHandle;
-    currentOrg = org;
-    return mcpClient;
+    return client;
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.log(`[MCP] ${new Date().toISOString()} connection failed:`, message);
     mcpClient = null;
     mcpTransport = null;
     currentOrg = null;
 
-    // Activate circuit breaker — prevent retry storm for cooldown period
     mcpConnectionFailed = true;
     if (connectionCooldownTimer) clearTimeout(connectionCooldownTimer);
     connectionCooldownTimer = setTimeout(() => {
@@ -176,10 +141,43 @@ async function getMcpClient(): Promise<McpClientHandle> {
       connectionCooldownTimer = null;
     }, CONNECTION_COOLDOWN_MS);
 
-    throw new McpClientError(
-      `Failed to start ADO MCP server. Ensure npx and Node.js are available. Error: ${message}`,
-    );
+    const message = err instanceof Error ? err.message : String(err);
+    throw new McpClientError(`Failed to start ADO MCP server: ${message}`);
   }
+}
+
+// Separate async function so we can wrap it in withTimeout
+async function initMcpClient(org: string): Promise<McpClientHandle> {
+  console.log(`[MCP] ${new Date().toISOString()} importing SDK...`);
+  const { Client } = await import('@modelcontextprotocol/sdk/client/index.js');
+  const { StdioClientTransport } = await import('@modelcontextprotocol/sdk/client/stdio.js');
+  console.log(`[MCP] ${new Date().toISOString()} SDK imported`);
+
+  console.log(`[MCP] ${new Date().toISOString()} creating transport...`);
+  const transport = new StdioClientTransport({
+    command: 'npx',
+    args: ['-y', '@azure-devops/mcp', org, '-d', 'core', 'repositories', 'work-items'],
+  });
+
+  const client = new Client({
+    name: 'rocinante',
+    version: '1.0.0',
+  });
+
+  transport.onclose = () => {
+    mcpClient = null;
+    mcpTransport = null;
+    currentOrg = null;
+  };
+
+  console.log(`[MCP] ${new Date().toISOString()} connecting...`);
+  await client.connect(transport);
+  console.log(`[MCP] ${new Date().toISOString()} connected!`);
+
+  mcpClient = client as unknown as McpClientHandle;
+  mcpTransport = transport as unknown as McpTransportHandle;
+  currentOrg = org;
+  return mcpClient;
 }
 
 export async function shutdownMcpClient(): Promise<void> {
