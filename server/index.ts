@@ -5,7 +5,7 @@ import { getConfig } from './config.js';
 import { initDatabase, closeDatabase } from './services/sqliteReader.js';
 import { initArchiveStore } from './services/archiveStore.js';
 import { killAllPtys } from './services/ptyManager.js';
-import { shutdownMcpClient, warmupMcpSdk } from './services/adoMcpClient.js';
+import { shutdownMcpClient } from './services/adoMcpClient.js';
 import sessionsRouter from './routes/sessions.js';
 import configRouter from './routes/config.js';
 import adoRouter from './routes/ado.js';
@@ -59,10 +59,8 @@ if (process.env.NODE_ENV === 'production') {
 initDatabase();
 initArchiveStore();
 
-// Fire-and-forget — don't block server startup. MCP becomes available when it finishes.
-warmupMcpSdk().catch(() => {
-  console.log('[MCP] SDK warmup failed — MCP will use lazy import on first request');
-});
+// MCP warmup removed — SDK dynamic import blocks event loop under tsx watch.
+// MCP auto-detects tsx and skips initialization in dev mode.
 
 const server = app.listen(config.apiPort, () => {
   if (DEBUG) console.log(`[server] API listening on port ${config.apiPort}`);

@@ -20,38 +20,11 @@ const CALL_TIMEOUT_MS = 10_000;
 const CONNECTION_COOLDOWN_MS = 60_000;
 
 // ---------------------------------------------------------------------------
-// Pre-loaded SDK modules — populated by warmupMcpSdk(), used by initMcpClient()
+// tsx watch detection — MCP SDK dynamic import blocks the Node.js event loop
+// under tsx watch. Skip MCP entirely when running via tsx.
 // ---------------------------------------------------------------------------
 
-let CachedClient: typeof import('@modelcontextprotocol/sdk/client/index.js').Client | null = null;
-let CachedStdioTransport: typeof import('@modelcontextprotocol/sdk/client/stdio.js').StdioClientTransport | null = null;
-
-/**
- * Pre-import the MCP SDK at startup while the event loop is idle.
- * Call this BEFORE app.listen() so the modules are cached in memory
- * and initMcpClient() never needs a dynamic import under load.
- */
-export async function warmupMcpSdk(): Promise<void> {
-  try {
-    console.log('[MCP]', new Date().toISOString(), 'pre-importing SDK at startup...');
-    // 10s timeout — if tsx watch hangs the import, bail out
-    const clientMod = await withTimeout(
-      import('@modelcontextprotocol/sdk/client/index.js'),
-      10_000,
-      'SDK client import timed out during warmup',
-    );
-    const stdioMod = await withTimeout(
-      import('@modelcontextprotocol/sdk/client/stdio.js'),
-      10_000,
-      'SDK stdio import timed out during warmup',
-    );
-    CachedClient = clientMod.Client;
-    CachedStdioTransport = stdioMod.StdioClientTransport;
-    console.log('[MCP]', new Date().toISOString(), 'SDK pre-imported successfully');
-  } catch (err) {
-    console.log('[MCP]', new Date().toISOString(), 'SDK warmup failed:', err instanceof Error ? err.message : String(err));
-  }
-}
+const isTsxWatch = process.argv.some(arg => arg.includes('tsx'));
 
 // ---------------------------------------------------------------------------
 // Lightweight interfaces so we don't need the MCP SDK imported at top level.
@@ -127,6 +100,13 @@ let mcpConnectionFailed = false;
 let connectionCooldownTimer: ReturnType<typeof setTimeout> | null = null;
 
 async function getMcpClient(): Promise<McpClientHandle> {
+  // MCP SDK dynamic import blocks the Node.js event loop under tsx watch.
+  // Until a solution is found (worker thread, pre-compiled bundle, or non-tsx runner),
+  // MCP is disabled in dev mode. All ADO operations use the REST fallback path.
+  if (isTsxWatch) {
+    throw new McpClientError('MCP client is disabled in dev mode (SDK import blocks event loop under tsx watch)');
+  }
+
   console.log(`[MCP] ${new Date().toISOString()} getMcpClient called`, { mcpConnectionFailed, hasClient: !!mcpClient, currentOrg });
 
   if (mcpConnectionFailed) {
@@ -181,21 +161,12 @@ async function getMcpClient(): Promise<McpClientHandle> {
 
 // Separate async function so we can wrap it in withTimeout
 async function initMcpClient(org: string): Promise<McpClientHandle> {
-  let Client: typeof import('@modelcontextprotocol/sdk/client/index.js').Client;
-  let StdioClientTransport: typeof import('@modelcontextprotocol/sdk/client/stdio.js').StdioClientTransport;
-
-  if (CachedClient && CachedStdioTransport) {
-    console.log(`[MCP] ${new Date().toISOString()} using pre-imported SDK`);
-    Client = CachedClient;
-    StdioClientTransport = CachedStdioTransport;
-  } else {
-    console.log(`[MCP] ${new Date().toISOString()} importing SDK (not pre-cached)...`);
-    const clientMod = await import('@modelcontextprotocol/sdk/client/index.js');
-    const stdioMod = await import('@modelcontextprotocol/sdk/client/stdio.js');
-    Client = clientMod.Client;
-    StdioClientTransport = stdioMod.StdioClientTransport;
-    console.log(`[MCP] ${new Date().toISOString()} SDK imported`);
-  }
+  console.log(`[MCP] ${new Date().toISOString()} importing SDK...`);
+  const clientMod = await import('@modelcontextprotocol/sdk/client/index.js');
+  const stdioMod = await import('@modelcontextprotocol/sdk/client/stdio.js');
+  const Client = clientMod.Client;
+  const StdioClientTransport = stdioMod.StdioClientTransport;
+  console.log(`[MCP] ${new Date().toISOString()} SDK imported`);
 
   console.log(`[MCP] ${new Date().toISOString()} creating transport...`);
   const transport = new StdioClientTransport({
