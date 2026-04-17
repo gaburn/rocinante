@@ -349,3 +349,17 @@ Amos extended `planReader.ts` to parse markdown checkboxes, numbered lists, and 
 
 **Validation:** 233 tests passing.
 
+### Rename "Deliverables" UI labels to "ADO"
+
+**Author:** Naomi (Frontend Dev)
+**Date:** 2026-07-16
+**Status:** Implemented
+
+**Context:** The section previously labeled "Deliverables" in SessionDetail and SessionCard actually shows ADO pull requests and work items. The label was confusing — "ADO" is more direct and matches how the team refers to this data.
+
+**Decision:** Renamed all user-visible text from "Deliverables" to "ADO" (section header, loading state, empty state, aria-label). Internal variable names (`deliverables`, `deliverablesExpanded`, hook names, etc.) were left unchanged to avoid unnecessary churn.
+
+**PR URL note:** Backend PR URLs are constructed from `repo.webUrl` (provided by ADO API). Both MCP and REST clients handle missing `webUrl` gracefully — no backend changes needed.
+
+**Validation:** 275 tests pass, `tsc --noEmit` clean.
+

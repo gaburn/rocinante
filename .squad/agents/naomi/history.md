@@ -57,3 +57,8 @@ See `history-archive.md` for detailed notes from 2025-07 through 2026-04-15 (pru
 - **Position:** In the meta row, between compaction indicator and the `ml-auto` source/agent section.
 - **Memo:** Added `adoPrCount` and `adoWorkItemCount` to the memo comparator so tile re-renders when counts change.
 - **Validation:** 233 tests passing, eslint clean, no new TS errors.
+
+### Deliverables → ADO rename (2026-07)
+- **What:** Renamed user-visible "Deliverables" labels to "ADO" in `SessionDetail.tsx` (section header, loading text, empty state) and `SessionCard.tsx` (aria-label). Internal variable names (`deliverables`, `deliverablesExpanded`, etc.) left unchanged.
+- **PR URL verification:** Backend constructs PR URLs from `repo.webUrl + '/pullrequest/' + id`. `repo.webUrl` comes from ADO API and resolves to `https://dev.azure.com/...`. MCP client returns empty string if `webUrl` is missing; REST client would produce a bare `/pullrequest/N` — both safe enough since ADO always provides `webUrl`. No backend changes needed.
+- **Tests:** No tests assert on the user-visible text strings, so no test updates required. 275 tests pass, tsc clean.
