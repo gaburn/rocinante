@@ -138,32 +138,6 @@
 
 ## Roadmap
 
-### ADR: Session Loading Performance Fix (Phases 1–2 Remaining)
-
-**Date:** 2025-07-15  
-**Status:** In Progress  
-**Author:** Holden (Lead/Architect)  
-**Triggered by:** Coordinator analysis — ~60s cold load with 1787 sessions
-
-**Context:** `GET /api/sessions` performs 1787 serial operations per request (readEventsTail + mapSessionSummary per session). Existing `CACHE_TTL_MS=10000` unused.
-
-**Remaining Phases:**
-
-**Phase 1 — Response Cache (Amos, 0.5 days)**
-- Wire `CACHE_TTL_MS` into `server/routes/sessions.ts`
-- Cache full `SessionSummary[]` result for 10 seconds
-- No client changes
-
-**Phase 2 — Per-Session Computation Cache (Amos, 1 day)**
-- Add `server/services/sessionSummaryCache.ts`
-- Cache computed `SessionSummary` keyed on event file `mtime+size`
-- Skip recomputation for unchanged sessions
-- Evict on session ID no longer present in SQLite
-
-**Success Criteria:**
-- Phase 1 + 2: Cold load < 10s for 1787 sessions (down from ~60s)
-- No regression in status accuracy
-
 ### Filter Archived Sessions BEFORE Mapping (Amos)
 
 **Author:** Amos (Backend Dev)  
@@ -193,22 +167,6 @@
 **Validation:**
 - 141 tests passing (all 8 test files)
 - Cold load now proportional to non-archived sessions (~100-200) instead of all sessions (1787)
-
-### Rocinante Performance Plan (Cold-Start + PayloadTooLargeError)
-
-**Author:** Holden (Lead/Architect)  
-**Date:** 2025-07-16  
-**Status:** Active  
-**Scope:** Full stack — backend, frontend, build
-
-**Root Cause:** `express.json()` uses 100KB default limit; archive sync payload (1787 UUIDs) exceeds it. Frontend silently catches 413 error, causing server to map all 1787 sessions on first GET.
-
-**Solution:** Three sprints:
-1. **Sprint 1 — Unblock (2d):** Fix body-parser limit (Amos, 0.25d), AbortController polling (Naomi, 0.5d), Vite deps caching (Alex, 0.5d), verify (Bobbie, 0.25d)
-2. **Sprint 2 — Optimize (2d):** Server pre-warming (Amos, 1d), bounded caches (Amos, 0.5d), Vite vendor splitting (Alex, 0.25d)
-3. **Sprint 3 — Polish:** WebSocket heartbeat, component refactoring
-
-**Success Criteria:** Cold load <5s, Vite startup <3s, PayloadTooLargeError eliminated, memory bounded.
 
 ### Provider-Layer Pre-Filter + Computation Cache Fix
 
@@ -390,3 +348,4 @@ Amos extended `planReader.ts` to parse markdown checkboxes, numbered lists, and 
 - No signal forwarding to `getSessionDeliverables()` — the hook aborts via cancelled flag pattern. Could add AbortSignal to the fetch if cancellation latency matters.
 
 **Validation:** 233 tests passing.
+
