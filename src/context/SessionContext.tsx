@@ -37,6 +37,7 @@ export interface SessionDataContextValue {
 // ── Selection Context — changes on click ──────────────────────
 export interface SessionSelectionContextValue {
   selectedSession: Session | null
+  selectedSessionId: string | null
   selectedWorkstream: SessionGroup | null
   selectSession: (id: string) => void
   selectWorkstream: (name: string) => void
@@ -109,12 +110,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const selectionValue = useMemo<SessionSelectionContextValue>(() => ({
     selectedSession: s.selectedSession,
+    selectedSessionId: s.selectedSessionId,
     selectedWorkstream: s.selectedWorkstream,
     selectSession: s.selectSession,
     selectWorkstream: s.selectWorkstream,
     clearSelection: s.clearSelection,
   }), [
-    s.selectedSession, s.selectedWorkstream,
+    s.selectedSession, s.selectedSessionId, s.selectedWorkstream,
     s.selectSession, s.selectWorkstream, s.clearSelection,
   ])
 

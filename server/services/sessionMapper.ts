@@ -30,6 +30,13 @@ const MAX_NAME_LENGTH = 80;
 const MAX_INTENT_LENGTH = 200;
 const UNTITLED_SESSION_NAME = 'Untitled session';
 
+/* ── Optional context for filesystem-derived session data ─────── */
+
+export interface SessionMappingContext {
+  firstUserMessage?: string | null;
+  turnCount?: number;
+}
+
 /* ── Git context fallback (branch + repository from cwd) ──────── */
 
 interface GitContext {
@@ -142,7 +149,7 @@ function toEpochMs(timestamp: string): number {
   return Number.isNaN(parsed) ? 0 : parsed;
 }
 
-function getSessionCwd(sessionId: string, sqlCwd: string | null): string | null {
+export function getSessionCwd(sessionId: string, sqlCwd: string | null): string | null {
   if (sqlCwd && sqlCwd.trim().length > 0) {
     return sqlCwd;
   }
@@ -244,8 +251,8 @@ function resolveLatestUserMessage(
   return undefined;
 }
 
-export function mapToSession(sqlRow: SqliteSession, events: ParsedEvent[]): Session {
-  const firstUserMessage = getFirstUserMessage(sqlRow.id);
+export function mapToSession(sqlRow: SqliteSession, events: ParsedEvent[], ctx?: SessionMappingContext): Session {
+  const firstUserMessage = ctx?.firstUserMessage !== undefined ? ctx.firstUserMessage : getFirstUserMessage(sqlRow.id);
   const name = getSessionName(sqlRow, firstUserMessage);
   const intent = getSessionIntent(firstUserMessage, name);
   const derivedStatus: DerivedStatus = deriveSessionStatus(events, sqlRow.updated_at);
@@ -264,6 +271,7 @@ export function mapToSession(sqlRow: SqliteSession, events: ParsedEvent[]): Sess
   const gitFallback = resolveGitContext(resolvedCwd);
   const isSquad = detectSquadSession(events);
   const squadCast = isSquad ? extractSquadCast(events) : undefined;
+  const resolvedTurnCount = ctx?.turnCount !== undefined ? ctx.turnCount : getTurnCount(sqlRow.id);
 
   return {
     id: sqlRow.id,
@@ -273,7 +281,7 @@ export function mapToSession(sqlRow: SqliteSession, events: ParsedEvent[]): Sess
     startedAt: sqlRow.created_at,
     lastActivityAt: derivedStatus.lastActivityAt,
     agentCount: countAgentsInTree(rootAgent),
-    turnCount: getTurnCount(sqlRow.id),
+    turnCount: resolvedTurnCount,
     rootAgent,
     events: buildEventTimeline(events),
     activityBuckets: buildActivityBuckets(events, sqlRow.created_at, derivedStatus.lastActivityAt),
@@ -362,7 +370,13 @@ export function mapSessionById(id: string): Session | undefined {
     return claudeSource.getSession(id) ?? undefined;
   }
 
-  // Default: Copilot lookup
+  // Always use CopilotSessionSource — handles both SQLite and filesystem fallback
+  const copilotSource = getSourceByName('copilot');
+  if (copilotSource) {
+    return copilotSource.getSession(id) ?? undefined;
+  }
+
+  // Legacy fallback: direct SQLite lookup
   const row = getSessionById(id);
   if (!row) {
     return undefined;

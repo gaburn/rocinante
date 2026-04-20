@@ -331,6 +331,7 @@ function ExpandablePrompt({ text }: { text: string }) {
 export default function SessionDetail() {
   const {
     selectedSession,
+    selectedSessionId,
   } = useSessionSelection();
   const {
     isArchived,
@@ -382,6 +383,25 @@ export default function SessionDetail() {
    *  Centred welcome screen — feels intentional, not broken.
    *  The panel-layout icon hints at the master–detail pattern. */
   if (!selectedSession) {
+    // Session selected but detail not yet loaded (loading or 404)
+    if (selectedSessionId) {
+      return (
+        <div className="flex h-full items-center justify-center p-6 select-none">
+          <div className="flex flex-col items-center gap-4 text-center">
+            <div className="text-2xl" aria-hidden="true">🔄</div>
+            <div className="space-y-1.5">
+              <p className="text-sm font-medium text-fg/40">
+                Session data is loading…
+              </p>
+              <p className="max-w-[280px] text-xs leading-relaxed text-fg/20">
+                If this persists, the session may still be indexing. Try refreshing in a moment.
+              </p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="flex h-full items-center justify-center p-6 select-none">
         <div className="flex flex-col items-center gap-4 text-center">

@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import * as fs from 'node:fs';
 import { mapAllSessionSummaries, mapSessionById } from '../services/sessionMapper.js';
 import { readSessionPlan } from '../services/planReader.js';
 import { generateDemoSessions, getDemoWorkstreams } from '../services/demoData.js';
@@ -13,6 +14,7 @@ import {
   isInitialized as isArchiveInitialized,
 } from '../services/archiveStore.js';
 import type { SessionSummary } from '../../src/types/index.js';
+import type { SourceStatus } from '../services/providers/types.js';
 
 const sessionsRouter = Router();
 let responseCache: { data: SessionSummary[]; expires: number; includeArchived: boolean } | null = null;
@@ -79,6 +81,35 @@ sessionsRouter.get('/sessions/search', (req, res) => {
       isArchived: isArchived(r.sessionId),
     }));
     res.json(annotated);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    res.status(500).json({ error: message });
+  }
+});
+
+/* ── Source status endpoint ────────────────────────────────────── */
+
+sessionsRouter.get('/sessions/status', (_req, res) => {
+  try {
+    const { sqliteDbPath, sessionStateDir, claudeDir } = getConfig();
+
+    const sqliteAvailable = fs.existsSync(sqliteDbPath);
+    const filesystemAvailable = fs.existsSync(sessionStateDir);
+
+    const status: SourceStatus = {
+      copilot: {
+        available: sqliteAvailable || filesystemAvailable,
+        sqliteAvailable,
+        filesystemAvailable,
+        sessionStateDir,
+      },
+      claude: {
+        available: fs.existsSync(claudeDir),
+        claudeDir,
+      },
+    };
+
+    res.json(status);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     res.status(500).json({ error: message });
