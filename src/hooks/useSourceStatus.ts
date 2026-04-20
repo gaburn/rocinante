@@ -41,11 +41,8 @@ export function useSourceStatus(): UseSourceStatusResult {
   useEffect(() => {
     mounted.current = true
 
-    if (cachedStatus !== null) {
-      setSources(cachedStatus)
-      setIsLoading(false)
-      return
-    }
+    // Already initialized from cache via useState — skip fetch
+    if (cachedStatus !== null) return
 
     // Deduplicate concurrent calls
     if (!fetchPromise) {

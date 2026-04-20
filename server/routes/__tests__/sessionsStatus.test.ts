@@ -97,7 +97,7 @@ function callGetSessionsStatus(): { statusCode: number; body: unknown } {
     body: null as unknown,
     status(code: number) { res.statusCode = code; return res; },
     json(data: unknown) { res.body = data; return res; },
-    set(_k: string, _v: string) { return res; },
+    set() { return res; },
   };
 
   const layer = (sessionsRouter as unknown as { stack: RouteLayer[] }).stack
