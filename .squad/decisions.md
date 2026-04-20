@@ -1,6 +1,6 @@
 # Team Decisions Log
 
-**Last Updated:** 2026-07-16T18:45:00Z
+**Last Updated:** 2026-04-20T21:52:41Z
 
 ## Architecture
 
@@ -363,3 +363,77 @@ Amos extended `planReader.ts` to parse markdown checkboxes, numbered lists, and 
 
 **Validation:** 275 tests pass, `tsc --noEmit` clean.
 
+### ADO URL Fallback Pattern via `buildPrUrl()` Helper
+
+**Author:** Amos (Backend Dev)
+**Date:** 2026-07-17
+**Status:** Implemented
+
+**Context:** PR URLs in the session detail view were broken — showing as `http://localhost:5173/pullrequest/{id}` — because `pr.repository?.webUrl` from the ADO API is sometimes undefined. The original code used `webUrl ?? ''` which produced a relative URL the browser resolved against localhost.
+
+**Decision:** Introduced a shared `buildPrUrl(webUrl, repoName, prId)` helper in both `adoClient.ts` and `adoMcpClient.ts`. Fallback chain:
+
+1. If `webUrl` exists → use it directly
+2. Else → construct from `getConfig()`: `https://dev.azure.com/{org}/{project}/_git/{repoName}/pullrequest/{prId}`
+3. If repo name is also missing → omit the repo segment
+
+This matches the existing pattern already used for work item URLs (line 186 of adoClient.ts).
+
+**Impact:** Any future ADO entity URL mapping should follow the same pattern: prefer the API-provided URL, fall back to constructing from config values. Never produce a relative/empty URL.
+
+**Validation:** 275 tests pass. Committed.
+
+
+
+
+# Filesystem Fallback for Copilot Sessions
+
+**Author:** Amos (Backend Dev)  
+**Date:** 2026-07-20  
+**Status:** Implemented  
+
+## Context
+
+`CopilotSessionSource` relied entirely on SQLite (`session-store.db`) for session discovery and detail. When the DB is absent (fresh install, different machine, cleared state), `isAvailable()` returned false and `getSession()` returned null — producing 404s on session detail even when `events.jsonl` files existed on disk.
+
+## Decision
+
+Added filesystem fallback throughout the Copilot session source:
+
+- **`isAvailable()`** checks `sessionStateDir` OR `sqliteDbPath` (either suffices).
+- **`getSession()`** tries SQLite first (richer metadata), then constructs a session from `events.jsonl` head/tail reads.
+- **`listSessionSummaries()`** merges filesystem-only sessions that aren't in SQLite.
+- **`mapSessionById()`** now routes through `CopilotSessionSource` provider (handles both paths).
+- New `readEventsHead()` reads first 64KB for `createdAt`, `firstUserMessage`, `turnCount`.
+- New `SessionMappingContext` lets filesystem-derived values be injected into `mapToSession()` without breaking existing callers.
+- New `GET /api/sessions/status` endpoint for frontend source availability messaging.
+
+## Trade-offs
+
+- Filesystem path is slower than SQLite (reads raw JSONL) — but only triggers when SQLite is absent.
+- `firstUserMessage` may be null for sessions where the first user message is beyond the 64KB head window — acceptable degradation (name falls back to folder name).
+- `discoverFilesystemSessionIds()` scans `sessionStateDir` with a 10s TTL cache to avoid rescanning on every list call.
+
+## Validation
+
+275 tests pass, `npx tsc --noEmit` clean. No changes to Claude source.
+
+
+# Decision: Expose `selectedSessionId` in SessionSelectionContext
+
+**Author:** Naomi (Frontend Dev)
+**Date:** 2026-07-17
+**Status:** Implemented
+
+## Context
+
+`SessionSelectionContextValue` only exposed `selectedSession: Session | null`. When a session is selected but its detail fetch returns 404/undefined, `selectedSession` is null — indistinguishable from "nothing selected." This prevented the detail pane from showing a meaningful loading/unavailable state.
+
+## Decision
+
+Added `selectedSessionId: string | null` to `SessionSelectionContextValue`, `UseSessionsResult`, and the context memo. SessionDetail now checks: if `selectedSessionId` is set but `selectedSession` is null, it shows a "Session data is loading…" state instead of the generic "Select a session" empty state.
+
+## Trade-offs
+
+- Slightly wider context API surface. But `selectedSessionId` was already internal state — exposing it is a natural evolution.
+- Any consumer of `useSessionSelection()` can now distinguish "no selection" from "selected but detail unavailable."
