@@ -6,6 +6,7 @@ import StatusSummaryBar from '../common/StatusSummaryBar';
 import StatusFilter from '../filters/StatusFilter';
 import SessionCard from './SessionCard';
 import SessionGroup from './SessionGroup';
+import WelcomeCard from './WelcomeCard';
 
 const SKELETON_CARD_COUNT = 5;
 const ESTIMATED_ROW_HEIGHT = 110;
@@ -327,31 +328,32 @@ export default function SessionList() {
             </div>
           </div>
         ) : showEmptyState ? (
-          <div className="flex h-full min-h-48 items-center justify-center text-center">
-            <div className="space-y-2">
-              <div className="text-2xl opacity-40" aria-hidden="true">
-                {archivedCount > 0 && !searchQuery ? '📦' : '📭'}
-              </div>
-              {archivedCount > 0 && !searchQuery ? (
-                <>
-                  <p className="text-sm text-fg/45">All sessions archived</p>
-                  <button
-                    type="button"
-                    onClick={() => setShowArchived(true)}
-                    className="cursor-pointer text-xs text-border-active transition-colors hover:text-fg/70"
-                  >
-                    Show archived sessions →
-                  </button>
-                </>
-              ) : (
+          searchQuery ? (
+            <div className="flex h-full min-h-48 items-center justify-center text-center">
+              <div className="space-y-2">
+                <div className="text-2xl opacity-40" aria-hidden="true">📭</div>
                 <p className="text-sm text-fg/45">
-                  {searchQuery
-                    ? `No sessions matching '${searchQuery}'`
-                    : 'No sessions found'}
+                  No sessions matching &apos;{searchQuery}&apos;
                 </p>
-              )}
+              </div>
             </div>
-          </div>
+          ) : archivedCount > 0 ? (
+            <div className="flex h-full min-h-48 items-center justify-center text-center">
+              <div className="space-y-2">
+                <div className="text-2xl opacity-40" aria-hidden="true">📦</div>
+                <p className="text-sm text-fg/45">All sessions archived</p>
+                <button
+                  type="button"
+                  onClick={() => setShowArchived(true)}
+                  className="cursor-pointer text-xs text-border-active transition-colors hover:text-fg/70"
+                >
+                  Show archived sessions →
+                </button>
+              </div>
+            </div>
+          ) : (
+            <WelcomeCard />
+          )
         ) : hasAnyWorkstreams ? (
           /* ── Grouped view: sessions organized by workstream ── */
           <div className="space-y-1">

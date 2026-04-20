@@ -1,8 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSettingsContext } from '../../context/SettingsContext';
 import { useSessionSelection, useSessionActions, useSessionData } from '../../context/SessionContext';
 import { useTerminalContext } from '../../context/TerminalContext';
 import type { SubAgent, AgentStatus, ErrorDetail } from '../../types';
+import type { AdoPullRequest } from '../../types/ado';
+import { getAdoStatus } from '../../services/adoService';
+import { useSessionDeliverables } from '../../hooks/useSessionDeliverables';
 import {
   formatRelativeTime,
   formatDuration,
@@ -225,6 +228,43 @@ function FolderIcon() {
   );
 }
 
+/* ── ADO deliverables styling helpers ─────────────────────────
+ *  Colour-code PR statuses and work-item states at a glance. */
+
+function deliverablePrStatusBadgeClasses(status: AdoPullRequest['status']): string {
+  switch (status) {
+    case 'active':
+      return 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30';
+    case 'draft':
+      return 'bg-amber-500/15 text-amber-400 border-amber-500/30';
+    case 'completed':
+      return 'bg-fg/[.08] text-fg/40 border-fg/[.12]';
+    case 'abandoned':
+      return 'bg-red-500/15 text-red-400 border-red-500/30';
+    default:
+      return 'bg-fg/[.08] text-fg/40 border-fg/[.12]';
+  }
+}
+
+function deliverableWorkItemStateBadgeClasses(state: string): string {
+  switch (state.toLowerCase()) {
+    case 'active':
+      return 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30';
+    case 'new':
+      return 'bg-blue-500/15 text-blue-400 border-blue-500/30';
+    case 'resolved':
+      return 'bg-amber-500/15 text-amber-400 border-amber-500/30';
+    case 'closed':
+      return 'bg-fg/[.08] text-fg/40 border-fg/[.12]';
+    default:
+      return 'bg-fg/[.08] text-fg/40 border-fg/[.12]';
+  }
+}
+
+function deliverableShortBranch(ref: string): string {
+  return ref.replace(/^refs\/heads\//, '');
+}
+
 /* ── Stat card (quick-stats grid item) ────────────────────────
  *  A compact, color-coded tile for a single agent-status count.
  *  Zero-count cards are dimmed so attention stays on what matters. */
@@ -291,6 +331,7 @@ function ExpandablePrompt({ text }: { text: string }) {
 export default function SessionDetail() {
   const {
     selectedSession,
+    selectedSessionId,
   } = useSessionSelection();
   const {
     isArchived,
@@ -314,11 +355,53 @@ export default function SessionDetail() {
   const [editNameValue, setEditNameValue] = useState('');
   const [errorExpanded, setErrorExpanded] = useState(false);
   const [agentHierarchyExpanded, setAgentHierarchyExpanded] = useState(false);
+  const [isAdoConfigured, setIsAdoConfigured] = useState(false);
+
+  // Fetch ADO configured status once on mount
+  useEffect(() => {
+    let isCancelled = false;
+
+    getAdoStatus()
+      .then((status) => {
+        if (!isCancelled) {
+          setIsAdoConfigured(status.configured);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
+
+  // Session deliverables hook — must be called before early return (rules of hooks)
+  const deliverables = useSessionDeliverables(selectedSession?.branch, isAdoConfigured);
+  const deliverablesCount = deliverables.pullRequests.length + deliverables.workItems.length;
+  const [deliverablesExpanded, setDeliverablesExpanded] = useState(true);
 
   /* ── Empty state ────────────────────────────────────────────
    *  Centred welcome screen — feels intentional, not broken.
    *  The panel-layout icon hints at the master–detail pattern. */
   if (!selectedSession) {
+    // Session selected but detail not yet loaded (loading or 404)
+    if (selectedSessionId) {
+      return (
+        <div className="flex h-full items-center justify-center p-6 select-none">
+          <div className="flex flex-col items-center gap-4 text-center">
+            <div className="text-2xl" aria-hidden="true">🔄</div>
+            <div className="space-y-1.5">
+              <p className="text-sm font-medium text-fg/40">
+                Session data is loading…
+              </p>
+              <p className="max-w-[280px] text-xs leading-relaxed text-fg/20">
+                If this persists, the session may still be indexing. Try refreshing in a moment.
+              </p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="flex h-full items-center justify-center p-6 select-none">
         <div className="flex flex-col items-center gap-4 text-center">
@@ -861,6 +944,171 @@ export default function SessionDetail() {
                   </div>
                 )}
               </div>
+            </div>
+          </section>
+        )}
+
+        {/* ── 1d · Deliverables (ADO PRs + Work Items) ─────── */}
+        {isAdoConfigured && session.branch && (
+          <section>
+            <div className="rounded-lg border border-border-default bg-surface-secondary px-3.5 py-3">
+              {/* Header — collapsible with count badge */}
+              <button
+                type="button"
+                onClick={() => setDeliverablesExpanded((v) => !v)}
+                className="flex w-full items-center gap-2 cursor-pointer"
+              >
+                <svg
+                  className="h-3.5 w-3.5 shrink-0 text-fg/50"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <rect x="2" y="2" width="12" height="12" rx="2" />
+                  <path d="M5 6l3 3 3-3" />
+                </svg>
+                <h3 className="font-mono text-[11px] font-medium uppercase tracking-widest text-fg/60">
+                  ADO
+                </h3>
+                {!deliverables.isLoading && deliverablesCount > 0 && (
+                  <span className="font-mono text-[11px] tabular-nums text-fg/20">
+                    {deliverablesCount}
+                  </span>
+                )}
+                <span className="ml-auto font-mono text-[10px] text-fg/20">
+                  {deliverablesExpanded ? '▲' : '▼'}
+                </span>
+              </button>
+
+              {deliverablesExpanded && (
+                <div className="mt-2 space-y-3">
+                  {/* Loading state */}
+                  {deliverables.isLoading && deliverablesCount === 0 && (
+                    <div className="flex items-center gap-2 py-3">
+                      <div className="h-3 w-3 animate-spin rounded-full border border-fg/10 border-t-fg/30" />
+                      <span className="font-mono text-[11px] text-fg/50">Loading ADO data…</span>
+                    </div>
+                  )}
+
+                  {/* Error state */}
+                  {deliverables.error && (
+                    <div className="flex items-center gap-2 py-2">
+                      <svg
+                        className="h-3.5 w-3.5 shrink-0 text-red-400"
+                        viewBox="0 0 16 16"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <circle cx="8" cy="8" r="6" />
+                        <line x1="8" y1="5" x2="8" y2="8.5" />
+                        <circle cx="8" cy="11" r="0.5" fill="currentColor" />
+                      </svg>
+                      <span className="text-xs text-red-400">{deliverables.error}</span>
+                      <button
+                        type="button"
+                        onClick={deliverables.refresh}
+                        className="ml-auto font-mono text-[10px] text-fg/40 hover:text-fg/60 cursor-pointer"
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Empty state */}
+                  {!deliverables.isLoading && !deliverables.error && deliverablesCount === 0 && (
+                    <p className="py-2 font-mono text-[11px] text-fg/50">
+                      No ADO data found
+                    </p>
+                  )}
+
+                  {/* Pull Requests */}
+                  {deliverables.pullRequests.length > 0 && (
+                    <div>
+                      <p className="mb-1 font-mono text-[10px] font-medium uppercase tracking-wider text-fg/30">
+                        Pull Requests
+                      </p>
+                      <div className="divide-y divide-border-default">
+                        {deliverables.pullRequests.map((pr) => (
+                          <a
+                            key={pr.id}
+                            href={pr.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="group/pr block w-full py-2 transition-colors hover:bg-surface-hover"
+                          >
+                            <div className="flex items-center gap-3">
+                              <span className="shrink-0 font-mono text-xs tabular-nums text-fg/45">
+                                PR #{pr.id}
+                              </span>
+                              <span className="min-w-0 flex-1 truncate text-sm text-fg/70">
+                                {pr.title}
+                              </span>
+                              <span
+                                className={`shrink-0 rounded-full border px-1.5 py-px font-mono text-[10px] font-medium capitalize leading-snug ${deliverablePrStatusBadgeClasses(pr.status)}`}
+                              >
+                                {pr.status}
+                              </span>
+                            </div>
+                            <div className="mt-1 flex items-center gap-1 font-mono text-[10px] text-fg/50">
+                              <span className="max-w-[120px] truncate">{deliverableShortBranch(pr.sourceBranch)}</span>
+                              <span aria-hidden="true">→</span>
+                              <span className="max-w-[120px] truncate">{deliverableShortBranch(pr.targetBranch)}</span>
+                            </div>
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Work Items */}
+                  {deliverables.workItems.length > 0 && (
+                    <div>
+                      <p className="mb-1 font-mono text-[10px] font-medium uppercase tracking-wider text-fg/30">
+                        Work Items
+                      </p>
+                      <div className="divide-y divide-border-default">
+                        {deliverables.workItems.map((item) => (
+                          <a
+                            key={item.id}
+                            href={item.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex w-full items-center gap-3 py-2 transition-colors hover:bg-surface-hover"
+                          >
+                            <span className="shrink-0 font-mono text-xs tabular-nums text-fg/45">
+                              #{item.id}
+                            </span>
+                            <span className="min-w-0 flex-1 truncate text-sm text-fg/70">
+                              {item.title}
+                            </span>
+                            <span
+                              className={`shrink-0 rounded-full border px-1.5 py-px font-mono text-[10px] font-medium leading-snug ${deliverableWorkItemStateBadgeClasses(item.state)}`}
+                            >
+                              {item.state}
+                            </span>
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Refreshing overlay when data already present */}
+                  {deliverables.isLoading && deliverablesCount > 0 && (
+                    <div className="flex items-center gap-2 border-t border-border-default pt-1.5">
+                      <div className="h-2.5 w-2.5 animate-spin rounded-full border border-fg/10 border-t-fg/30" />
+                      <span className="font-mono text-[10px] text-fg/50">Refreshing…</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </section>
         )}

@@ -8,3 +8,16 @@ export interface SessionSource {
   getSession(id: string): Session | null;
   isAvailable(): boolean;
 }
+
+export interface SourceStatus {
+  copilot: {
+    available: boolean;
+    sqliteAvailable: boolean;
+    filesystemAvailable: boolean;
+    sessionStateDir: string;
+  };
+  claude: {
+    available: boolean;
+    claudeDir: string;
+  };
+}
