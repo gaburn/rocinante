@@ -271,7 +271,7 @@ describe('CopilotSessionSource', () => {
 
       // mapToSession should be called with a synthetic SqliteSession row + events + context
       expect(mockMapToSession).toHaveBeenCalledTimes(1);
-      const [syntheticRow, _events, ctx] = mockMapToSession.mock.calls[0];
+      const [syntheticRow, , ctx] = mockMapToSession.mock.calls[0];
       expect(syntheticRow.id).toBe('ctx-session');
       expect(syntheticRow.created_at).toBe('2026-06-01T12:00:00Z');
       expect(ctx).toEqual({

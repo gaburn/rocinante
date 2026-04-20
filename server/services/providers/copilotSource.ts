@@ -116,14 +116,8 @@ export class CopilotSessionSource implements SessionSource {
     if (!session) return null;
 
     // Extract the summary fields from the full Session object
-    const {
-      rootAgent: _rootAgent,
-      events: _events,
-      activityBuckets: _buckets,
-      assistantUpdates: _updates,
-      squadCast: _cast,
-      ...summary
-    } = session;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { rootAgent, events, activityBuckets, assistantUpdates, squadCast, ...summary } = session;
 
     return summary as SessionSummary;
   }
