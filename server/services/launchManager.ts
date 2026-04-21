@@ -134,23 +134,27 @@ export function sanitizeRepoPath(repoPath: string): string {
  * Validate that a path exists and is a directory.
  * Throws with a descriptive message on failure.
  *
- * Uses path.resolve() as a CodeQL-recognized sanitization barrier so the
- * subsequent filesystem call operates on a value CodeQL considers safe.
+ * Guards against path traversal by checking raw input BEFORE path.resolve(),
+ * since resolve() strips '..' making post-resolve checks invisible to CodeQL.
  */
 export function validateDirectory(repoPath: string): void {
-  const resolved = path.resolve(repoPath);
-  if (resolved.includes('..')) {
+  // Sanitization barrier: reject traversal in raw user input.
+  // This check MUST be on the raw input BEFORE path.resolve(),
+  // because resolve() strips '..' making post-resolve checks dead code.
+  if (repoPath.includes('..')) {
     throw new Error(`Path contains traversal segments: ${repoPath}`);
   }
 
+  const safePath = path.resolve(repoPath);
+
   let stat: fs.Stats;
   try {
-    stat = fs.statSync(resolved);
+    stat = fs.statSync(safePath);
   } catch {
-    throw new Error(`Path does not exist: ${resolved}`);
+    throw new Error(`Path does not exist: ${safePath}`);
   }
   if (!stat.isDirectory()) {
-    throw new Error(`Path is not a directory: ${resolved}`);
+    throw new Error(`Path is not a directory: ${safePath}`);
   }
 }
 
