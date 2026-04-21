@@ -103,19 +103,19 @@ export function sanitizeRepoPath(repoPath: string): string {
     throw new Error('Path contains null bytes');
   }
 
+  // Reject traversal segments BEFORE path.resolve() so CodeQL sees the
+  // guard on the raw input — resolve() strips '..' making post-resolve
+  // checks invisible to taint analysis.
+  if (repoPath.includes('..')) {
+    throw new Error('Path contains traversal segments');
+  }
+
   const resolved = path.resolve(repoPath);
 
   // After resolution, the path must be absolute (path.resolve guarantees
   // this, but belt-and-suspenders for CodeQL's static analysis).
   if (!path.isAbsolute(resolved)) {
     throw new Error('Path must be absolute');
-  }
-
-  // Reject if the resolved path still contains traversal segments.
-  // path.resolve() normalizes these away, but if somehow present, block it.
-  const segments = resolved.split(path.sep);
-  if (segments.includes('..')) {
-    throw new Error('Path contains traversal segments');
   }
 
   // Reject paths into sensitive system directories.
@@ -138,23 +138,22 @@ export function sanitizeRepoPath(repoPath: string): string {
  * since resolve() strips '..' making post-resolve checks invisible to CodeQL.
  */
 export function validateDirectory(repoPath: string): void {
-  // Sanitization barrier: reject traversal in raw user input.
-  // This check MUST be on the raw input BEFORE path.resolve(),
-  // because resolve() strips '..' making post-resolve checks dead code.
+  // Sanitization barrier on the SAME variable used in the filesystem sink.
+  // IMPORTANT: The guard and the sink must use the same variable for CodeQL
+  // to recognize the sanitization. Do NOT introduce intermediate variables
+  // via path.resolve() between the guard and the sink.
   if (repoPath.includes('..')) {
     throw new Error(`Path contains traversal segments: ${repoPath}`);
   }
 
-  const safePath = path.resolve(repoPath);
-
   let stat: fs.Stats;
   try {
-    stat = fs.statSync(safePath);
+    stat = fs.statSync(repoPath);
   } catch {
-    throw new Error(`Path does not exist: ${safePath}`);
+    throw new Error(`Path does not exist: ${repoPath}`);
   }
   if (!stat.isDirectory()) {
-    throw new Error(`Path is not a directory: ${safePath}`);
+    throw new Error(`Path is not a directory: ${repoPath}`);
   }
 }
 

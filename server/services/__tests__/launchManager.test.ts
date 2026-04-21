@@ -245,8 +245,7 @@ describe('sanitizeRepoPath', () => {
     expect(path.isAbsolute(result)).toBe(true);
   });
 
-  it('normalizes away .. segments via path.resolve', () => {
-    const result = sanitizeRepoPath('/repos/my-project/../other-project');
-    expect(result).not.toContain('..');
+  it('rejects paths containing .. traversal segments', () => {
+    expect(() => sanitizeRepoPath('/repos/my-project/../other-project')).toThrow(/traversal segments/);
   });
 });
