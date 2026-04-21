@@ -26,6 +26,7 @@ import {
   stopCleanupTimer,
   validateDirectory,
   isValidAgentType,
+  sanitizeRepoPath,
 } from '../launchManager.js';
 
 // ── Helpers ──────────────────────────────────────────────────────
@@ -211,5 +212,41 @@ describe('getLaunch', () => {
 
     vi.advanceTimersByTime(5 * 60 * 1000 + 1);
     expect(getLaunch(created.launchId)).toBeNull();
+  });
+});
+
+// ── sanitizeRepoPath ─────────────────────────────────────────────
+
+describe('sanitizeRepoPath', () => {
+  it('returns resolved absolute path for valid input', () => {
+    const result = sanitizeRepoPath('/repos/my-project');
+    expect(path.isAbsolute(result)).toBe(true);
+  });
+
+  it('throws for empty string', () => {
+    expect(() => sanitizeRepoPath('')).toThrow(/repoPath is required/);
+  });
+
+  it('throws for null bytes in path', () => {
+    expect(() => sanitizeRepoPath('/repos/my\0project')).toThrow(/null bytes/);
+  });
+
+  it('rejects paths that resolve into system directories (posix)', () => {
+    // On Windows this test checks Windows blocked dirs instead
+    if (process.platform === 'win32') {
+      expect(() => sanitizeRepoPath('C:\\Windows\\System32')).toThrow(/restricted system directory/);
+    } else {
+      expect(() => sanitizeRepoPath('/etc/passwd')).toThrow(/restricted system directory/);
+    }
+  });
+
+  it('resolves relative paths to absolute', () => {
+    const result = sanitizeRepoPath('relative/path');
+    expect(path.isAbsolute(result)).toBe(true);
+  });
+
+  it('normalizes away .. segments via path.resolve', () => {
+    const result = sanitizeRepoPath('/repos/my-project/../other-project');
+    expect(result).not.toContain('..');
   });
 });

@@ -14,6 +14,30 @@ const VALID_AGENT_TYPES = new Set(['copilot', 'claude', 'shell']);
 const LAUNCH_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const CLEANUP_INTERVAL_MS = 60 * 1000; // 1 minute
 
+/**
+ * Blocked path prefixes — reject paths that resolve into sensitive system
+ * directories. Lowercase for case-insensitive comparison on Windows.
+ */
+const BLOCKED_PREFIXES_WIN = [
+  'c:\\windows',
+  'c:\\program files',
+  'c:\\program files (x86)',
+  'c:\\programdata',
+];
+const BLOCKED_PREFIXES_POSIX = [
+  '/etc',
+  '/usr',
+  '/bin',
+  '/sbin',
+  '/boot',
+  '/lib',
+  '/lib64',
+  '/proc',
+  '/sys',
+  '/dev',
+  '/var/run',
+];
+
 const launches = new Map<string, LaunchRecord>();
 let cleanupTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -64,6 +88,49 @@ export function isValidAgentType(value: string): value is LaunchRecord['agentTyp
 }
 
 /**
+ * Sanitize and validate a user-supplied repository path before any
+ * filesystem access. Prevents path traversal and access to system dirs.
+ *
+ * @returns The resolved, absolute path.
+ * @throws {Error} if the path is unsafe.
+ */
+export function sanitizeRepoPath(repoPath: string): string {
+  if (!repoPath || typeof repoPath !== 'string') {
+    throw new Error('repoPath is required');
+  }
+
+  if (repoPath.includes('\0')) {
+    throw new Error('Path contains null bytes');
+  }
+
+  const resolved = path.resolve(repoPath);
+
+  // After resolution, the path must be absolute (path.resolve guarantees
+  // this, but belt-and-suspenders for CodeQL's static analysis).
+  if (!path.isAbsolute(resolved)) {
+    throw new Error('Path must be absolute');
+  }
+
+  // Reject if the resolved path still contains traversal segments.
+  // path.resolve() normalizes these away, but if somehow present, block it.
+  const segments = resolved.split(path.sep);
+  if (segments.includes('..')) {
+    throw new Error('Path contains traversal segments');
+  }
+
+  // Reject paths into sensitive system directories.
+  const lower = resolved.toLowerCase();
+  const blocked = process.platform === 'win32' ? BLOCKED_PREFIXES_WIN : BLOCKED_PREFIXES_POSIX;
+  for (const prefix of blocked) {
+    if (lower === prefix || lower.startsWith(prefix + path.sep)) {
+      throw new Error(`Path resolves to a restricted system directory: ${prefix}`);
+    }
+  }
+
+  return resolved;
+}
+
+/**
  * Validate that a path exists and is a directory.
  * Throws with a descriptive message on failure.
  */
@@ -90,8 +157,10 @@ export function createLaunch(repoPath: string, agentType: string): LaunchRecord 
     throw new Error(`Invalid agentType: ${agentType}. Must be one of: copilot, claude, shell`);
   }
 
-  validateDirectory(repoPath);
-  const normalizedPath = normalizePath(repoPath);
+  // Sanitize BEFORE any filesystem access to prevent path traversal
+  const safePath = sanitizeRepoPath(repoPath);
+  validateDirectory(safePath);
+  const normalizedPath = normalizePath(safePath);
 
   const record: LaunchRecord = {
     launchId: randomUUID(),

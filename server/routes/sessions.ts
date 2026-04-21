@@ -13,10 +13,15 @@ import {
   isArchived,
   isInitialized as isArchiveInitialized,
 } from '../services/archiveStore.js';
+import { createRateLimiter } from '../middleware/rateLimit.js';
 import type { SessionSummary } from '../../src/types/index.js';
 import type { SourceStatus } from '../services/providers/types.js';
 
 const sessionsRouter = Router();
+
+// Rate limit all session routes: 100 requests/minute per IP
+const limiter = createRateLimiter({ maxRequests: 100, windowMs: 60_000 });
+sessionsRouter.use(limiter);
 let responseCache: { data: SessionSummary[]; expires: number; includeArchived: boolean } | null = null;
 
 /** Invalidate the response cache (e.g., after a write-path event). */
