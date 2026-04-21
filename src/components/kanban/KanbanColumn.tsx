@@ -32,6 +32,8 @@ interface KanbanColumnProps {
   onArchive?: (sessionId: string) => void;
   onArchiveWorkstream?: () => void;
   onNewSession?: () => void;
+  isFavorited?: boolean;
+  onToggleFavorite?: () => void;
   isSortable?: boolean;
   conversationSearchResults?: Map<string, ConversationMatch>;
   searchQuery?: string;
@@ -47,6 +49,8 @@ export default function KanbanColumn({
   onArchive,
   onArchiveWorkstream,
   onNewSession,
+  isFavorited = false,
+  onToggleFavorite,
   isSortable = false,
   conversationSearchResults,
   searchQuery,
@@ -126,6 +130,23 @@ export default function KanbanColumn({
         <span className="shrink-0 rounded-full bg-surface-tertiary px-2 py-0.5 text-[10px] font-mono tabular-nums text-fg/40">
           {sessions.length}
         </span>
+        {onToggleFavorite && (
+          <button
+            type="button"
+            onClick={onToggleFavorite}
+            className={`shrink-0 rounded p-0.5 transition-colors ${
+              isFavorited
+                ? 'text-amber-400 hover:text-amber-300'
+                : 'text-fg/25 hover:text-fg/60 hover:bg-surface-tertiary'
+            }`}
+            aria-label={isFavorited ? `Unfavorite ${name}` : `Favorite ${name}`}
+            title={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
+          >
+            <span className="text-sm leading-none" aria-hidden="true">
+              {isFavorited ? '★' : '☆'}
+            </span>
+          </button>
+        )}
         {onNewSession && (
           <button
             type="button"

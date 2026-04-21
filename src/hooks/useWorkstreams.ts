@@ -13,6 +13,7 @@ export interface WorkstreamRegistryEntry {
   pendingLaunchAt?: string
   description?: string
   archived?: boolean
+  favorited?: boolean
 }
 
 function loadWorkstreamRegistry(): Record<string, WorkstreamRegistryEntry> {
@@ -34,6 +35,7 @@ function loadWorkstreamRegistry(): Record<string, WorkstreamRegistryEntry> {
           ...(typeof entry.pendingLaunchAt === 'string' ? { pendingLaunchAt: entry.pendingLaunchAt } : {}),
           ...(typeof entry.description === 'string' ? { description: entry.description } : {}),
           ...(typeof entry.archived === 'boolean' ? { archived: entry.archived } : {}),
+          ...(typeof entry.favorited === 'boolean' ? { favorited: entry.favorited } : {}),
         }
       }
     }
@@ -87,6 +89,7 @@ export interface UseWorkstreamsResult {
   renameWorkstream: (oldName: string, newName: string) => void
   deleteWorkstream: (name: string) => void
   archiveWorkstream: (name: string) => void
+  toggleFavorite: (name: string) => void
   pruneStaleIds: (activeIds: string[]) => void
   autoGroupByRepository: (sessions: SessionSummary[]) => void
   hasAnyWorkstreams: boolean
@@ -275,7 +278,14 @@ export function useWorkstreams(): UseWorkstreamsResult {
     })
   }, [])
 
-  const pruneStaleIds = useCallback((activeIds: string[]) => {
+  const toggleFavorite = useCallback((name: string) => {
+    setRegistry((current) => {
+      const existing = current[name] ?? { createdAt: new Date().toISOString() }
+      return { ...current, [name]: { ...existing, favorited: !existing.favorited } }
+    })
+  }, [])
+
+  const pruneStaleIds= useCallback((activeIds: string[]) => {
     setWorkstreamMap((current) => {
       if (Object.keys(current).length === 0) {
         return current
@@ -367,6 +377,7 @@ export function useWorkstreams(): UseWorkstreamsResult {
     renameWorkstream,
     deleteWorkstream,
     archiveWorkstream,
+    toggleFavorite,
     pruneStaleIds,
     autoGroupByRepository,
     hasAnyWorkstreams,

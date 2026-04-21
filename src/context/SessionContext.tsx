@@ -70,7 +70,8 @@ export interface SessionActionsContextValue {
   renameWorkstream: (oldName: string, newName: string) => void
   deleteWorkstream: (name: string) => void
   archiveWorkstream: (name: string) => void
-  setWorkstreamDescription: (workstreamName: string, description: string) => void
+  toggleFavorite: (name: string) => void
+  setWorkstreamDescription:(workstreamName: string, description: string) => void
   removeWorkstreamDescription: (workstreamName: string) => void
   autoGroupByRepository: () => void
   createWorkstream: (name: string, opts?: { repoPath?: string; pendingLaunchId?: string; description?: string }) => void
@@ -150,7 +151,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     renameWorkstream: s.renameWorkstream,
     deleteWorkstream: s.deleteWorkstream,
     archiveWorkstream: s.archiveWorkstream,
-    setWorkstreamDescription: s.setWorkstreamDescription,
+    toggleFavorite: s.toggleFavorite,
+    setWorkstreamDescription:s.setWorkstreamDescription,
     removeWorkstreamDescription: s.removeWorkstreamDescription,
     autoGroupByRepository: s.autoGroupByRepository,
     createWorkstream: s.createWorkstream,
@@ -161,7 +163,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     s.unarchiveSession, s.toggleArchive, s.archiveAndSelectNext,
     s.archiveAllCompleted, s.getWorkstream, s.setWorkstream,
     s.removeWorkstream, s.getCustomName, s.setSessionName,
-    s.removeSessionName, s.renameWorkstream, s.deleteWorkstream, s.archiveWorkstream,
+    s.removeSessionName, s.renameWorkstream, s.deleteWorkstream, s.archiveWorkstream, s.toggleFavorite,
     s.setWorkstreamDescription, s.removeWorkstreamDescription,
     s.autoGroupByRepository, s.createWorkstream, s.updateWorkstreamRegistry,
   ])
