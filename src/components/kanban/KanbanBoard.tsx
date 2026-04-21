@@ -172,8 +172,8 @@ export default function KanbanBoard() {
       const bIsUngrouped = b.id === UNGROUPED_ID;
       if (aIsUngrouped && !bIsUngrouped) return 1;
       if (!aIsUngrouped && bIsUngrouped) return -1;
-      const aFav = workstreamRegistry[a.id]?.favorited ? 1 : 0;
-      const bFav = workstreamRegistry[b.id]?.favorited ? 1 : 0;
+      const aFav = workstreamRegistry[a.name]?.favorited ? 1 : 0;
+      const bFav = workstreamRegistry[b.name]?.favorited ? 1 : 0;
       if (aFav !== bFav) return bFav - aFav;
       return 0; // preserve existing order within group
     });
@@ -587,10 +587,10 @@ export default function KanbanBoard() {
                         ? () => handleNewSessionFromColumn(col.id, col.sessions)
                         : undefined
                     }
-                    isFavorited={Boolean(workstreamRegistry[col.id]?.favorited)}
+                    isFavorited={Boolean(workstreamRegistry[col.name]?.favorited)}
                     onToggleFavorite={
                       col.id !== UNGROUPED_ID && col.name !== 'All Sessions'
-                        ? () => toggleFavorite(col.id)
+                        ? () => toggleFavorite(col.name)
                         : undefined
                     }
                     isSortable={col.id !== UNGROUPED_ID && col.name !== 'All Sessions'}
