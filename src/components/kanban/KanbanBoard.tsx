@@ -18,6 +18,7 @@ import StatusSummaryBar from '../common/StatusSummaryBar';
 import StatusFilter from '../filters/StatusFilter';
 import KanbanColumn, { COLUMN_SORTABLE_PREFIX } from './KanbanColumn';
 import KanbanTile from './KanbanTile';
+import WelcomeCard from '../sessions/WelcomeCard';
 
 /* ─────────────────────────────────────────────────────────
  * KanbanBoard
@@ -238,6 +239,7 @@ export default function KanbanBoard() {
 
   const showSkeletons = isLoading && sessions.length === 0;
   const showErrorState = !isLoading && Boolean(error) && sessions.length === 0;
+  const showEmptyState = !isLoading && !error && sessions.length === 0 && !searchQuery.trim();
 
   return (
     <section className="flex h-full flex-col bg-surface-primary">
@@ -421,6 +423,8 @@ export default function KanbanBoard() {
               <p className="max-w-xs text-xs text-fg/45">{error}</p>
             </div>
           </div>
+        ) : showEmptyState ? (
+          <WelcomeCard />
         ) : (
           <DndContext
             sensors={sensors}

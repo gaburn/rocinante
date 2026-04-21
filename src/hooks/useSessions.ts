@@ -28,6 +28,7 @@ export interface UseSessionsResult {
   sessions: SessionSummary[]
   allSessions: SessionSummary[]
   selectedSession: Session | null
+  selectedSessionId: string | null
   selectedWorkstream: SessionGroup | null
   statusFilter: SessionStatus | 'all'
   sourceFilter: 'copilot' | 'claude' | 'all'
@@ -543,6 +544,7 @@ export function useSessions(): UseSessionsResult {
     sessions,
     allSessions: sessionsWithNames,
     selectedSession,
+    selectedSessionId,
     selectedWorkstream,
     statusFilter,
     sourceFilter,

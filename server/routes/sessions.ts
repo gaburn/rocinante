@@ -1,4 +1,6 @@
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
+import * as fs from 'node:fs';
 import { mapAllSessionSummaries, mapSessionById } from '../services/sessionMapper.js';
 import { readSessionPlan } from '../services/planReader.js';
 import { generateDemoSessions, getDemoWorkstreams } from '../services/demoData.js';
@@ -13,10 +15,15 @@ import {
   isInitialized as isArchiveInitialized,
 } from '../services/archiveStore.js';
 import type { SessionSummary } from '../../src/types/index.js';
+import type { SourceStatus } from '../services/providers/types.js';
 
 const sessionsRouter = Router();
-
-/* ── Response cache for GET /api/sessions ─────────────────────── */
+const statusLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 60, // limit each IP to 60 requests per window
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 let responseCache: { data: SessionSummary[]; expires: number; includeArchived: boolean } | null = null;
 
 /** Invalidate the response cache (e.g., after a write-path event). */
@@ -24,7 +31,7 @@ export function invalidateSessionsCache(): void {
   responseCache = null;
 }
 
-sessionsRouter.get('/sessions', (req, res) => {
+sessionsRouter.get('/sessions', async (req, res) => {
   try {
     if (process.env.DEMO_MODE === 'true') {
       const sessions = generateDemoSessions();
@@ -47,6 +54,12 @@ sessionsRouter.get('/sessions', (req, res) => {
       : undefined;
 
     const sessions = mapAllSessionSummaries(excludeIds);
+
+    // ADO enrichment disabled — the MCP SDK dynamic import blocks the Node.js
+    // event loop under tsx watch, and the REST fallback uses execSync which also
+    // blocks. Deliverables are available per-session via the useSessionDeliverables
+    // hook and GET /api/ado/session-deliverables?branch=X endpoint instead.
+    // TODO: Re-enable when running with compiled JS (node dist/) in production.
 
     const { cacheTtlMs } = getConfig();
     responseCache = { data: sessions, expires: now + cacheTtlMs, includeArchived };
@@ -75,6 +88,35 @@ sessionsRouter.get('/sessions/search', (req, res) => {
       isArchived: isArchived(r.sessionId),
     }));
     res.json(annotated);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    res.status(500).json({ error: message });
+  }
+});
+
+/* ── Source status endpoint ────────────────────────────────────── */
+
+sessionsRouter.get('/sessions/status', statusLimiter, (_req, res) => {
+  try {
+    const { sqliteDbPath, sessionStateDir, claudeDir } = getConfig();
+
+    const sqliteAvailable = fs.existsSync(sqliteDbPath);
+    const filesystemAvailable = fs.existsSync(sessionStateDir);
+
+    const status: SourceStatus = {
+      copilot: {
+        available: sqliteAvailable || filesystemAvailable,
+        sqliteAvailable,
+        filesystemAvailable,
+        sessionStateDir,
+      },
+      claude: {
+        available: fs.existsSync(claudeDir),
+        claudeDir,
+      },
+    };
+
+    res.json(status);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     res.status(500).json({ error: message });
