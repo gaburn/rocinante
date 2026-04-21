@@ -156,15 +156,6 @@ export default function KanbanBoard() {
     return cols;
   }, [groupedSessions, getOrderedNames]);
 
-  // Snapshot favorites used for column sorting. Updated only when the column
-  // *structure* changes (groups added/removed, page load) — NOT on every live
-  // toggle — so that favoriting a column doesn't yank it to a new position
-  // while the user is looking at it.
-  const sortFavoritesRef = useRef(workstreamRegistry);
-  useEffect(() => {
-    sortFavoritesRef.current = workstreamRegistry;
-  }, [columns]); // eslint-disable-line react-hooks/exhaustive-deps
-
   // If there are no workstreams at all, put everything in a single "All Sessions" column
   const effectiveColumns = useMemo(() => {
     if (!hasAnyWorkstreams) {
@@ -176,19 +167,18 @@ export default function KanbanBoard() {
       cols = cols.filter((c) => c.sessions.length > 0);
     }
     // Sort favorited workstreams before non-favorited; Ungrouped always last.
-    // Uses the snapshot so columns don't jump mid-session.
-    const favSnap = sortFavoritesRef.current;
+    // Uses live workstreamRegistry so toggling ★ immediately reorders columns.
     return [...cols].sort((a, b) => {
       const aIsUngrouped = a.id === UNGROUPED_ID;
       const bIsUngrouped = b.id === UNGROUPED_ID;
       if (aIsUngrouped && !bIsUngrouped) return 1;
       if (!aIsUngrouped && bIsUngrouped) return -1;
-      const aFav = favSnap[a.name]?.favorited ? 1 : 0;
-      const bFav = favSnap[b.name]?.favorited ? 1 : 0;
+      const aFav = workstreamRegistry[a.name]?.favorited ? 1 : 0;
+      const bFav = workstreamRegistry[b.name]?.favorited ? 1 : 0;
       if (aFav !== bFav) return bFav - aFav;
       return 0; // preserve existing order within group
     });
-  }, [columns, sessions, hasAnyWorkstreams, searchQuery]);
+  }, [columns, sessions, hasAnyWorkstreams, searchQuery, workstreamRegistry]);
 
   // Column sortable ids for SortableContext (all columns, Ungrouped disabled via prop)
   const columnSortableIds = useMemo(
