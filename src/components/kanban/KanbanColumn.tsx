@@ -133,6 +133,7 @@ export default function KanbanColumn({
         {onToggleFavorite && (
           <button
             type="button"
+            onPointerDown={(e) => e.stopPropagation()}
             onClick={onToggleFavorite}
             className={`shrink-0 rounded p-0.5 transition-colors ${
               isFavorited
