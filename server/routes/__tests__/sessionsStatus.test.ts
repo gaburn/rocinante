@@ -107,9 +107,7 @@ function callGetSessionsStatus(): { statusCode: number; body: unknown } {
     throw new Error('GET /sessions/status route not found on router');
   }
 
-  // Call the actual route handler, not the rate-limiter middleware at [0]
-  const handlers = layer.route.stack;
-  handlers[handlers.length - 1].handle(req, res, () => {});
+  layer.route.stack[0].handle(req, res, () => {});
   return res;
 }
 
