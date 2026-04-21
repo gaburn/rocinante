@@ -31,7 +31,8 @@ const getTerminalTheme = () => {
 interface TerminalInstanceProps {
   sessionId: string
   cwd: string | null
-  mode: 'copilot' | 'shell'
+  mode: 'copilot' | 'shell' | 'launch'
+  launchId?: string
   className?: string
 }
 
@@ -39,6 +40,7 @@ export default function TerminalInstance({
   sessionId,
   cwd,
   mode,
+  launchId,
   className,
 }: TerminalInstanceProps) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -89,18 +91,23 @@ export default function TerminalInstance({
 
       // ── WebSocket to server PTY ──────────────────────────────────
       const protocol = location.protocol === 'https:' ? 'wss' : 'ws'
-      const shell =
-        settings.display.shell === 'custom'
-          ? settings.display.customShellPath
-          : settings.display.shell
       const params = new URLSearchParams()
-      if (mode === 'copilot') {
-        params.set('sessionId', sessionId)
+      if (launchId) {
+        // Launch mode: backend resolves cwd and command from the launch record
+        params.set('launchId', launchId)
+      } else {
+        const shell =
+          settings.display.shell === 'custom'
+            ? settings.display.customShellPath
+            : settings.display.shell
+        if (mode === 'copilot') {
+          params.set('sessionId', sessionId)
+        }
+        if (cwd) {
+          params.set('cwd', cwd)
+        }
+        params.set('shell', shell)
       }
-      if (cwd) {
-        params.set('cwd', cwd)
-      }
-      params.set('shell', shell)
       const wsUrl = `${protocol}://${location.host}/ws/terminal?${params.toString()}`
       const ws = new WebSocket(wsUrl)
       wsRef.current = ws
@@ -121,8 +128,12 @@ export default function TerminalInstance({
         terminal.write(event.data)
       })
 
-      ws.addEventListener('close', () => {
-        terminal.writeln('\r\n\x1b[31m[Terminal disconnected]\x1b[0m')
+      ws.addEventListener('close', (event) => {
+        if (event.code === 4001) {
+          terminal.writeln('\r\n\x1b[31m[Launch rejected: invalid or expired launch ID]\x1b[0m')
+        } else {
+          terminal.writeln('\r\n\x1b[31m[Terminal disconnected]\x1b[0m')
+        }
       })
 
       ws.addEventListener('error', () => {
@@ -187,7 +198,7 @@ export default function TerminalInstance({
         termRef.current = null
       }
     }
-  }, [sessionId, cwd, mode, settings.display.shell, settings.display.customShellPath])
+  }, [sessionId, cwd, mode, launchId, settings.display.shell, settings.display.customShellPath])
 
   useEffect(() => {
     if (typeof document === 'undefined') return

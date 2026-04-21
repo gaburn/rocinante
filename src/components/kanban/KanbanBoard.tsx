@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -13,11 +13,14 @@ import {
 import { SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortable';
 import type { SessionSummary } from '../../types';
 import { useSessionData, useSessionSelection, useSessionActions } from '../../context/SessionContext';
+import { useTerminalContext } from '../../context/TerminalContext';
 import { useColumnOrder } from '../../hooks/useColumnOrder';
 import StatusSummaryBar from '../common/StatusSummaryBar';
 import StatusFilter from '../filters/StatusFilter';
 import KanbanColumn, { COLUMN_SORTABLE_PREFIX } from './KanbanColumn';
 import KanbanTile from './KanbanTile';
+import WelcomeCard from '../sessions/WelcomeCard';
+import NewWorkstreamDialog from './NewWorkstreamDialog';
 
 /* ─────────────────────────────────────────────────────────
  * KanbanBoard
@@ -68,6 +71,7 @@ export default function KanbanBoard() {
     conversationSearchResults,
     isSearchingConversations,
     autoArchive,
+    workstreamRegistry,
   } = useSessionData();
   const {
     selectedSession,
@@ -84,12 +88,36 @@ export default function KanbanBoard() {
     setWorkstream,
     removeWorkstream,
     autoGroupByRepository,
+    archiveWorkstream,
+    updateWorkstreamRegistry,
   } = useSessionActions();
+
+  const { openLaunchTerminal } = useTerminalContext();
 
   const { reorderColumns, getOrderedNames } = useColumnOrder();
 
   const [activeDragSession, setActiveDragSession] = useState<SessionSummary | null>(null);
   const [activeDragColumnName, setActiveDragColumnName] = useState<string | null>(null);
+  const [showNewWorkstream, setShowNewWorkstream] = useState(false);
+  const [newWorkstreamDefaultPath, setNewWorkstreamDefaultPath] = useState<string | undefined>();
+
+  // Cached agent detection for quick in-column session launches
+  type AgentType = 'copilot' | 'claude' | 'shell';
+  const agentCacheRef = useRef<{ agents: AgentType | null; fetched: boolean }>({ agents: null, fetched: false });
+
+  useEffect(() => {
+    if (agentCacheRef.current.fetched) return;
+    agentCacheRef.current.fetched = true;
+    fetch('/api/workstreams/agents')
+      .then((res) => (res.ok ? (res.json() as Promise<{ copilot: boolean; claude: boolean }>) : null))
+      .then((data) => {
+        if (!data) { agentCacheRef.current.agents = 'shell'; return; }
+        if (data.copilot) agentCacheRef.current.agents = 'copilot';
+        else if (data.claude) agentCacheRef.current.agents = 'claude';
+        else agentCacheRef.current.agents = 'shell';
+      })
+      .catch(() => { agentCacheRef.current.agents = 'shell'; });
+  }, []);
 
   // Configure pointer sensor with a small activation distance to distinguish clicks from drags
   const sensors = useSensors(
@@ -230,6 +258,63 @@ export default function KanbanBoard() {
     [selectSession],
   );
 
+  const handleNewSessionFromColumn = useCallback(
+    async (colId: string, colSessions: SessionSummary[]) => {
+      // Determine repo path: most-common cwd from column sessions, or registry repoPath
+      const cwds = colSessions.map((s) => s.cwd).filter(Boolean) as string[];
+      let repoPath: string | undefined;
+
+      if (cwds.length > 0) {
+        const freq = new Map<string, number>();
+        for (const c of cwds) freq.set(c, (freq.get(c) ?? 0) + 1);
+        let maxCount = 0;
+        for (const [path, count] of freq) {
+          if (count > maxCount) { maxCount = count; repoPath = path; }
+        }
+      } else {
+        repoPath = workstreamRegistry[colId]?.repoPath;
+      }
+
+      // If no repo path available, fall back to opening the dialog with workstream pre-context
+      if (!repoPath) {
+        setNewWorkstreamDefaultPath(undefined);
+        setShowNewWorkstream(true);
+        return;
+      }
+
+      const agentType = agentCacheRef.current.agents ?? 'shell';
+
+      try {
+        const res = await fetch('/api/workstreams/launch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ repoPath, agentType }),
+        });
+
+        if (!res.ok) {
+          const body = await res.json().catch(() => null) as { error?: string } | null;
+          throw new Error(body?.error ?? `Launch failed (${res.status})`);
+        }
+
+        const { launchId, normalizedPath } = (await res.json()) as {
+          launchId: string;
+          normalizedPath: string;
+        };
+
+        // Link this launch to the existing workstream
+        updateWorkstreamRegistry(colId, { pendingLaunchId: launchId, pendingLaunchAt: new Date().toISOString(), repoPath: normalizedPath });
+
+        openLaunchTerminal(launchId, colId, normalizedPath);
+      } catch (err) {
+        // On failure, fall back to dialog
+        console.error('Quick session launch failed:', err);
+        setNewWorkstreamDefaultPath(repoPath);
+        setShowNewWorkstream(true);
+      }
+    },
+    [workstreamRegistry, updateWorkstreamRegistry, openLaunchTerminal],
+  );
+
   // Column being dragged (for overlay ghost)
   const activeDragColumn = useMemo(() => {
     if (!activeDragColumnName) return null;
@@ -238,6 +323,7 @@ export default function KanbanBoard() {
 
   const showSkeletons = isLoading && sessions.length === 0;
   const showErrorState = !isLoading && Boolean(error) && sessions.length === 0;
+  const showEmptyState = !isLoading && !error && sessions.length === 0 && !searchQuery.trim();
 
   return (
     <section className="flex h-full flex-col bg-surface-primary">
@@ -327,6 +413,36 @@ export default function KanbanBoard() {
               <rect x="14" y="14" width="7" height="7" rx="1" />
             </svg>
             Auto-group
+          </button>
+
+          <button
+            type="button"
+            title="Create a new workstream"
+            onClick={() => {
+              setNewWorkstreamDefaultPath(undefined);
+              setShowNewWorkstream(true);
+            }}
+            className="
+              inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border-default
+              bg-surface-secondary px-2.5 py-1.5 text-xs text-fg/55
+              transition-colors duration-150
+              hover:border-border-active hover:text-fg/80
+            "
+          >
+            <svg
+              aria-hidden="true"
+              className="h-3.5 w-3.5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            Workstream
           </button>
         </div>
       </div>
@@ -421,6 +537,8 @@ export default function KanbanBoard() {
               <p className="max-w-xs text-xs text-fg/45">{error}</p>
             </div>
           </div>
+        ) : showEmptyState ? (
+          <WelcomeCard />
         ) : (
           <DndContext
             sensors={sensors}
@@ -444,6 +562,19 @@ export default function KanbanBoard() {
                         : undefined
                     }
                     onArchive={archiveSession}
+                    onArchiveWorkstream={
+                      col.id !== UNGROUPED_ID && col.name !== 'All Sessions'
+                        ? () => {
+                            col.sessions.forEach((s) => archiveSession(s.id));
+                            archiveWorkstream(col.name);
+                          }
+                        : undefined
+                    }
+                    onNewSession={
+                      col.id !== UNGROUPED_ID && col.name !== 'All Sessions'
+                        ? () => handleNewSessionFromColumn(col.id, col.sessions)
+                        : undefined
+                    }
                     isSortable={col.id !== UNGROUPED_ID && col.name !== 'All Sessions'}
                     conversationSearchResults={conversationSearchResults}
                     searchQuery={searchQuery}
@@ -491,6 +622,13 @@ export default function KanbanBoard() {
 
       {/* Scrollbar styles for kanban */}
       <style>{kanbanScrollbarCSS}</style>
+
+      <NewWorkstreamDialog
+        isOpen={showNewWorkstream}
+        onClose={() => setShowNewWorkstream(false)}
+        sessions={allSessions}
+        defaultRepoPath={newWorkstreamDefaultPath}
+      />
     </section>
   );
 }

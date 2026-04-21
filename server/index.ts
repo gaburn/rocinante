@@ -5,10 +5,13 @@ import { getConfig } from './config.js';
 import { initDatabase, closeDatabase } from './services/sqliteReader.js';
 import { initArchiveStore } from './services/archiveStore.js';
 import { killAllPtys } from './services/ptyManager.js';
+import { shutdownMcpClient } from './services/adoMcpClient.js';
+import { stopCleanupTimer } from './services/launchManager.js';
 import sessionsRouter from './routes/sessions.js';
 import configRouter from './routes/config.js';
 import adoRouter from './routes/ado.js';
 import telemetryRouter from './routes/telemetry.js';
+import workstreamsRouter from './routes/workstreams.js';
 import { attachTerminalWebSocket } from './routes/terminal.js';
 
 const app = express();
@@ -44,6 +47,7 @@ app.use('/api', sessionsRouter);
 app.use('/api', configRouter);
 app.use('/api', adoRouter);
 app.use('/api', telemetryRouter);
+app.use('/api', workstreamsRouter);
 
 if (process.env.NODE_ENV === 'production') {
   const distPath = path.join(import.meta.dirname ?? '.', '..', 'dist');
@@ -57,6 +61,9 @@ if (process.env.NODE_ENV === 'production') {
 
 initDatabase();
 initArchiveStore();
+
+// MCP warmup removed — SDK dynamic import blocks event loop under tsx watch.
+// MCP auto-detects tsx and skips initialization in dev mode.
 
 const server = app.listen(config.apiPort, () => {
   if (DEBUG) console.log(`[server] API listening on port ${config.apiPort}`);
@@ -91,6 +98,8 @@ function shutdown(signal: 'SIGINT' | 'SIGTERM'): void {
   isShuttingDown = true;
   if (DEBUG) console.log(`[server] Received ${signal}. Shutting down...`);
   killAllPtys();
+  stopCleanupTimer();
+  shutdownMcpClient().catch(() => {});
   closeDatabase();
   process.exit(0);
 }

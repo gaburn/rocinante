@@ -18,6 +18,7 @@ export interface AdoPullRequest {
   status: 'active' | 'draft' | 'completed' | 'abandoned';
   sourceBranch: string;
   targetBranch: string;
+  repositoryId?: string;
   repositoryName: string;
   createdBy: string;
   reviewers: AdoReviewer[];
@@ -28,4 +29,14 @@ export interface AdoStatus {
   configured: boolean;
   organization: string;
   project: string;
+}
+
+export interface SessionDeliverables {
+  pullRequests: AdoPullRequest[];
+  workItems: AdoWorkItem[];
+}
+
+export interface SessionDeliverables {
+  pullRequests: AdoPullRequest[];
+  workItems: AdoWorkItem[];
 }

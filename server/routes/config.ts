@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import fs from 'node:fs';
-import { getConfig, updateConfig, type SessionSourceOption } from '../config.js';
+import { getConfig, updateConfig, type SessionSourceOption, type LaunchCommands } from '../config.js';
 import { clearCache } from '../services/eventTailReader.js';
 
 type ConfigResponse = {
@@ -10,6 +10,7 @@ type ConfigResponse = {
   maxTimelineEvents: number;
   claudeDir: string;
   sessionSources: SessionSourceOption;
+  launchCommands: LaunchCommands;
 };
 
 type ConfigPatch = Partial<ConfigResponse>;
@@ -18,6 +19,8 @@ const ALLOWED_TAIL_BYTES = [262144, 524288, 1048576, 2097152];
 const ALLOWED_STALE_THRESHOLD_MS = [60000, 300000, 900000, 1800000];
 const ALLOWED_MAX_TIMELINE_EVENTS = [50, 100, 200, 500];
 const ALLOWED_SESSION_SOURCES: SessionSourceOption[] = ['auto', 'copilot', 'claude', 'both'];
+const ALLOWED_LAUNCH_COMMAND_KEYS = new Set<keyof LaunchCommands>(['copilot', 'claude', 'shell']);
+
 const ALLOWED_KEYS = new Set<keyof ConfigResponse>([
   'sessionStateDir',
   'tailBytes',
@@ -25,6 +28,7 @@ const ALLOWED_KEYS = new Set<keyof ConfigResponse>([
   'maxTimelineEvents',
   'claudeDir',
   'sessionSources',
+  'launchCommands',
 ]);
 
 const configRouter = Router();
@@ -37,6 +41,7 @@ function toConfigResponse(config: ReturnType<typeof getConfig>): ConfigResponse 
     maxTimelineEvents: config.maxTimelineEvents,
     claudeDir: config.claudeDir,
     sessionSources: config.sessionSources,
+    launchCommands: { ...config.launchCommands },
   };
 }
 
@@ -138,6 +143,28 @@ configRouter.patch('/config', (req, res) => {
       return;
     }
     patch.sessionSources = sessionSources;
+  }
+
+  if ('launchCommands' in body) {
+    const lc = body.launchCommands;
+    if (!lc || typeof lc !== 'object' || Array.isArray(lc)) {
+      res.status(400).json({ error: 'launchCommands must be a JSON object.' });
+      return;
+    }
+
+    for (const key of Object.keys(lc)) {
+      if (!ALLOWED_LAUNCH_COMMAND_KEYS.has(key as keyof LaunchCommands)) {
+        res.status(400).json({ error: `Unknown launchCommands field: ${key}` });
+        return;
+      }
+      if (typeof lc[key] !== 'string') {
+        res.status(400).json({ error: `launchCommands.${key} must be a string.` });
+        return;
+      }
+    }
+
+    const current = getConfig().launchCommands;
+    patch.launchCommands = { ...current, ...lc };
   }
 
   const currentConfig = getConfig();

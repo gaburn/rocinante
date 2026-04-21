@@ -220,6 +220,15 @@ const SessionCard = memo(function SessionCard({
             ⚠️
           </span>
         )}
+        {((session.adoPrCount ?? 0) > 0 || (session.adoWorkItemCount ?? 0) > 0) && (
+          <span className="text-[10px] font-mono text-fg/25" aria-label="ADO">
+            🔗{' '}
+            {[
+              (session.adoPrCount ?? 0) > 0 ? `${session.adoPrCount} PR${session.adoPrCount === 1 ? '' : 's'}` : null,
+              (session.adoWorkItemCount ?? 0) > 0 ? `${session.adoWorkItemCount} WI${session.adoWorkItemCount === 1 ? '' : 's'}` : null,
+            ].filter(Boolean).join(' · ')}
+          </span>
+        )}
         <span className="ml-auto flex items-center gap-1.5">
           <SourceBadge source={session.source} />
           <SquadBadge isSquadSession={session.isSquadSession} />
@@ -242,6 +251,8 @@ const SessionCard = memo(function SessionCard({
     prev.session.compactionCount === next.session.compactionCount &&
     prev.session.source === next.session.source &&
     prev.session.isSquadSession === next.session.isSquadSession &&
+    prev.session.adoPrCount === next.session.adoPrCount &&
+    prev.session.adoWorkItemCount === next.session.adoWorkItemCount &&
     prev.isSelected === next.isSelected &&
     prev.isArchived === next.isArchived &&
     prev.workstream === next.workstream &&

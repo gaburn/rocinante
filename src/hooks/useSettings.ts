@@ -91,6 +91,7 @@ export function useSettings(): UseSettingsResult {
             maxTimelineEvents: serverConfig.maxTimelineEvents as DataSettings['maxTimelineEvents'],
             sessionSources: serverConfig.sessionSources,
             claudeDir: serverConfig.claudeDir,
+            launchCommands: serverConfig.launchCommands ?? current.data.launchCommands,
           },
         }));
       } catch (error) {
@@ -159,6 +160,7 @@ export function useSettings(): UseSettingsResult {
           maxTimelineEvents: serverConfig.maxTimelineEvents as DataSettings['maxTimelineEvents'],
           sessionSources: serverConfig.sessionSources,
           claudeDir: serverConfig.claudeDir,
+          launchCommands: serverConfig.launchCommands ?? current.data.launchCommands,
         },
       }));
     } catch (error) {

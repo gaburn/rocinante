@@ -1,6 +1,7 @@
 import { createContext, useContext, useMemo, type ReactNode } from 'react'
 import { useSessions, type UseSessionsResult, type SessionGroup, type ConversationMatch } from '../hooks/useSessions'
 import type { Session, SessionSummary, SessionStatus, StatusCounts } from '../types'
+import type { WorkstreamRegistryEntry } from '../hooks/useWorkstreams'
 import type { UseAutoArchiveResult } from '../hooks/useAutoArchive'
 
 /* ──────────────────────────────────────────────────────────────
@@ -32,11 +33,13 @@ export interface SessionDataContextValue {
   archiveSynced: boolean
   autoArchive: UseAutoArchiveResult
   getWorkstreamNames: string[]
+  workstreamRegistry: Readonly<Record<string, WorkstreamRegistryEntry>>
 }
 
 // ── Selection Context — changes on click ──────────────────────
 export interface SessionSelectionContextValue {
   selectedSession: Session | null
+  selectedSessionId: string | null
   selectedWorkstream: SessionGroup | null
   selectSession: (id: string) => void
   selectWorkstream: (name: string) => void
@@ -66,9 +69,12 @@ export interface SessionActionsContextValue {
   removeSessionName: (sessionId: string) => void
   renameWorkstream: (oldName: string, newName: string) => void
   deleteWorkstream: (name: string) => void
+  archiveWorkstream: (name: string) => void
   setWorkstreamDescription: (workstreamName: string, description: string) => void
   removeWorkstreamDescription: (workstreamName: string) => void
   autoGroupByRepository: () => void
+  createWorkstream: (name: string, opts?: { repoPath?: string; pendingLaunchId?: string; description?: string }) => void
+  updateWorkstreamRegistry: (name: string, updates: Partial<WorkstreamRegistryEntry>) => void
 }
 
 const SessionDataContext = createContext<SessionDataContextValue | null>(null)
@@ -99,22 +105,25 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     archiveSynced: s.archiveSynced,
     autoArchive: s.autoArchive,
     getWorkstreamNames: s.getWorkstreamNames,
+    workstreamRegistry: s.workstreamRegistry,
   }), [
     s.sessions, s.allSessions, s.statusCounts, s.archivedCount,
     s.isLoading, s.error, s.statusFilter, s.sourceFilter, s.searchQuery, s.viewMode,
     s.showArchived, s.autoRefreshEnabled, s.groupedSessions,
     s.hasAnyWorkstreams, s.conversationSearchResults, s.archivedSearchResults,
     s.isSearchingConversations, s.archiveSynced, s.autoArchive, s.getWorkstreamNames,
+    s.workstreamRegistry,
   ])
 
   const selectionValue = useMemo<SessionSelectionContextValue>(() => ({
     selectedSession: s.selectedSession,
+    selectedSessionId: s.selectedSessionId,
     selectedWorkstream: s.selectedWorkstream,
     selectSession: s.selectSession,
     selectWorkstream: s.selectWorkstream,
     clearSelection: s.clearSelection,
   }), [
-    s.selectedSession, s.selectedWorkstream,
+    s.selectedSession, s.selectedSessionId, s.selectedWorkstream,
     s.selectSession, s.selectWorkstream, s.clearSelection,
   ])
 
@@ -140,18 +149,21 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     removeSessionName: s.removeSessionName,
     renameWorkstream: s.renameWorkstream,
     deleteWorkstream: s.deleteWorkstream,
+    archiveWorkstream: s.archiveWorkstream,
     setWorkstreamDescription: s.setWorkstreamDescription,
     removeWorkstreamDescription: s.removeWorkstreamDescription,
     autoGroupByRepository: s.autoGroupByRepository,
+    createWorkstream: s.createWorkstream,
+    updateWorkstreamRegistry: s.updateWorkstreamRegistry,
   }), [
     s.setStatusFilter, s.setSourceFilter, s.setSearchQuery, s.setViewMode, s.setShowArchived,
     s.refreshSessions, s.toggleAutoRefresh, s.isArchived, s.archiveSession,
     s.unarchiveSession, s.toggleArchive, s.archiveAndSelectNext,
     s.archiveAllCompleted, s.getWorkstream, s.setWorkstream,
     s.removeWorkstream, s.getCustomName, s.setSessionName,
-    s.removeSessionName, s.renameWorkstream, s.deleteWorkstream,
+    s.removeSessionName, s.renameWorkstream, s.deleteWorkstream, s.archiveWorkstream,
     s.setWorkstreamDescription, s.removeWorkstreamDescription,
-    s.autoGroupByRepository,
+    s.autoGroupByRepository, s.createWorkstream, s.updateWorkstreamRegistry,
   ])
 
   return (
