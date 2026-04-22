@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import fs from 'node:fs';
-import { getConfig, updateConfig, type SessionSourceOption } from '../config.js';
+import path from 'node:path';
+import rateLimit from 'express-rate-limit';
+import { getConfig, updateConfig, type SessionSourceOption, type LaunchCommands } from '../config.js';
 import { clearCache } from '../services/eventTailReader.js';
 
 type ConfigResponse = {
@@ -10,6 +12,7 @@ type ConfigResponse = {
   maxTimelineEvents: number;
   claudeDir: string;
   sessionSources: SessionSourceOption;
+  launchCommands: LaunchCommands;
 };
 
 type ConfigPatch = Partial<ConfigResponse>;
@@ -18,6 +21,8 @@ const ALLOWED_TAIL_BYTES = [262144, 524288, 1048576, 2097152];
 const ALLOWED_STALE_THRESHOLD_MS = [60000, 300000, 900000, 1800000];
 const ALLOWED_MAX_TIMELINE_EVENTS = [50, 100, 200, 500];
 const ALLOWED_SESSION_SOURCES: SessionSourceOption[] = ['auto', 'copilot', 'claude', 'both'];
+const ALLOWED_LAUNCH_COMMAND_KEYS = new Set<keyof LaunchCommands>(['copilot', 'claude', 'shell']);
+
 const ALLOWED_KEYS = new Set<keyof ConfigResponse>([
   'sessionStateDir',
   'tailBytes',
@@ -25,9 +30,14 @@ const ALLOWED_KEYS = new Set<keyof ConfigResponse>([
   'maxTimelineEvents',
   'claudeDir',
   'sessionSources',
+  'launchCommands',
 ]);
 
 const configRouter = Router();
+
+// Rate limit all config routes: 100 requests/minute per IP
+const limiter = rateLimit({ max: 100, windowMs: 60_000 });
+configRouter.use(limiter);
 
 function toConfigResponse(config: ReturnType<typeof getConfig>): ConfigResponse {
   return {
@@ -37,6 +47,7 @@ function toConfigResponse(config: ReturnType<typeof getConfig>): ConfigResponse 
     maxTimelineEvents: config.maxTimelineEvents,
     claudeDir: config.claudeDir,
     sessionSources: config.sessionSources,
+    launchCommands: { ...config.launchCommands },
   };
 }
 
@@ -68,13 +79,21 @@ configRouter.patch('/config', (req, res) => {
       return;
     }
 
+    // Sanitize: resolve and verify the path is absolute to prevent path traversal
+    const resolved = path.resolve(sessionStateDir);
+    const root = path.parse(resolved).root;
+    if (!resolved.startsWith(root)) {
+      res.status(400).json({ error: 'Invalid sessionStateDir path.' });
+      return;
+    }
+
     try {
-      if (!fs.existsSync(sessionStateDir)) {
+      if (!fs.existsSync(resolved)) {
         res.status(400).json({ error: 'sessionStateDir path does not exist.' });
         return;
       }
 
-      if (!fs.statSync(sessionStateDir).isDirectory()) {
+      if (!fs.statSync(resolved).isDirectory()) {
         res.status(400).json({ error: 'sessionStateDir must be an existing directory.' });
         return;
       }
@@ -84,7 +103,7 @@ configRouter.patch('/config', (req, res) => {
       return;
     }
 
-    patch.sessionStateDir = sessionStateDir;
+    patch.sessionStateDir = resolved;
   }
 
   if ('tailBytes' in body) {
@@ -138,6 +157,28 @@ configRouter.patch('/config', (req, res) => {
       return;
     }
     patch.sessionSources = sessionSources;
+  }
+
+  if ('launchCommands' in body) {
+    const lc = body.launchCommands;
+    if (!lc || typeof lc !== 'object' || Array.isArray(lc)) {
+      res.status(400).json({ error: 'launchCommands must be a JSON object.' });
+      return;
+    }
+
+    for (const key of Object.keys(lc)) {
+      if (!ALLOWED_LAUNCH_COMMAND_KEYS.has(key as keyof LaunchCommands)) {
+        res.status(400).json({ error: `Unknown launchCommands field: ${key}` });
+        return;
+      }
+      if (typeof lc[key] !== 'string') {
+        res.status(400).json({ error: `launchCommands.${key} must be a string.` });
+        return;
+      }
+    }
+
+    const current = getConfig().launchCommands;
+    patch.launchCommands = { ...current, ...lc };
   }
 
   const currentConfig = getConfig();

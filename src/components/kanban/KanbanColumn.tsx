@@ -30,6 +30,10 @@ interface KanbanColumnProps {
   onSelectSession: (session: SessionSummary) => void;
   onSelectWorkstream?: () => void;
   onArchive?: (sessionId: string) => void;
+  onArchiveWorkstream?: () => void;
+  onNewSession?: () => void;
+  isFavorited?: boolean;
+  onToggleFavorite?: () => void;
   isSortable?: boolean;
   conversationSearchResults?: Map<string, ConversationMatch>;
   searchQuery?: string;
@@ -43,6 +47,10 @@ export default function KanbanColumn({
   onSelectSession,
   onSelectWorkstream,
   onArchive,
+  onArchiveWorkstream,
+  onNewSession,
+  isFavorited = false,
+  onToggleFavorite,
   isSortable = false,
   conversationSearchResults,
   searchQuery,
@@ -122,6 +130,71 @@ export default function KanbanColumn({
         <span className="shrink-0 rounded-full bg-surface-tertiary px-2 py-0.5 text-[10px] font-mono tabular-nums text-fg/40">
           {sessions.length}
         </span>
+        {onToggleFavorite && (
+          <button
+            type="button"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={onToggleFavorite}
+            className={`shrink-0 rounded p-0.5 transition-colors ${
+              isFavorited
+                ? 'text-amber-400 hover:text-amber-300'
+                : 'text-fg/25 hover:text-fg/60 hover:bg-surface-tertiary'
+            }`}
+            aria-label={isFavorited ? `Unfavorite ${name}` : `Favorite ${name}`}
+            title={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
+          >
+            <span className="text-sm leading-none" aria-hidden="true">
+              {isFavorited ? '★' : '☆'}
+            </span>
+          </button>
+        )}
+        {onNewSession && (
+          <button
+            type="button"
+            onClick={onNewSession}
+            className="shrink-0 rounded p-0.5 text-fg/25 transition-colors hover:text-fg/60 hover:bg-surface-tertiary"
+            aria-label={`New session in ${name}`}
+            title="New session"
+          >
+            <svg
+              aria-hidden="true"
+              className="h-3.5 w-3.5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+          </button>
+        )}
+        {onArchiveWorkstream && (
+          <button
+            type="button"
+            onClick={onArchiveWorkstream}
+            className="shrink-0 rounded p-0.5 text-fg/25 transition-colors hover:text-fg/60 hover:bg-surface-tertiary"
+            aria-label={`Archive ${name} workstream`}
+            title="Archive workstream"
+          >
+            <svg
+              aria-hidden="true"
+              className="h-3.5 w-3.5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <polyline points="21 8 21 21 3 21 3 8" />
+              <rect x="1" y="3" width="22" height="5" />
+              <line x1="10" y1="12" x2="14" y2="12" />
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* Scrollable tile area */}

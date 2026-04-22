@@ -10,8 +10,8 @@ export default function SquadCastList({ cast }: SquadCastListProps) {
   return (
     <div className="squad-cast-list">
       <div className="flex items-center gap-1.5 mb-1.5">
-        <img src="/squad-logo.png" alt="" className="h-3.5 w-auto opacity-60" aria-hidden="true" />
-        <span className="font-mono text-[11px] font-medium uppercase tracking-widest text-fg/60">
+        <img src="/squad-logo.png" alt="" className="h-3.5 w-auto opacity-90" aria-hidden="true" />
+        <span className="font-mono text-[11px] font-medium uppercase tracking-widest text-fg/80">
           Cast
         </span>
       </div>

@@ -198,6 +198,7 @@ type PullRequestResponse = {
     sourceRefName?: string;
     targetRefName?: string;
     repository?: {
+      id?: string;
       name?: string;
       webUrl?: string;
     };
@@ -216,6 +217,15 @@ function normalizeBranch(refName: string | undefined): string {
     return '';
   }
   return refName.replace(/^refs\/heads\//, '');
+}
+
+function buildPrUrl(webUrl: string | undefined, repoName: string | undefined, prId: number): string {
+  if (webUrl) {
+    return `${webUrl}/pullrequest/${prId}`;
+  }
+  const config = getConfig();
+  const repoSegment = repoName ? `${repoName}/` : '';
+  return `https://dev.azure.com/${config.adoOrganization}/${config.adoProject}/_git/${repoSegment}pullrequest/${prId}`;
 }
 
 export async function getPullRequestsByBranches(branches: string[]): Promise<AdoPullRequest[]> {
@@ -249,18 +259,50 @@ export async function getPullRequestsByBranches(branches: string[]): Promise<Ado
         status: pr.isDraft ? 'draft' : String(pr.status ?? '').toLowerCase() as AdoPullRequest['status'],
         sourceBranch: normalizeBranch(pr.sourceRefName),
         targetBranch: normalizeBranch(pr.targetRefName),
+        repositoryId: pr.repository?.id,
         repositoryName: pr.repository?.name ?? '',
         createdBy: pr.createdBy?.displayName ?? '',
         reviewers: (pr.reviewers ?? []).map((reviewer) => ({
           displayName: reviewer.displayName ?? '',
           vote: typeof reviewer.vote === 'number' ? reviewer.vote : 0,
         })),
-        url: `${pr.repository?.webUrl ?? ''}/pullrequest/${pr.pullRequestId}`,
+        url: buildPrUrl(pr.repository?.webUrl, pr.repository?.name, pr.pullRequestId),
       });
     }
   }
 
   return Array.from(deduped.values()).sort((a, b) => b.id - a.id);
+}
+
+type PullRequestWorkItemRefsResponse = {
+  value?: Array<{
+    id?: string;
+    url?: string;
+  }>;
+};
+
+export async function getWorkItemsForPullRequest(repositoryId: string, prId: number): Promise<AdoWorkItem[]> {
+  const path = `git/repositories/${repositoryId}/pullRequests/${prId}/workitems?api-version=7.1`;
+
+  let refs: PullRequestWorkItemRefsResponse;
+  try {
+    refs = await cachedFetch<PullRequestWorkItemRefsResponse>(path);
+  } catch (error) {
+    if (error instanceof AdoApiError && error.status === 404) {
+      return [];
+    }
+    throw error;
+  }
+
+  const ids = (refs.value ?? [])
+    .map((ref) => Number(ref.id))
+    .filter((id) => Number.isInteger(id) && id > 0);
+
+  if (ids.length === 0) {
+    return [];
+  }
+
+  return getWorkItems(ids);
 }
 
 export type AdoConnectionTestResult = {

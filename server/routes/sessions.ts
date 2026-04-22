@@ -18,12 +18,10 @@ import type { SessionSummary } from '../../src/types/index.js';
 import type { SourceStatus } from '../services/providers/types.js';
 
 const sessionsRouter = Router();
-const statusLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  max: 60, // limit each IP to 60 requests per window
-  standardHeaders: true,
-  legacyHeaders: false,
-});
+
+// Rate limit all session routes: 100 requests/minute per IP
+const limiter = rateLimit({ max: 100, windowMs: 60_000 });
+sessionsRouter.use(limiter);
 let responseCache: { data: SessionSummary[]; expires: number; includeArchived: boolean } | null = null;
 
 /** Invalidate the response cache (e.g., after a write-path event). */
@@ -73,7 +71,7 @@ sessionsRouter.get('/sessions', async (req, res) => {
 });
 
 sessionsRouter.get('/sessions/search', (req, res) => {
-  const q = req.query.q as string;
+  const q = typeof req.query.q === 'string' ? req.query.q : '';
   if (!q || q.length < 2) {
     return res.json([]);
   }
@@ -96,7 +94,7 @@ sessionsRouter.get('/sessions/search', (req, res) => {
 
 /* ── Source status endpoint ────────────────────────────────────── */
 
-sessionsRouter.get('/sessions/status', statusLimiter, (_req, res) => {
+sessionsRouter.get('/sessions/status', (_req, res) => {
   try {
     const { sqliteDbPath, sessionStateDir, claudeDir } = getConfig();
 

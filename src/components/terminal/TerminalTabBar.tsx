@@ -20,8 +20,10 @@ export default function TerminalTabBar() {
       {tabs.map((tab) => {
         const isActive = tab.sessionId === activeTabId;
         const status =
-          allSessions.find((s) => s.id === tab.sessionId)?.status ??
-          'completed';
+          tab.mode === 'launch'
+            ? 'active'
+            : (allSessions.find((s) => s.id === tab.sessionId)?.status ??
+              'completed');
 
         return (
           <button

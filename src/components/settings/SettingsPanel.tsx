@@ -433,6 +433,8 @@ function AdoSettings() {
     setIsTesting(true);
     setConnectionResult(null);
     try {
+      // Save config to server first so the test endpoint sees current values
+      await updateAdoConfig({ organization, project });
       const result = await testAdoConnection();
       setConnectionResult(result);
     } catch (err) {
@@ -681,6 +683,46 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
   useEffect(() => {
     return () => {
       if (claudeDirTimerRef.current) clearTimeout(claudeDirTimerRef.current);
+    };
+  }, []);
+
+  /* ── Launch command input debounce ───────────────────── */
+  const [copilotCmdDraft, setCopilotCmdDraft] = useState(settings.data.launchCommands.copilot);
+  const [claudeCmdDraft, setClaudeCmdDraft] = useState(settings.data.launchCommands.claude);
+  const [shellCmdDraft, setShellCmdDraft] = useState(settings.data.launchCommands.shell);
+  const launchCmdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCopilotCmdDraft(settings.data.launchCommands.copilot);
+  }, [settings.data.launchCommands.copilot]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setClaudeCmdDraft(settings.data.launchCommands.claude);
+  }, [settings.data.launchCommands.claude]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setShellCmdDraft(settings.data.launchCommands.shell);
+  }, [settings.data.launchCommands.shell]);
+
+  const handleLaunchCmdChange = (field: 'copilot' | 'claude' | 'shell', value: string) => {
+    if (field === 'copilot') setCopilotCmdDraft(value);
+    else if (field === 'claude') setClaudeCmdDraft(value);
+    else setShellCmdDraft(value);
+
+    if (launchCmdTimerRef.current) clearTimeout(launchCmdTimerRef.current);
+    launchCmdTimerRef.current = setTimeout(() => {
+      void updateDataSettings({
+        launchCommands: { ...settings.data.launchCommands, [field]: value },
+      });
+    }, 600);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (launchCmdTimerRef.current) clearTimeout(launchCmdTimerRef.current);
     };
   }, []);
 
@@ -1324,6 +1366,98 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
 
             <p className="text-[11px] text-fg/20 leading-relaxed pt-1">
               Choose which AI assistant session data to display
+            </p>
+          </Section>
+
+          {/* ━━━━━━━━━━ Section: Launch Commands ━━━━━━━━ */}
+          <Section title="Launch Commands">
+
+            <FieldStack label="Copilot CLI" hint="Command to run when launching a Copilot session">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={copilotCmdDraft}
+                  onChange={(e) => handleLaunchCmdChange('copilot', e.target.value)}
+                  placeholder="copilot"
+                  aria-label="Copilot CLI command"
+                  className="
+                    w-full
+                    bg-surface-tertiary border border-border-default rounded-md
+                    px-3 py-1.5
+                    text-sm text-fg/80 font-mono placeholder:text-fg/20
+                    transition-colors duration-150
+                    hover:border-fg/20
+                    focus-visible:outline-none focus-visible:ring-2
+                    focus-visible:ring-border-active focus-visible:ring-offset-1
+                    focus-visible:ring-offset-surface-secondary
+                  "
+                />
+                {isServerSyncing && (
+                  <span className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                    <SyncSpinner />
+                  </span>
+                )}
+              </div>
+            </FieldStack>
+
+            <FieldStack label="Claude CLI" hint="Command to run when launching a Claude session">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={claudeCmdDraft}
+                  onChange={(e) => handleLaunchCmdChange('claude', e.target.value)}
+                  placeholder="claude"
+                  aria-label="Claude CLI command"
+                  className="
+                    w-full
+                    bg-surface-tertiary border border-border-default rounded-md
+                    px-3 py-1.5
+                    text-sm text-fg/80 font-mono placeholder:text-fg/20
+                    transition-colors duration-150
+                    hover:border-fg/20
+                    focus-visible:outline-none focus-visible:ring-2
+                    focus-visible:ring-border-active focus-visible:ring-offset-1
+                    focus-visible:ring-offset-surface-secondary
+                  "
+                />
+                {isServerSyncing && (
+                  <span className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                    <SyncSpinner />
+                  </span>
+                )}
+              </div>
+            </FieldStack>
+
+            <FieldStack label="Shell" hint="Optional command to run when launching a shell session">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={shellCmdDraft}
+                  onChange={(e) => handleLaunchCmdChange('shell', e.target.value)}
+                  placeholder="(none — opens shell only)"
+                  aria-label="Shell command"
+                  className="
+                    w-full
+                    bg-surface-tertiary border border-border-default rounded-md
+                    px-3 py-1.5
+                    text-sm text-fg/80 font-mono placeholder:text-fg/20
+                    transition-colors duration-150
+                    hover:border-fg/20
+                    focus-visible:outline-none focus-visible:ring-2
+                    focus-visible:ring-border-active focus-visible:ring-offset-1
+                    focus-visible:ring-offset-surface-secondary
+                  "
+                />
+                {isServerSyncing && (
+                  <span className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                    <SyncSpinner />
+                  </span>
+                )}
+              </div>
+            </FieldStack>
+
+            <p className="text-[11px] text-fg/20 leading-relaxed pt-1">
+              Configure the command used when creating new workstreams
             </p>
           </Section>
 

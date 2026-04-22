@@ -182,6 +182,7 @@ export default function TerminalPanel() {
                   sessionId={tab.sessionId}
                   cwd={tab.cwd}
                   mode={tab.mode}
+                  launchId={tab.launchId}
                   className="flex-1 min-h-0"
                 />
               </div>

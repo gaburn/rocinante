@@ -7,6 +7,11 @@ export interface ServerConfig {
   maxTimelineEvents: number;
   claudeDir: string;
   sessionSources: SessionSourceOption;
+  launchCommands: {
+    copilot: string;
+    claude: string;
+    shell: string;
+  };
 }
 
 export async function getServerConfig(): Promise<ServerConfig> {

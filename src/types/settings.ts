@@ -43,6 +43,12 @@ export interface DisplaySettings {
 
 export type SessionSourceOption = 'auto' | 'copilot' | 'claude' | 'both';
 
+export interface LaunchCommands {
+  copilot: string;
+  claude: string;
+  shell: string;
+}
+
 export interface DataSettings {
   sessionStateDir: string;
   maxTimelineEvents: 50 | 100 | 200 | 500;
@@ -50,6 +56,7 @@ export interface DataSettings {
   tailBytes: 262144 | 524288 | 1048576 | 2097152;
   sessionSources: SessionSourceOption;
   claudeDir: string;
+  launchCommands: LaunchCommands;
 }
 
 export interface NetworkViewSettings {
@@ -93,6 +100,11 @@ export const DEFAULT_SETTINGS: AppSettings = {
     tailBytes: 524288,
     sessionSources: 'auto',
     claudeDir: '',
+    launchCommands: {
+      copilot: 'copilot',
+      claude: 'claude',
+      shell: '',
+    },
   },
   network: {
     animationSpeed: 1.0,

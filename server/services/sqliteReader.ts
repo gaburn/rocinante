@@ -102,7 +102,7 @@ export function getSessionById(id: string): SqliteSession | undefined {
 
     return statement.get(id) as SqliteSession | undefined;
   } catch (error) {
-    console.warn(`[sqliteReader] Failed to read session by id: ${id}`, error);
+    console.warn('[sqliteReader] Failed to read session by id:', id, error);
     return undefined;
   }
 }
@@ -125,7 +125,7 @@ export function getFirstUserMessage(sessionId: string): string | null {
     const row = statement.get(sessionId) as FirstMessageRow | undefined;
     return row?.user_message ?? null;
   } catch (error) {
-    console.warn(`[sqliteReader] Failed to read first user message for session: ${sessionId}`, error);
+    console.warn('[sqliteReader] Failed to read first user message for session:', sessionId, error);
     return null;
   }
 }
@@ -148,7 +148,7 @@ export function getLastUserMessage(sessionId: string): string | null {
     const row = statement.get(sessionId) as FirstMessageRow | undefined;
     return row?.user_message ?? null;
   } catch (error) {
-    console.warn(`[sqliteReader] Failed to read last user message for session: ${sessionId}`, error);
+    console.warn('[sqliteReader] Failed to read last user message for session:', sessionId, error);
     return null;
   }
 }
@@ -169,7 +169,7 @@ export function getTurnCount(sessionId: string): number {
     const row = statement.get(sessionId) as CountRow | undefined;
     return row?.count ?? 0;
   } catch (error) {
-    console.warn(`[sqliteReader] Failed to read turn count for session: ${sessionId}`, error);
+    console.warn('[sqliteReader] Failed to read turn count for session:', sessionId, error);
     return 0;
   }
 }

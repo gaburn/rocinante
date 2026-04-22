@@ -4,7 +4,8 @@ export interface TerminalTab {
   sessionId: string;
   sessionName: string;
   cwd: string | null;
-  mode: 'copilot' | 'shell';
+  mode: 'copilot' | 'shell' | 'launch';
+  launchId?: string;
 }
 
 export interface UseTerminalTabsResult {
@@ -19,6 +20,7 @@ export interface UseTerminalTabsResult {
     session: { id: string; name: string; cwd?: string | null },
     mode?: 'copilot' | 'shell',
   ) => void;
+  openLaunchTab: (launchId: string, label: string, cwd: string) => void;
   setActiveTab: (sessionId: string) => void;
   toggleFollowSession: () => void;
   requestCloseTab: (sessionId: string) => void;
@@ -128,6 +130,33 @@ export function useTerminalTabs(): UseTerminalTabsResult {
     setPendingCloseTabId(null);
   }, []);
 
+  const openLaunchTab = useCallback(
+    (launchId: string, label: string, cwd: string) => {
+      const tabId = `launch-${launchId}`;
+      const existingTab = tabs.find((tab) => tab.sessionId === tabId);
+      if (existingTab) {
+        setActiveTabId(existingTab.sessionId);
+        return;
+      }
+
+      if (tabs.length >= MAX_TERMINAL_TABS) {
+        return;
+      }
+
+      const nextTab: TerminalTab = {
+        sessionId: tabId,
+        sessionName: label,
+        cwd,
+        mode: 'launch',
+        launchId,
+      };
+
+      setTabs((currentTabs) => [...currentTabs, nextTab]);
+      setActiveTabId(tabId);
+    },
+    [tabs],
+  );
+
   return {
     tabs,
     activeTabId,
@@ -137,6 +166,7 @@ export function useTerminalTabs(): UseTerminalTabsResult {
     hasTab,
     canOpenTab,
     openTab,
+    openLaunchTab,
     setActiveTab,
     toggleFollowSession,
     requestCloseTab,

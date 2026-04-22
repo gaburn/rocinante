@@ -24,6 +24,7 @@ interface TerminalContextValue {
     session: { id: string; name: string; cwd?: string | null },
     mode?: 'copilot' | 'shell',
   ) => void;
+  openLaunchTab: UseTerminalTabsResult['openLaunchTab'];
   setActiveTab: (sessionId: string) => void;
   toggleFollowSession: () => void;
   requestCloseTab: (sessionId: string) => void;
@@ -32,6 +33,7 @@ interface TerminalContextValue {
   // Convenience (new)
   openSessionTerminal: (session: Session) => void;
   openShellTerminal: (session: Session) => void;
+  openLaunchTerminal: (launchId: string, workstreamName: string, cwd: string) => void;
 }
 
 const TerminalContext = createContext<TerminalContextValue | null>(null);
@@ -41,7 +43,7 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
   const tabs = useTerminalTabs();
   const { selectedSession } = useSessionSelection();
 
-  const { openTab, hasTab, setActiveTab, followSession } = tabs;
+  const { openTab, hasTab, setActiveTab, followSession, openLaunchTab } = tabs;
   const { openTerminal, isTerminalOpen } = panel;
 
   const openSessionTerminal = useCallback(
@@ -60,6 +62,14 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
     openTerminal();
   }, [openTab, openTerminal]);
 
+  const openLaunchTerminal = useCallback(
+    (launchId: string, workstreamName: string, cwd: string) => {
+      openLaunchTab(launchId, workstreamName, cwd);
+      openTerminal();
+    },
+    [openLaunchTab, openTerminal],
+  );
+
   useEffect(() => {
     if (!followSession || !selectedSession || !isTerminalOpen) return;
     if (hasTab(selectedSession.id)) {
@@ -74,6 +84,7 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
         ...tabs,
         openSessionTerminal,
         openShellTerminal,
+        openLaunchTerminal,
       }}
     >
       {children}

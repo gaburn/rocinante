@@ -7,10 +7,11 @@ import {
 } from '../services/sessionService'
 import { useSettingsContext } from '../context/SettingsContext'
 import type { Session, SessionSummary, SessionStatus, StatusCounts } from '../types'
+import { normalizePath } from '../utils/normalizePath'
 import { useArchive } from './useArchive'
 import { useAutoArchive, type UseAutoArchiveResult } from './useAutoArchive'
 import { useSessionNames } from './useSessionNames'
-import { useWorkstreams } from './useWorkstreams'
+import { useWorkstreams, type WorkstreamRegistryEntry } from './useWorkstreams'
 
 export interface ConversationMatch {
   snippet: string
@@ -66,10 +67,15 @@ export interface UseSessionsResult {
   getWorkstreamNames: string[]
   renameWorkstream: (oldName: string, newName: string) => void
   deleteWorkstream: (name: string) => void
+  archiveWorkstream: (name: string) => void
+  toggleFavorite: (name: string) => void
   setWorkstreamDescription: (workstreamName: string, description: string) => void
   removeWorkstreamDescription: (workstreamName: string) => void
   autoGroupByRepository: () => void
   hasAnyWorkstreams: boolean
+  createWorkstream: (name: string, opts?: { repoPath?: string; pendingLaunchId?: string; description?: string }) => void
+  updateWorkstreamRegistry: (name: string, updates: Partial<WorkstreamRegistryEntry>) => void
+  workstreamRegistry: Readonly<Record<string, WorkstreamRegistryEntry>>
   groupedSessions: { groups: SessionGroup[]; ungrouped: SessionSummary[] }
   conversationSearchResults: Map<string, ConversationMatch>
   archivedSearchResults: Map<string, ConversationMatch>
@@ -95,6 +101,9 @@ export function useSessions(): UseSessionsResult {
     getDescription,
     renameWorkstream,
     autoGroupByRepository,
+    workstreamRegistry,
+    setWorkstream: wsSetWorkstream,
+    updateWorkstreamRegistry,
   } = workstreams
   const { rules: autoArchiveRules, getMatchingSessionIds } = autoArchive
   const [allSessions, setAllSessions] = useState<SessionSummary[]>([])
@@ -118,7 +127,6 @@ export function useSessions(): UseSessionsResult {
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const loadSessionsAbortRef = useRef<AbortController | null>(null)
   const selectedIdRef = useRef<string | null>(null)
-
   // Keep ref in sync so loadSessions can refresh the selected detail
   useEffect(() => {
     selectedIdRef.current = selectedSessionId
@@ -205,6 +213,53 @@ export function useSessions(): UseSessionsResult {
       archiveByIds(toArchive)
     }
   }, [sessionsWithNames, autoArchiveRules, isArchived, archiveByIds, getMatchingSessionIds])
+
+  // Auto-link pending launches to sessions.
+  // When a workstream has a pendingLaunchId, this effect matches sessions by
+  // path + time window and assigns them automatically.  We check ALL sessions
+  // (not just newly-discovered ones) because a session may first appear without
+  // cwd (workspace.yaml not yet written) and only gain it on a later poll.
+  // The pending flag is consumed on match, so the loop is self-limiting.
+  useEffect(() => {
+    const pendingEntries = Object.entries(workstreamRegistry).filter(
+      ([, entry]) => entry.pendingLaunchId != null,
+    )
+    if (pendingEntries.length === 0) return
+
+    const FIVE_MINUTES_MS = 5 * 60 * 1000
+
+    for (const [wsName, entry] of pendingEntries) {
+      if (!entry.repoPath) continue
+      const normalizedRepoPath = normalizePath(entry.repoPath)
+      const launchTime = new Date(entry.pendingLaunchAt ?? entry.createdAt).getTime()
+
+      for (const session of allSessions) {
+        if (!session.cwd) continue
+        // Skip sessions already assigned to a workstream
+        if (getWorkstream(session.id)) continue
+        if (normalizePath(session.cwd) !== normalizedRepoPath) continue
+
+        // Time window: session must have started within 5 min of launch
+        const sessionStartedAt = new Date(session.startedAt).getTime()
+        if (Math.abs(sessionStartedAt - launchTime) > FIVE_MINUTES_MS) continue
+
+        // Match found — assign session and consume the pending flag
+        wsSetWorkstream(session.id, wsName)
+
+        // Auto-select freshly launched sessions so the detail panel shows them.
+        // Only for launches within 60s of now — avoids hijacking selection for
+        // stale pending entries that survive a page reload.
+        const FRESH_LAUNCH_MS = 60 * 1000
+        if (entry.pendingLaunchAt && (Date.now() - launchTime) < FRESH_LAUNCH_MS) {
+          setSelectedWorkstreamName(null)
+          setSelectedSessionId(session.id)
+        }
+
+        updateWorkstreamRegistry(wsName, { pendingLaunchId: undefined, pendingLaunchAt: undefined })
+        break // consume-once: first match wins per pending entry
+      }
+    }
+  }, [allSessions, workstreamRegistry, wsSetWorkstream, updateWorkstreamRegistry, getWorkstream])
 
   // Wait for archive sync before first load so server has the exclude set
   useEffect(() => {
@@ -443,6 +498,13 @@ export function useSessions(): UseSessionsResult {
     const groups = new Map<string, SessionSummary[]>()
     const ungrouped: SessionSummary[] = []
 
+    // Seed empty groups for all registry workstreams so they appear as columns
+    for (const name of workstreams.getWorkstreamNames) {
+      if (!groups.has(name)) {
+        groups.set(name, [])
+      }
+    }
+
     for (const session of sessions) {
       const ws = getWorkstream(session.id)
       if (ws) {
@@ -463,7 +525,7 @@ export function useSessions(): UseSessionsResult {
       }))
 
     return { groups: sortedGroups, ungrouped }
-  }, [sessions, getWorkstream, getDescription])
+  }, [sessions, getWorkstream, getDescription, workstreams.getWorkstreamNames])
 
   const selectedWorkstream = useMemo(
     () => groupedSessions.groups.find((g) => g.name === selectedWorkstreamName) ?? null,
@@ -573,7 +635,7 @@ export function useSessions(): UseSessionsResult {
     refreshSessions,
     toggleAutoRefresh,
     getWorkstream,
-    setWorkstream: workstreams.setWorkstream,
+    setWorkstream: wsSetWorkstream,
     removeWorkstream: workstreams.removeWorkstream,
     getCustomName,
     setSessionName: sessionNames.setCustomName,
@@ -581,10 +643,15 @@ export function useSessions(): UseSessionsResult {
     getWorkstreamNames: workstreams.getWorkstreamNames,
     renameWorkstream: handleRenameWorkstream,
     deleteWorkstream: workstreams.deleteWorkstream,
+    archiveWorkstream: workstreams.archiveWorkstream,
+    toggleFavorite: workstreams.toggleFavorite,
     setWorkstreamDescription: workstreams.setDescription,
     removeWorkstreamDescription: workstreams.removeDescription,
     autoGroupByRepository: handleAutoGroupByRepository,
     hasAnyWorkstreams: workstreams.hasAnyWorkstreams,
+    createWorkstream: workstreams.createWorkstream,
+    updateWorkstreamRegistry,
+    workstreamRegistry,
     groupedSessions,
     conversationSearchResults,
     archivedSearchResults,

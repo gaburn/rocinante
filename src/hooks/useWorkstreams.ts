@@ -4,6 +4,46 @@ import type { SessionSummary } from '../types'
 
 const WORKSTREAM_STORAGE_KEY = 'rocinante-workstreams'
 const DEMO_WORKSTREAM_STORAGE_KEY = 'rocinante-workstreams-demo'
+const WORKSTREAM_REGISTRY_KEY = 'rocinante-workstream-registry'
+
+export interface WorkstreamRegistryEntry {
+  createdAt: string
+  repoPath?: string
+  pendingLaunchId?: string
+  pendingLaunchAt?: string
+  description?: string
+  archived?: boolean
+  favorited?: boolean
+}
+
+function loadWorkstreamRegistry(): Record<string, WorkstreamRegistryEntry> {
+  try {
+    const raw = window.localStorage.getItem(WORKSTREAM_REGISTRY_KEY)
+    if (!raw) return {}
+
+    const parsed = JSON.parse(raw) as unknown
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
+
+    const next: Record<string, WorkstreamRegistryEntry> = {}
+    for (const [k, value] of Object.entries(parsed)) {
+      if (value && typeof value === 'object' && !Array.isArray(value) && typeof (value as Record<string, unknown>).createdAt === 'string') {
+        const entry = value as Record<string, unknown>
+        next[k] = {
+          createdAt: entry.createdAt as string,
+          ...(typeof entry.repoPath === 'string' ? { repoPath: entry.repoPath } : {}),
+          ...(typeof entry.pendingLaunchId === 'string' ? { pendingLaunchId: entry.pendingLaunchId } : {}),
+          ...(typeof entry.pendingLaunchAt === 'string' ? { pendingLaunchAt: entry.pendingLaunchAt } : {}),
+          ...(typeof entry.description === 'string' ? { description: entry.description } : {}),
+          ...(typeof entry.archived === 'boolean' ? { archived: entry.archived } : {}),
+          ...(typeof entry.favorited === 'boolean' ? { favorited: entry.favorited } : {}),
+        }
+      }
+    }
+    return next
+  } catch {
+    return {}
+  }
+}
 
 function loadWorkstreamMap(key: string): Record<string, string> {
   try {
@@ -48,16 +88,25 @@ export interface UseWorkstreamsResult {
   getWorkstreamNames: string[]
   renameWorkstream: (oldName: string, newName: string) => void
   deleteWorkstream: (name: string) => void
+  archiveWorkstream: (name: string) => void
+  toggleFavorite: (name: string) => void
   pruneStaleIds: (activeIds: string[]) => void
   autoGroupByRepository: (sessions: SessionSummary[]) => void
   hasAnyWorkstreams: boolean
   workstreamMap: Readonly<Record<string, string>>
   metaMap: Readonly<Record<string, { description: string }>>
+  createWorkstream: (name: string, opts?: { repoPath?: string; pendingLaunchId?: string; description?: string }) => void
+  getWorkstreamRegistry: () => Readonly<Record<string, WorkstreamRegistryEntry>>
+  updateWorkstreamRegistry: (name: string, updates: Partial<WorkstreamRegistryEntry>) => void
+  workstreamRegistry: Readonly<Record<string, WorkstreamRegistryEntry>>
 }
 
 export function useWorkstreams(): UseWorkstreamsResult {
   const [workstreamMap, setWorkstreamMap] = useState<Record<string, string>>(
     () => loadWorkstreamMap(WORKSTREAM_STORAGE_KEY),
+  )
+  const [registry, setRegistry] = useState<Record<string, WorkstreamRegistryEntry>>(
+    loadWorkstreamRegistry,
   )
   const storageKeyRef = useRef(WORKSTREAM_STORAGE_KEY)
   const meta = useWorkstreamMeta()
@@ -69,6 +118,14 @@ export function useWorkstreams(): UseWorkstreamsResult {
       // Ignore localStorage write errors so workstream state remains usable.
     }
   }, [workstreamMap])
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(WORKSTREAM_REGISTRY_KEY, JSON.stringify(registry))
+    } catch {
+      // Ignore localStorage write errors so registry state remains usable.
+    }
+  }, [registry])
 
   // Detect demo mode and use isolated storage so real workstreams stay untouched
   const demoChecked = useRef(false)
@@ -149,16 +206,21 @@ export function useWorkstreams(): UseWorkstreamsResult {
 
   const getWorkstreamNames = useMemo(() => {
     const uniqueNames = new Set(Object.values(workstreamMap))
+    for (const [name, entry] of Object.entries(registry)) {
+      if (entry.archived) {
+        uniqueNames.delete(name)
+      } else {
+        uniqueNames.add(name)
+      }
+    }
     return Array.from(uniqueNames).sort((a, b) => a.localeCompare(b))
-  }, [workstreamMap])
+  }, [workstreamMap, registry])
 
   const renameWorkstream = useCallback((oldName: string, newName: string) => {
-    setWorkstreamMap((current) => {
-      const nextName = newName.trim()
-      if (!nextName) {
-        return current
-      }
+    const nextName = newName.trim()
+    if (!nextName) return
 
+    setWorkstreamMap((current) => {
       let changed = false
       const next: Record<string, string> = {}
 
@@ -172,6 +234,11 @@ export function useWorkstreams(): UseWorkstreamsResult {
       }
 
       return changed ? next : current
+    })
+    setRegistry((current) => {
+      if (!(oldName in current)) return current
+      const { [oldName]: entry, ...rest } = current
+      return { ...rest, [nextName]: entry }
     })
     meta.renameMetaKey(oldName, newName)
   }, [meta])
@@ -191,10 +258,34 @@ export function useWorkstreams(): UseWorkstreamsResult {
 
       return changed ? next : current
     })
+    setRegistry((current) => {
+      if (!(name in current)) return current
+      const { [name]: _deleted, ...rest } = current // eslint-disable-line @typescript-eslint/no-unused-vars
+      return rest
+    })
     meta.deleteMetaKey(name)
   }, [meta])
 
-  const pruneStaleIds = useCallback((activeIds: string[]) => {
+  const archiveWorkstream = useCallback((name: string) => {
+    setRegistry((current) => {
+      const existing = current[name]
+      if (!existing) {
+        // Create a minimal registry entry so the archived state persists
+        return { ...current, [name]: { createdAt: new Date().toISOString(), archived: true } }
+      }
+      if (existing.archived) return current
+      return { ...current, [name]: { ...existing, archived: true } }
+    })
+  }, [])
+
+  const toggleFavorite = useCallback((name: string) => {
+    setRegistry((current) => {
+      const existing = current[name] ?? { createdAt: new Date().toISOString() }
+      return { ...current, [name]: { ...existing, favorited: !existing.favorited } }
+    })
+  }, [])
+
+  const pruneStaleIds= useCallback((activeIds: string[]) => {
     setWorkstreamMap((current) => {
       if (Object.keys(current).length === 0) {
         return current
@@ -239,8 +330,41 @@ export function useWorkstreams(): UseWorkstreamsResult {
   }, [])
 
   const hasAnyWorkstreams = useMemo(() => {
-    return Object.keys(workstreamMap).length > 0
-  }, [workstreamMap])
+    return Object.keys(workstreamMap).length > 0 || Object.keys(registry).length > 0
+  }, [workstreamMap, registry])
+
+  const createWorkstream = useCallback((name: string, opts?: { repoPath?: string; pendingLaunchId?: string; description?: string }) => {
+    const trimmed = name.trim()
+    if (!trimmed) return
+    setRegistry((current) => {
+      if (trimmed in current) return current
+      return {
+        ...current,
+        [trimmed]: {
+          createdAt: new Date().toISOString(),
+          ...(opts?.repoPath ? { repoPath: opts.repoPath } : {}),
+          ...(opts?.pendingLaunchId ? { pendingLaunchId: opts.pendingLaunchId } : {}),
+          ...(opts?.description ? { description: opts.description } : {}),
+        },
+      }
+    })
+  }, [])
+
+  const getWorkstreamRegistry = useCallback(() => registry, [registry])
+
+  const updateWorkstreamRegistry = useCallback((name: string, updates: Partial<WorkstreamRegistryEntry>) => {
+    setRegistry((current) => {
+      const existing = current[name] ?? { createdAt: new Date().toISOString() }
+      const merged = { ...existing, ...updates }
+      // Remove keys explicitly set to undefined
+      for (const key of Object.keys(updates) as (keyof WorkstreamRegistryEntry)[]) {
+        if (updates[key] === undefined) {
+          delete merged[key]
+        }
+      }
+      return { ...current, [name]: merged }
+    })
+  }, [])
 
   return {
     getWorkstream,
@@ -252,10 +376,16 @@ export function useWorkstreams(): UseWorkstreamsResult {
     getWorkstreamNames,
     renameWorkstream,
     deleteWorkstream,
+    archiveWorkstream,
+    toggleFavorite,
     pruneStaleIds,
     autoGroupByRepository,
     hasAnyWorkstreams,
     workstreamMap,
     metaMap: meta.metaMap,
+    createWorkstream,
+    getWorkstreamRegistry,
+    updateWorkstreamRegistry,
+    workstreamRegistry: registry,
   }
 }
