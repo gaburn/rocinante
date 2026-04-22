@@ -43,6 +43,18 @@ Named after the ship from *The Expanse*, which was named after Don Quixote's hor
 - **Light/Dark Mode**: Full theme support with system preference detection
 - **Real-time Updates**: Auto-refresh with configurable interval
 
+### Azure DevOps Integration
+- **Per-session PR/work item display**: Each session shows PRs and work items from its own ADO project — not just the globally configured one
+- **Repository scoping**: PR queries filtered to the specific repository, no cross-repo noise
+- **Workspace-aware metadata**: Branch and repository read from Copilot CLI's workspace.yaml for accurate session context
+- **Configurable**: Set ADO org/project/repository via Settings, `~/.rocinante/ado-config.json`, or environment variables (`ADO_ORG`, `ADO_PROJECT`, `ADO_REPOSITORY`)
+- **MCP + REST dual path**: Uses ADO MCP server when available, falls back to direct REST API calls
+- **Optional creator filter**: Filter PRs to only those created by the authenticated user (`ADO_FILTER_BY_CREATOR=true`)
+
+### Status Bar
+- **Waiting sessions popover**: Pulsing amber indicator when sessions need user input — hover to see which sessions, click to navigate
+- **Inline agent stats**: Running/Blocked/Waiting/Completed counts shown directly in the session header metadata row
+
 ## User Guide
 
 For a comprehensive guide on using the dashboard, see **[docs/user-guide.md](./docs/user-guide.md)**. It covers the kanban board, search, auto-grouping, session details, settings, demo mode, and more.
