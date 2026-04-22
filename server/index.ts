@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import path from 'node:path';
+import rateLimit from 'express-rate-limit';
 import { getConfig } from './config.js';
 import { initDatabase, closeDatabase } from './services/sqliteReader.js';
 import { initArchiveStore } from './services/archiveStore.js';
@@ -50,10 +51,11 @@ app.use('/api', telemetryRouter);
 app.use('/api', workstreamsRouter);
 
 if (process.env.NODE_ENV === 'production') {
+  const staticLimiter = rateLimit({ max: 200, windowMs: 60_000 });
   const distPath = path.join(import.meta.dirname ?? '.', '..', 'dist');
-  app.use(express.static(distPath));
+  app.use(staticLimiter, express.static(distPath));
   // SPA fallback — serve index.html for all non-API routes
-  app.get('*', (req, res, next) => {
+  app.get('*', staticLimiter, (req, res, next) => {
     if (req.path.startsWith('/api') || req.path.startsWith('/ws')) return next();
     res.sendFile(path.join(distPath, 'index.html'));
   });

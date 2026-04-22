@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import fs from 'node:fs';
+import path from 'node:path';
+import rateLimit from 'express-rate-limit';
 import { getConfig, updateConfig, type SessionSourceOption, type LaunchCommands } from '../config.js';
 import { clearCache } from '../services/eventTailReader.js';
 
@@ -32,6 +34,10 @@ const ALLOWED_KEYS = new Set<keyof ConfigResponse>([
 ]);
 
 const configRouter = Router();
+
+// Rate limit all config routes: 100 requests/minute per IP
+const limiter = rateLimit({ max: 100, windowMs: 60_000 });
+configRouter.use(limiter);
 
 function toConfigResponse(config: ReturnType<typeof getConfig>): ConfigResponse {
   return {
@@ -73,13 +79,21 @@ configRouter.patch('/config', (req, res) => {
       return;
     }
 
+    // Sanitize: resolve and verify the path is absolute to prevent path traversal
+    const resolved = path.resolve(sessionStateDir);
+    const root = path.parse(resolved).root;
+    if (!resolved.startsWith(root)) {
+      res.status(400).json({ error: 'Invalid sessionStateDir path.' });
+      return;
+    }
+
     try {
-      if (!fs.existsSync(sessionStateDir)) {
+      if (!fs.existsSync(resolved)) {
         res.status(400).json({ error: 'sessionStateDir path does not exist.' });
         return;
       }
 
-      if (!fs.statSync(sessionStateDir).isDirectory()) {
+      if (!fs.statSync(resolved).isDirectory()) {
         res.status(400).json({ error: 'sessionStateDir must be an existing directory.' });
         return;
       }
@@ -89,7 +103,7 @@ configRouter.patch('/config', (req, res) => {
       return;
     }
 
-    patch.sessionStateDir = sessionStateDir;
+    patch.sessionStateDir = resolved;
   }
 
   if ('tailBytes' in body) {
