@@ -71,7 +71,7 @@ sessionsRouter.get('/sessions', async (req, res) => {
 });
 
 sessionsRouter.get('/sessions/search', (req, res) => {
-  const q = req.query.q as string;
+  const q = typeof req.query.q === 'string' ? req.query.q : '';
   if (!q || q.length < 2) {
     return res.json([]);
   }
