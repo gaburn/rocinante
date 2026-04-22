@@ -6,6 +6,7 @@ import type { SubAgent, AgentStatus, ErrorDetail } from '../../types';
 import type { AdoPullRequest } from '../../types/ado';
 import { getAdoStatus } from '../../services/adoService';
 import { useSessionDeliverables } from '../../hooks/useSessionDeliverables';
+import type { AdoContext } from '../../hooks/useSessionDeliverables';
 import {
   formatRelativeTime,
   formatDuration,
@@ -63,6 +64,24 @@ import PlanViewer from './PlanViewer';
  * ──────────────────────────────────────────────────────────────── */
 
 /* ── Helpers ──────────────────────────────────────────────────── */
+
+/**
+ * Parse an ADO-format repository string (org/project/repo) into
+ * per-session org/project/repo context for the deliverables API.
+ * GitHub-format (owner/repo) is left as-is — only 3+ segment paths are split.
+ */
+function parseAdoRepository(repository: string | null | undefined): AdoContext {
+  if (!repository) return {};
+  const parts = repository.split('/');
+  if (parts.length >= 3) {
+    return {
+      organization: parts[0],
+      project: parts[1],
+      repository: parts.slice(2).join('/'),
+    };
+  }
+  return { repository };
+}
 
 /** Recursively tallies every agent in the tree by its status. */
 function countAgentsByStatus(agent: SubAgent): Record<AgentStatus, number> {
@@ -375,7 +394,8 @@ export default function SessionDetail() {
   }, []);
 
   // Session deliverables hook — must be called before early return (rules of hooks)
-  const deliverables = useSessionDeliverables(selectedSession?.branch, isAdoConfigured);
+  const adoContext = parseAdoRepository(selectedSession?.repository);
+  const deliverables = useSessionDeliverables(selectedSession?.branch, isAdoConfigured, adoContext);
   const deliverablesCount = deliverables.pullRequests.length + deliverables.workItems.length;
   const [deliverablesExpanded, setDeliverablesExpanded] = useState(true);
 

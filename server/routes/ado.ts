@@ -3,6 +3,7 @@ import { getConfig, isAdoConfigured, updateConfig } from '../config.js';
 import {
   clearAdoCache,
   clearTokenCache,
+  getAuthenticatedUserDisplayName,
   getPullRequestsByBranches,
   getWorkItems,
   getWorkItemsForPullRequest,
@@ -27,6 +28,8 @@ adoRouter.get('/ado/status', (req, res) => {
     configured: isAdoConfigured(),
     organization: config.adoOrganization,
     project: config.adoProject,
+    repository: config.adoRepository,
+    filterByCreator: config.adoFilterByCreator,
   });
 });
 
@@ -86,8 +89,12 @@ adoRouter.get('/ado/pullrequests', async (req, res) => {
     return;
   }
 
+  const repositoryParam = typeof req.query.repository === 'string' ? req.query.repository.trim() : '';
+  const config = getConfig();
+  const repository = repositoryParam || config.adoRepository || '';
+
   try {
-    const pullRequests = await getPullRequestsByBranches(branches);
+    const pullRequests = await getPullRequestsByBranches(branches, repository || undefined);
     res.json(pullRequests);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -103,7 +110,7 @@ adoRouter.patch('/ado/config', (req, res) => {
     return;
   }
 
-  const allowedKeys = new Set(['organization', 'project']);
+  const allowedKeys = new Set(['organization', 'project', 'repository', 'filterByCreator']);
   for (const key of Object.keys(body)) {
     if (!allowedKeys.has(key)) {
       res.status(400).json({ error: `Unknown config field: ${key}` });
@@ -114,6 +121,8 @@ adoRouter.patch('/ado/config', (req, res) => {
   const patch: {
     adoOrganization?: string;
     adoProject?: string;
+    adoRepository?: string;
+    adoFilterByCreator?: boolean;
   } = {};
 
   if ('organization' in body) {
@@ -132,6 +141,22 @@ adoRouter.patch('/ado/config', (req, res) => {
     patch.adoProject = body.project.trim();
   }
 
+  if ('repository' in body) {
+    if (typeof body.repository !== 'string') {
+      res.status(400).json({ error: 'repository must be a string.' });
+      return;
+    }
+    patch.adoRepository = body.repository.trim();
+  }
+
+  if ('filterByCreator' in body) {
+    if (typeof body.filterByCreator !== 'boolean') {
+      res.status(400).json({ error: 'filterByCreator must be a boolean.' });
+      return;
+    }
+    patch.adoFilterByCreator = body.filterByCreator;
+  }
+
   const updated = updateConfig(patch);
   clearAdoCache();
   clearTokenCache();
@@ -139,6 +164,8 @@ adoRouter.patch('/ado/config', (req, res) => {
     configured: isAdoConfigured(),
     organization: updated.adoOrganization,
     project: updated.adoProject,
+    repository: updated.adoRepository,
+    filterByCreator: updated.adoFilterByCreator,
   });
 });
 
@@ -157,39 +184,64 @@ adoRouter.get('/ado/session-deliverables', async (req, res) => {
   }
 
   const config = getConfig();
-  const project = config.adoProject;
   const trimmedBranch = branch.trim();
+
+  // Per-session overrides: query param → global config → error/empty
+  const orgParam = typeof req.query.organization === 'string' ? req.query.organization.trim() : '';
+  const projParam = typeof req.query.project === 'string' ? req.query.project.trim() : '';
+  const organization = orgParam || config.adoOrganization;
+  const project = projParam || config.adoProject;
+
+  // Resolve repository: query param → config → empty (no filter)
+  const repositoryParam = typeof req.query.repository === 'string' ? req.query.repository.trim() : '';
+  const repository = repositoryParam || config.adoRepository || '';
 
   // Try MCP path first, fall back to direct REST on failure
   console.log(`[ADO] ${new Date().toISOString()} trying MCP path...`);
+  let result: { pullRequests: import('../../src/types/ado.js').AdoPullRequest[]; workItems: import('../../src/types/ado.js').AdoWorkItem[] } | null = null;
+
   try {
-    const result = await fetchDeliverablesViaMcp(project, trimmedBranch);
+    result = await fetchDeliverablesViaMcp(project, trimmedBranch, repository);
     console.log(`[ADO] ${new Date().toISOString()} MCP path succeeded:`, result.pullRequests.length, 'PRs,', result.workItems.length, 'WIs');
-    res.json(result);
-    return;
   } catch (err) {
     console.log(`[ADO] ${new Date().toISOString()} MCP path failed:`, err instanceof Error ? err.message : String(err));
   }
 
-  console.log(`[ADO] ${new Date().toISOString()} trying REST path...`);
-  try {
-    const result = await fetchDeliverablesViaRest(trimmedBranch);
-    console.log(`[ADO] ${new Date().toISOString()} REST path succeeded:`, result.pullRequests.length, 'PRs,', result.workItems.length, 'WIs');
-    res.json(result);
-  } catch (error) {
-    console.log(`[ADO] ${new Date().toISOString()} REST path failed:`, error instanceof Error ? error.message : String(error));
-    const message = error instanceof Error ? error.message : String(error);
-    const status = isLikelyUpstreamError(error) ? 502 : 500;
-    res.status(status).json({ error: message });
+  if (!result) {
+    console.log(`[ADO] ${new Date().toISOString()} trying REST path...`);
+    try {
+      result = await fetchDeliverablesViaRest(trimmedBranch, repository, organization, project);
+      console.log(`[ADO] ${new Date().toISOString()} REST path succeeded:`, result.pullRequests.length, 'PRs,', result.workItems.length, 'WIs');
+    } catch (error) {
+      console.log(`[ADO] ${new Date().toISOString()} REST path failed:`, error instanceof Error ? error.message : String(error));
+      const message = error instanceof Error ? error.message : String(error);
+      const status = isLikelyUpstreamError(error) ? 502 : 500;
+      res.status(status).json({ error: message });
+      return;
+    }
   }
+
+  // Apply creator filter if enabled
+  if (config.adoFilterByCreator) {
+    const userName = await getAuthenticatedUserDisplayName();
+    if (userName) {
+      result.pullRequests = result.pullRequests.filter(pr => pr.createdBy === userName);
+    }
+  }
+
+  res.json(result);
 });
 
-async function fetchDeliverablesViaMcp(project: string, branch: string) {
-  const pullRequests = await mcpListPullRequests({
+async function fetchDeliverablesViaMcp(project: string, branch: string, repository: string) {
+  const opts: Parameters<typeof mcpListPullRequests>[0] = {
     project,
     sourceRefName: `refs/heads/${branch}`,
     status: 'All',
-  });
+  };
+  if (repository) {
+    opts.repositoryId = repository;
+  }
+  const pullRequests = await mcpListPullRequests(opts);
 
   // For each PR with a repository, fetch linked work item IDs
   const workItemIdResults = await Promise.allSettled(
@@ -221,13 +273,13 @@ async function fetchDeliverablesViaMcp(project: string, branch: string) {
   return { pullRequests, workItems };
 }
 
-async function fetchDeliverablesViaRest(branch: string) {
-  const pullRequests = await getPullRequestsByBranches([branch]);
+async function fetchDeliverablesViaRest(branch: string, repository: string, organization: string, project: string) {
+  const pullRequests = await getPullRequestsByBranches([branch], repository || undefined, organization, project);
 
   const workItemResults = await Promise.allSettled(
     pullRequests
       .filter((pr) => pr.repositoryId)
-      .map((pr) => getWorkItemsForPullRequest(pr.repositoryId!, pr.id)),
+      .map((pr) => getWorkItemsForPullRequest(pr.repositoryId!, pr.id, organization, project)),
   );
 
   const workItemMap = new Map<number, import('../../src/types/ado.js').AdoWorkItem>();

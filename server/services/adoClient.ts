@@ -4,6 +4,7 @@ import type { AdoPullRequest, AdoWorkItem } from '../../src/types/ado.js';
 const cache = new Map<string, { data: unknown; fetchedAt: number }>();
 const CACHE_TTL = 300_000;
 let cachedToken: { token: string; expiresAt: number } | null = null;
+let cachedUserDisplayName: string | null = null;
 
 class AdoApiError extends Error {
   status?: number;
@@ -75,12 +76,20 @@ async function getAdoToken(): Promise<string> {
   }
 }
 
-async function adoFetch<T>(path: string, scope: AdoApiScope = 'project'): Promise<T> {
+export async function adoFetch<T>(path: string, scope: AdoApiScope = 'project'): Promise<T> {
   if (!isAdoConfigured()) {
     throw new AdoApiError('Azure DevOps is not configured.');
   }
 
   const requestUrl = buildAdoApiUrl(path, scope);
+  return adoFetchUrl<T>(requestUrl);
+}
+
+/**
+ * Fetch from an arbitrary ADO URL (for per-session org/project overrides).
+ * Uses the same token acquisition as adoFetch.
+ */
+export async function adoFetchUrl<T>(requestUrl: string): Promise<T> {
   const token = await getAdoToken();
 
   let response: Response;
@@ -228,17 +237,33 @@ function buildPrUrl(webUrl: string | undefined, repoName: string | undefined, pr
   return `https://dev.azure.com/${config.adoOrganization}/${config.adoProject}/_git/${repoSegment}pullrequest/${prId}`;
 }
 
-export async function getPullRequestsByBranches(branches: string[]): Promise<AdoPullRequest[]> {
+export async function getPullRequestsByBranches(
+  branches: string[],
+  repository?: string,
+  organization?: string,
+  project?: string,
+): Promise<AdoPullRequest[]> {
   if (branches.length === 0) {
     return [];
   }
 
   const uniqueBranches = Array.from(new Set(branches));
 
+  // When per-session org/project are provided, build full URLs directly
+  const useCustomContext = !!(organization && project);
+
   const settled = await Promise.allSettled(
-    uniqueBranches.map((branch) => cachedFetch<PullRequestResponse>(
-      `git/pullrequests?searchCriteria.sourceRefName=refs/heads/${branch}&searchCriteria.status=all&api-version=7.1`,
-    )),
+    uniqueBranches.map((branch) => {
+      const apiPath = repository
+        ? `git/repositories/${encodeURIComponent(repository)}/pullrequests?searchCriteria.sourceRefName=refs/heads/${branch}&searchCriteria.status=all&api-version=7.1`
+        : `git/pullrequests?searchCriteria.sourceRefName=refs/heads/${branch}&searchCriteria.status=all&api-version=7.1`;
+
+      if (useCustomContext) {
+        const fullUrl = `https://dev.azure.com/${encodeURIComponent(organization!)}/${encodeURIComponent(project!)}/_apis/${apiPath}`;
+        return adoFetchUrl<PullRequestResponse>(fullUrl);
+      }
+      return cachedFetch<PullRequestResponse>(apiPath);
+    }),
   );
 
   const deduped = new Map<number, AdoPullRequest>();
@@ -281,12 +306,22 @@ type PullRequestWorkItemRefsResponse = {
   }>;
 };
 
-export async function getWorkItemsForPullRequest(repositoryId: string, prId: number): Promise<AdoWorkItem[]> {
-  const path = `git/repositories/${repositoryId}/pullRequests/${prId}/workitems?api-version=7.1`;
+export async function getWorkItemsForPullRequest(
+  repositoryId: string,
+  prId: number,
+  organization?: string,
+  project?: string,
+): Promise<AdoWorkItem[]> {
+  const apiPath = `git/repositories/${repositoryId}/pullRequests/${prId}/workitems?api-version=7.1`;
 
   let refs: PullRequestWorkItemRefsResponse;
   try {
-    refs = await cachedFetch<PullRequestWorkItemRefsResponse>(path);
+    if (organization && project) {
+      const fullUrl = `https://dev.azure.com/${encodeURIComponent(organization)}/${encodeURIComponent(project)}/_apis/${apiPath}`;
+      refs = await adoFetchUrl<PullRequestWorkItemRefsResponse>(fullUrl);
+    } else {
+      refs = await cachedFetch<PullRequestWorkItemRefsResponse>(apiPath);
+    }
   } catch (error) {
     if (error instanceof AdoApiError && error.status === 404) {
       return [];
@@ -382,9 +417,25 @@ export async function testAdoConnection(): Promise<AdoConnectionTestResult> {
 
 export function clearAdoCache(): void {
   cache.clear();
+  cachedUserDisplayName = null;
 }
 
 export function clearTokenCache(): void {
   cachedToken = null;
+  cachedUserDisplayName = null;
+}
+
+export async function getAuthenticatedUserDisplayName(): Promise<string | null> {
+  if (cachedUserDisplayName) return cachedUserDisplayName;
+  try {
+    const data = await adoFetch<{ authenticatedUser?: { providerDisplayName?: string } }>(
+      'connectionData?api-version=7.1',
+      'organization',
+    );
+    cachedUserDisplayName = data?.authenticatedUser?.providerDisplayName ?? null;
+    return cachedUserDisplayName;
+  } catch {
+    return null;
+  }
 }
 

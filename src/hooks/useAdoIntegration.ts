@@ -61,6 +61,16 @@ export function useAdoIntegration(workstreamName: string | null, sessions: Sessi
     return Array.from(uniqueBranches)
   }, [sessions])
 
+  // Extract a common repository from sessions — only use if all sessions share the same repo
+  const commonRepository = useMemo(() => {
+    const repos = new Set(
+      sessions
+        .map((s) => s.repository)
+        .filter((r): r is string => Boolean(r && r.trim())),
+    )
+    return repos.size === 1 ? Array.from(repos)[0] : undefined
+  }, [sessions])
+
   useEffect(() => {
     let isCancelled = false
 
@@ -113,7 +123,7 @@ export function useAdoIntegration(workstreamName: string | null, sessions: Sessi
     setIsLoadingPRs(true)
     setPrError(null)
 
-    getPullRequests(branches)
+    getPullRequests(branches, commonRepository)
       .then((prs) => {
         setPullRequests(prs)
       })
@@ -125,7 +135,7 @@ export function useAdoIntegration(workstreamName: string | null, sessions: Sessi
       .finally(() => {
         setIsLoadingPRs(false)
       })
-  }, [branches, isAdoConfigured, workstreamName])
+  }, [branches, commonRepository, isAdoConfigured, workstreamName])
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect

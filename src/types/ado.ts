@@ -29,11 +29,8 @@ export interface AdoStatus {
   configured: boolean;
   organization: string;
   project: string;
-}
-
-export interface SessionDeliverables {
-  pullRequests: AdoPullRequest[];
-  workItems: AdoWorkItem[];
+  repository: string;
+  filterByCreator: boolean;
 }
 
 export interface SessionDeliverables {

@@ -2,6 +2,12 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { getSessionDeliverables } from '../services/adoService'
 import type { AdoPullRequest, AdoWorkItem } from '../types/ado'
 
+export interface AdoContext {
+  organization?: string;
+  project?: string;
+  repository?: string;
+}
+
 export interface UseSessionDeliverablesResult {
   pullRequests: AdoPullRequest[]
   workItems: AdoWorkItem[]
@@ -13,6 +19,7 @@ export interface UseSessionDeliverablesResult {
 export function useSessionDeliverables(
   branch: string | null | undefined,
   isAdoConfigured: boolean,
+  adoContext?: AdoContext,
 ): UseSessionDeliverablesResult {
   const [pullRequests, setPullRequests] = useState<AdoPullRequest[]>([])
   const [workItems, setWorkItems] = useState<AdoWorkItem[]>([])
@@ -38,7 +45,12 @@ export function useSessionDeliverables(
     setIsLoading(true)
     setError(null)
 
-    getSessionDeliverables(branch)
+    getSessionDeliverables(
+      branch,
+      adoContext?.repository,
+      adoContext?.organization,
+      adoContext?.project,
+    )
       .then((data) => {
         if (!controller.signal.aborted) {
           setPullRequests(data.pullRequests)
@@ -58,7 +70,7 @@ export function useSessionDeliverables(
           setIsLoading(false)
         }
       })
-  }, [branch, isAdoConfigured])
+  }, [branch, isAdoConfigured, adoContext?.repository, adoContext?.organization, adoContext?.project])
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
