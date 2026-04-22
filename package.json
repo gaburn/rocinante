@@ -1,6 +1,6 @@
 {
   "name": "rocinante",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "A real-time dashboard for monitoring and interacting with GitHub Copilot CLI sessions. Named after the ship from The Expanse, which was named after Don Quixote's horse — a workhorse.",
   "author": "gaburn",
   "license": "MIT",
@@ -43,8 +43,7 @@
     "node-pty": "^1.1.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "ws": "^8.19.0",
-    "express-rate-limit": "^8.3.2"
+    "ws": "^8.19.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
