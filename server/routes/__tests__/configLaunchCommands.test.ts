@@ -25,7 +25,6 @@ const realExistsSync = fs.existsSync;
 const realReadFileSync = fs.readFileSync;
 const realWriteFileSync = fs.writeFileSync;
 const realMkdirSync = fs.mkdirSync;
-const realStatSync = fs.statSync;
 
 beforeEach(() => {
   diskStore = {};
@@ -49,7 +48,7 @@ beforeEach(() => {
     return realReadFileSync(p, encoding as BufferEncoding);
   });
 
-  vi.spyOn(fs, 'writeFileSync').mockImplementation((p, data, _encoding) => {
+  vi.spyOn(fs, 'writeFileSync').mockImplementation((p, data) => {
     const normalized = String(p);
     if (normalized === LAUNCH_COMMANDS_PATH) {
       diskStore[normalized] = String(data);

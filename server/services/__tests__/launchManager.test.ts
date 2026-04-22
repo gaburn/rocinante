@@ -33,7 +33,7 @@ import {
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-function mockDirectoryExists(dirPath?: string) {
+function mockDirectoryExists() {
   vi.mocked(fs.statSync).mockReturnValue({
     isDirectory: () => true,
     isFile: () => false,

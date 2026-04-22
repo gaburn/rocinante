@@ -26,7 +26,7 @@ vi.mock('node:child_process', () => ({
 }));
 
 import { execFileSync } from 'node:child_process';
-import workstreamsRouter, { clearAgentCache, detectAgents } from '../workstreams.js';
+import workstreamsRouter, { clearAgentCache } from '../workstreams.js';
 
 // ── Helpers ──────────────────────────────────────────────────────
 
