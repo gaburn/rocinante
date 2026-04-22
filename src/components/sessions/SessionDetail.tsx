@@ -761,6 +761,31 @@ export default function SessionDetail() {
                 </span>
               </>
             )}
+            {/* Agent status inline */}
+            <span aria-hidden="true" className="text-fg/15">·</span>
+            <span>
+              Agents: {totalAgents}
+              {(() => {
+                const parts: React.ReactNode[] = [];
+                if (agentCounts.running > 0) parts.push(<span key="r" className={getStatusTextClass('running')}>{agentCounts.running} running</span>);
+                if (agentCounts.blocked > 0) parts.push(<span key="b" className={getStatusTextClass('blocked')}>{agentCounts.blocked} blocked</span>);
+                if (agentCounts.waiting > 0) parts.push(<span key="w" className={getStatusTextClass('waiting')}>{agentCounts.waiting} waiting</span>);
+
+                if (parts.length === 0) {
+                  return <span className="ml-0.5 text-green-400/70">✓</span>;
+                }
+
+                return (
+                  <span className="ml-1">
+                    ({parts.reduce<React.ReactNode[]>((acc, part, i) => {
+                      if (i > 0) acc.push(<span key={`c${i}`} className="text-fg/25">, </span>);
+                      acc.push(part);
+                      return acc;
+                    }, [])})
+                  </span>
+                );
+              })()}
+            </span>
           </div>
 
           {/* Workstream assignment */}
