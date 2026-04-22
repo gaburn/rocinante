@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import * as fs from 'node:fs';
 import { mapAllSessionSummaries, mapSessionById } from '../services/sessionMapper.js';
 import { readSessionPlan } from '../services/planReader.js';
@@ -13,7 +14,6 @@ import {
   isArchived,
   isInitialized as isArchiveInitialized,
 } from '../services/archiveStore.js';
-import rateLimit from 'express-rate-limit';
 import type { SessionSummary } from '../../src/types/index.js';
 import type { SourceStatus } from '../services/providers/types.js';
 
