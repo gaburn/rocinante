@@ -18,10 +18,15 @@ Named after the ship from *The Expanse*, which was named after Don Quixote's hor
 
 ### Kanban Board
 - **Workstream columns**: Sessions grouped by workstream in a horizontal kanban board, one column per workstream plus an "Ungrouped" column for unassigned sessions
+- **+ New Workstream**: Create named workstreams from a "+ Workstream" button above the board — optionally set a repo path
+- **In-column session launch**: Each workstream column has a "+" button to launch a new agent session directly into that workstream. Auto-detects available agent types (Copilot CLI, Claude CLI, or shell) and launches with one click
+- **Workstream favorites**: Click the ★ star on a column to favorite it — favorited workstreams sort to the front of the board
+- **Workstream archive**: Archive workstreams (and all their sessions) when done — archived workstreams are hidden from the kanban view
 - **Drag-and-drop sessions**: Reassign sessions between workstreams by dragging tiles between columns (@dnd-kit)
 - **Column reorder**: Drag workstream columns by their grip handle to rearrange, order persisted to localStorage
 - **Status-coded tiles**: Emerald (active), red (blocked), amber (waiting), gray (completed). Active and blocked sessions float to the top
 - **Latest context on tiles**: Each tile shows the most recent user message and a magenta assistant-update bubble with Claude/Copilot's latest status
+- **Auto-select new sessions**: Launching a session via "+" auto-selects it so you immediately see its details
 - **Workstream count**: Status summary bar includes workstream count
 
 ### Session Detail
@@ -34,7 +39,7 @@ Named after the ship from *The Expanse*, which was named after Don Quixote's hor
 ### Other Views
 - **Neural Network View**: Animated force-directed graph visualization of all sessions and agents (d3-force + Canvas)
 - **Embedded Terminal**: Session-scoped terminals that auto-resume Claude/Copilot sessions in their working directory (xterm.js + node-pty)
-- **Settings**: 20+ configurable options with localStorage persistence + server config API. About section shows version and GitHub repo link
+- **Settings**: 20+ configurable options with localStorage persistence + server config API. Includes configurable launch commands for each agent type (persisted to `~/.rocinante/launch-commands.json`). About section shows version and GitHub repo link
 - **Light/Dark Mode**: Full theme support with system preference detection
 - **Real-time Updates**: Auto-refresh with configurable interval
 
@@ -44,7 +49,29 @@ For a comprehensive guide on using the dashboard, see **[docs/user-guide.md](./d
 
 ## Recent Changes
 
-### v1.4.0 (Latest)
+### v1.5.0 (Latest)
+
+**Workstream Management**
+- **+ New Workstream** button to create named workstreams with optional repo path
+- **In-column session launch** — "+" button per column launches a new agent session directly into that workstream, auto-detecting available CLIs
+- **Agent type detection** — backend detects which CLI agents are on your PATH (`copilot`, `claude`) and shows only available options
+- **Workstream favorites** — star a column to pin it to the front of the board
+- **Workstream archive** — archive a workstream to hide it; cascade archive removes all its sessions too
+- **Auto-select new sessions** — newly launched sessions are immediately selected in the detail pane
+
+**Launch Commands**
+- Configurable CLI launch commands per agent type via Settings (e.g., `agency copilot --yolo`)
+- Persisted to `~/.rocinante/launch-commands.json`
+
+**Security Hardening**
+- All 12 pre-existing CodeQL alerts resolved
+- Path injection fixes (`path.resolve()` + `startsWith()` sanitizer pattern)
+- Rate limiting with `express-rate-limit` on all route handlers
+- Tainted format string fixes (user data as separate `console.warn` args)
+- Type confusion fixes (explicit `typeof` checks on Express query params)
+- CI workflow permissions tightened (`contents: read`)
+
+### v1.4.0
 
 **Performance**
 - Body-parser limit increased to 2 MB (fixes `PayloadTooLargeError` on archive sync with large session stores)
@@ -177,8 +204,10 @@ Data Sources
 │   ├── ~/.copilot/session-store.db: SQLite (session metadata)
 │   ├── ~/.copilot/session-state/{id}/events.jsonl: event logs
 │   └── ~/.copilot/session-state/{id}/workspace.yaml: session config
-└── Claude
-    └── ~/.claude/projects/: Project directories with session metadata and event logs
+├── Claude
+│   └── ~/.claude/projects/: Project directories with session metadata and event logs
+└── Config
+    └── ~/.rocinante/launch-commands.json: custom CLI launch commands per agent type
 ```
 
 ### Runtime Flow (high-level)
@@ -289,7 +318,7 @@ Terminal bridge over WebSocket.
 ## Tech Stack
 
 - **Frontend**: React 19, Vite 8, TypeScript, Tailwind CSS v4, @dnd-kit (drag-and-drop), d3-force, xterm.js
-- **Backend**: Express 5, better-sqlite3, node-pty, ws, tsx
+- **Backend**: Express 5, better-sqlite3, express-rate-limit, node-pty, ws, tsx
 
 ---
 
