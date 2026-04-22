@@ -37,6 +37,35 @@ export interface SessionMappingContext {
   turnCount?: number;
 }
 
+/* ── Workspace metadata (read from workspace.yaml) ────────────── */
+
+export interface WorkspaceMetadata {
+  cwd: string | null;
+  repository: string | null;
+  branch: string | null;
+  host_type: string | null;
+}
+
+export function readWorkspaceMetadata(sessionId: string): WorkspaceMetadata {
+  const result: WorkspaceMetadata = { cwd: null, repository: null, branch: null, host_type: null };
+  try {
+    const safeId = sanitizeSessionId(sessionId);
+    const config = getConfig();
+    const workspaceFile = path.join(config.sessionStateDir, safeId, 'workspace.yaml');
+    if (fs.existsSync(workspaceFile)) {
+      const content = fs.readFileSync(workspaceFile, 'utf-8');
+      const data = yaml.load(content) as Record<string, unknown>;
+      if (data) {
+        if (typeof data.cwd === 'string' && data.cwd.trim()) result.cwd = data.cwd;
+        if (typeof data.repository === 'string' && data.repository.trim()) result.repository = data.repository;
+        if (typeof data.branch === 'string' && data.branch.trim()) result.branch = data.branch;
+        if (typeof data.host_type === 'string' && data.host_type.trim()) result.host_type = data.host_type;
+      }
+    }
+  } catch { /* silent */ }
+  return result;
+}
+
 /* ── Git context fallback (branch + repository from cwd) ──────── */
 
 interface GitContext {
@@ -154,22 +183,8 @@ export function getSessionCwd(sessionId: string, sqlCwd: string | null): string 
     return sqlCwd;
   }
 
-  try {
-    const safeId = sanitizeSessionId(sessionId);
-    const config = getConfig();
-    const workspaceFile = path.join(config.sessionStateDir, safeId, 'workspace.yaml');
-    if (fs.existsSync(workspaceFile)) {
-      const content = fs.readFileSync(workspaceFile, 'utf-8');
-      const data = yaml.load(content) as Record<string, unknown>;
-      if (data && typeof data.cwd === 'string' && data.cwd.trim().length > 0) {
-        return data.cwd;
-      }
-    }
-  } catch {
-    // Silently fall back to null
-  }
-
-  return null;
+  const wsMeta = readWorkspaceMetadata(sessionId);
+  return wsMeta.cwd;
 }
 
 const MAX_ASSISTANT_UPDATES = 20;
@@ -268,6 +283,7 @@ export function mapToSession(sqlRow: SqliteSession, events: ParsedEvent[], ctx?:
   const assistantUpdates = extractAssistantUpdates(events);
   const compaction = countCompactionEvents(events);
   const resolvedCwd = getSessionCwd(sqlRow.id, sqlRow.cwd);
+  const wsMeta = readWorkspaceMetadata(sqlRow.id);
   const gitFallback = resolveGitContext(resolvedCwd);
   const isSquad = detectSquadSession(events);
   const squadCast = isSquad ? extractSquadCast(events) : undefined;
@@ -290,8 +306,8 @@ export function mapToSession(sqlRow: SqliteSession, events: ParsedEvent[], ctx?:
     waitingQuestion: derivedStatus.waitingQuestion,
     waitingChoices: derivedStatus.waitingChoices,
     cwd: resolvedCwd,
-    repository: sqlRow.repository ?? gitFallback.repository,
-    branch: sqlRow.branch ?? gitFallback.branch,
+    repository: sqlRow.repository ?? wsMeta.repository ?? gitFallback.repository,
+    branch: sqlRow.branch ?? wsMeta.branch ?? gitFallback.branch,
     errorDetails: derivedStatus.errorDetails,
     latestUserMessage,
     lastAssistantUpdate: assistantUpdates && assistantUpdates.length > 0
@@ -443,6 +459,7 @@ export function mapSessionSummary(
     : undefined;
   const compaction = countCompactionEvents(events);
   const resolvedCwd = getSessionCwd(sqlRow.id, sqlRow.cwd);
+  const wsMeta = readWorkspaceMetadata(sqlRow.id);
   const gitFallback = resolveGitContext(resolvedCwd);
   const isSquad = detectSquadSession(events);
 
@@ -460,8 +477,8 @@ export function mapSessionSummary(
     waitingQuestion: derivedStatus.waitingQuestion,
     waitingChoices: derivedStatus.waitingChoices,
     cwd: resolvedCwd,
-    repository: sqlRow.repository ?? gitFallback.repository,
-    branch: sqlRow.branch ?? gitFallback.branch,
+    repository: sqlRow.repository ?? wsMeta.repository ?? gitFallback.repository,
+    branch: sqlRow.branch ?? wsMeta.branch ?? gitFallback.branch,
     errorDetails: derivedStatus.errorDetails,
     latestUserMessage,
     lastAssistantUpdate,

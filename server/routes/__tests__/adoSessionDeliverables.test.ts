@@ -21,6 +21,7 @@ const mockMcpGetWorkItemsBatch = vi.fn();
 
 const mockGetPullRequestsByBranches = vi.fn();
 const mockGetWorkItemsForPullRequest = vi.fn();
+const mockGetAuthenticatedUserDisplayName = vi.fn();
 
 vi.mock('../../services/adoMcpClient.js', () => ({
   mcpListPullRequests: (...args: unknown[]) => mockMcpListPullRequests(...args),
@@ -31,6 +32,7 @@ vi.mock('../../services/adoMcpClient.js', () => ({
 vi.mock('../../services/adoClient.js', () => ({
   getPullRequestsByBranches: (...args: unknown[]) => mockGetPullRequestsByBranches(...args),
   getWorkItemsForPullRequest: (...args: unknown[]) => mockGetWorkItemsForPullRequest(...args),
+  getAuthenticatedUserDisplayName: (...args: unknown[]) => mockGetAuthenticatedUserDisplayName(...args),
   getWorkItems: vi.fn(),
   testAdoConnection: vi.fn(),
   clearAdoCache: vi.fn(),
@@ -39,11 +41,15 @@ vi.mock('../../services/adoClient.js', () => ({
 
 let mockAdoConfigured = true;
 let mockAdoProject = 'TestProject';
+let mockAdoRepository = '';
+let mockAdoFilterByCreator = false;
 
 vi.mock('../../config.js', () => ({
   getConfig: vi.fn(() => ({
     adoOrganization: 'TestOrg',
     adoProject: mockAdoProject,
+    adoRepository: mockAdoRepository,
+    adoFilterByCreator: mockAdoFilterByCreator,
     cacheTtlMs: 10000,
     sessionStateDir: '/mock',
     staleThresholdMs: 300000,
@@ -123,6 +129,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockAdoConfigured = true;
   mockAdoProject = 'TestProject';
+  mockAdoRepository = '';
+  mockAdoFilterByCreator = false;
 });
 
 afterEach(() => {
@@ -234,7 +242,7 @@ describe('GET /api/ado/session-deliverables', () => {
       const body = res.body as { pullRequests: unknown[]; workItems: unknown[] };
       expect(body.pullRequests).toHaveLength(1);
       expect(body.workItems).toHaveLength(1);
-      expect(mockGetPullRequestsByBranches).toHaveBeenCalledWith(['feature/y']);
+      expect(mockGetPullRequestsByBranches).toHaveBeenCalledWith(['feature/y'], undefined, 'TestOrg', 'TestProject');
     });
 
     it('REST path deduplicates work items across PRs', async () => {
@@ -275,6 +283,165 @@ describe('GET /api/ado/session-deliverables', () => {
 
       const res = await callSessionDeliverables({ branch: 'feature/x' });
       expect(res.statusCode).toBe(500);
+    });
+  });
+
+  describe('repository scoping', () => {
+    it('passes repository query param to MCP when provided', async () => {
+      mockMcpListPullRequests.mockResolvedValue([]);
+
+      await callSessionDeliverables({ branch: 'feature/x', repository: 'my-repo' });
+
+      expect(mockMcpListPullRequests).toHaveBeenCalledWith(
+        expect.objectContaining({ repositoryId: 'my-repo' }),
+      );
+    });
+
+    it('passes config adoRepository to MCP as fallback', async () => {
+      mockAdoRepository = 'config-repo';
+      mockMcpListPullRequests.mockResolvedValue([]);
+
+      await callSessionDeliverables({ branch: 'feature/x' });
+
+      expect(mockMcpListPullRequests).toHaveBeenCalledWith(
+        expect.objectContaining({ repositoryId: 'config-repo' }),
+      );
+    });
+
+    it('passes repository query param to REST when MCP fails', async () => {
+      mockMcpListPullRequests.mockRejectedValue(new Error('MCP down'));
+      mockGetPullRequestsByBranches.mockResolvedValue([]);
+
+      await callSessionDeliverables({ branch: 'feature/x', repository: 'my-repo' });
+
+      expect(mockGetPullRequestsByBranches).toHaveBeenCalledWith(['feature/x'], 'my-repo', 'TestOrg', 'TestProject');
+    });
+
+    it('no repository filter when neither query param nor config is set', async () => {
+      mockMcpListPullRequests.mockResolvedValue([]);
+
+      await callSessionDeliverables({ branch: 'feature/x' });
+
+      const opts = mockMcpListPullRequests.mock.calls[0][0];
+      expect(opts.repositoryId).toBeUndefined();
+    });
+
+    it('query param repository overrides config repository', async () => {
+      mockAdoRepository = 'config-repo';
+      mockMcpListPullRequests.mockResolvedValue([]);
+
+      await callSessionDeliverables({ branch: 'feature/x', repository: 'override-repo' });
+
+      expect(mockMcpListPullRequests).toHaveBeenCalledWith(
+        expect.objectContaining({ repositoryId: 'override-repo' }),
+      );
+    });
+  });
+
+  describe('per-session org/project overrides', () => {
+    it('passes per-session organization and project to MCP when query params provided', async () => {
+      mockMcpListPullRequests.mockResolvedValue([]);
+
+      await callSessionDeliverables({
+        branch: 'users/gaburns/my-feature',
+        organization: 'microsoft',
+        project: 'DefenderCommon',
+        repository: 'MTP.SovClouds.AdoSidecarExtension',
+      });
+
+      expect(mockMcpListPullRequests).toHaveBeenCalledWith(
+        expect.objectContaining({
+          project: 'DefenderCommon',
+          repositoryId: 'MTP.SovClouds.AdoSidecarExtension',
+        }),
+      );
+    });
+
+    it('passes per-session organization and project to REST fallback', async () => {
+      mockMcpListPullRequests.mockRejectedValue(new Error('MCP down'));
+      mockGetPullRequestsByBranches.mockResolvedValue([]);
+
+      await callSessionDeliverables({
+        branch: 'users/gaburns/my-feature',
+        organization: 'microsoft',
+        project: 'DefenderCommon',
+        repository: 'MTP.SovClouds.AdoSidecarExtension',
+      });
+
+      expect(mockGetPullRequestsByBranches).toHaveBeenCalledWith(
+        ['users/gaburns/my-feature'],
+        'MTP.SovClouds.AdoSidecarExtension',
+        'microsoft',
+        'DefenderCommon',
+      );
+    });
+
+    it('falls back to global config when no per-session params provided', async () => {
+      mockMcpListPullRequests.mockRejectedValue(new Error('MCP down'));
+      mockGetPullRequestsByBranches.mockResolvedValue([]);
+
+      await callSessionDeliverables({ branch: 'feature/x' });
+
+      expect(mockGetPullRequestsByBranches).toHaveBeenCalledWith(
+        ['feature/x'],
+        undefined,
+        'TestOrg',
+        'TestProject',
+      );
+    });
+  });
+
+  describe('creator filtering', () => {
+    it('filters PRs by creator when adoFilterByCreator is true', async () => {
+      mockAdoFilterByCreator = true;
+      mockGetAuthenticatedUserDisplayName.mockResolvedValue('Alice');
+
+      const pr1 = makePr(101, 'feature/x', 'repo-1');
+      pr1.createdBy = 'Alice';
+      const pr2 = makePr(102, 'feature/x', 'repo-1');
+      pr2.createdBy = 'Bob';
+
+      mockMcpListPullRequests.mockResolvedValue([pr1, pr2]);
+      mockMcpGetPullRequest
+        .mockResolvedValueOnce({ pr: pr1, workItemIds: [] })
+        .mockResolvedValueOnce({ pr: pr2, workItemIds: [] });
+
+      const res = await callSessionDeliverables({ branch: 'feature/x' });
+      const body = res.body as { pullRequests: Array<{ createdBy: string }> };
+      expect(body.pullRequests).toHaveLength(1);
+      expect(body.pullRequests[0].createdBy).toBe('Alice');
+    });
+
+    it('does not filter PRs when adoFilterByCreator is false', async () => {
+      mockAdoFilterByCreator = false;
+
+      const pr1 = makePr(101, 'feature/x', 'repo-1');
+      pr1.createdBy = 'Alice';
+      const pr2 = makePr(102, 'feature/x', 'repo-1');
+      pr2.createdBy = 'Bob';
+
+      mockMcpListPullRequests.mockResolvedValue([pr1, pr2]);
+      mockMcpGetPullRequest
+        .mockResolvedValueOnce({ pr: pr1, workItemIds: [] })
+        .mockResolvedValueOnce({ pr: pr2, workItemIds: [] });
+
+      const res = await callSessionDeliverables({ branch: 'feature/x' });
+      const body = res.body as { pullRequests: unknown[] };
+      expect(body.pullRequests).toHaveLength(2);
+      expect(mockGetAuthenticatedUserDisplayName).not.toHaveBeenCalled();
+    });
+
+    it('returns all PRs when creator filter is on but user name cannot be resolved', async () => {
+      mockAdoFilterByCreator = true;
+      mockGetAuthenticatedUserDisplayName.mockResolvedValue(null);
+
+      const pr1 = makePr(101, 'feature/x', 'repo-1');
+      mockMcpListPullRequests.mockResolvedValue([pr1]);
+      mockMcpGetPullRequest.mockResolvedValue({ pr: pr1, workItemIds: [] });
+
+      const res = await callSessionDeliverables({ branch: 'feature/x' });
+      const body = res.body as { pullRequests: unknown[] };
+      expect(body.pullRequests).toHaveLength(1);
     });
   });
 });

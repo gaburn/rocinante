@@ -11,7 +11,7 @@ import {
 } from '../sqliteReader.js';
 import { readEventsTail } from '../eventTailReader.js';
 import { readEventsHead } from '../eventTailReader.js';
-import { mapToSession, mapSessionSummary, getSessionCwd, type SessionMappingContext } from '../sessionMapper.js';
+import { mapToSession, mapSessionSummary, getSessionCwd, readWorkspaceMetadata, type SessionMappingContext } from '../sessionMapper.js';
 import { getOrCompute as getOrComputeSummary, evictStale as evictStaleSummaries } from '../sessionSummaryCache.js';
 import { sanitizeSessionId } from '../../utils/sanitize.js';
 
@@ -81,16 +81,17 @@ export class CopilotSessionSource implements SessionSource {
       const headData = readEventsHead(id);
       const tailEvents = readEventsTail(id);
 
-      const cwd = getSessionCwd(id, null);
+      const wsMeta = readWorkspaceMetadata(id);
+      const cwd = wsMeta.cwd ?? getSessionCwd(id, null);
       const now = new Date().toISOString();
 
       const syntheticRow: SqliteSession = {
         id,
         cwd,
-        repository: null,
-        branch: null,
+        repository: wsMeta.repository,
+        branch: wsMeta.branch,
         summary: null,
-        host_type: null,
+        host_type: wsMeta.host_type,
         created_at: headData.createdAt || now,
         updated_at: tailEvents.length > 0
           ? tailEvents[tailEvents.length - 1].timestamp

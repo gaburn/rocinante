@@ -58,11 +58,13 @@ vi.mock('../../eventTailReader.js', () => ({
 const mockMapToSession = vi.fn();
 const mockMapSessionSummary = vi.fn();
 const mockGetSessionCwd = vi.fn();
+const mockReadWorkspaceMetadata = vi.fn();
 
 vi.mock('../../sessionMapper.js', () => ({
   mapToSession: (...args: unknown[]) => mockMapToSession(...args),
   mapSessionSummary: (...args: unknown[]) => mockMapSessionSummary(...args),
   getSessionCwd: (...args: unknown[]) => mockGetSessionCwd(...args),
+  readWorkspaceMetadata: (...args: unknown[]) => mockReadWorkspaceMetadata(...args),
 }));
 
 const mockGetOrComputeSummary = vi.fn();
@@ -153,6 +155,7 @@ beforeEach(() => {
   mockReadEventsTail.mockReturnValue([]);
   mockReadEventsHead.mockReturnValue({ createdAt: null, firstUserMessage: null, turnCount: 0 });
   mockGetSessionCwd.mockReturnValue(null);
+  mockReadWorkspaceMetadata.mockReturnValue({ cwd: null, repository: null, branch: null, host_type: null });
 });
 
 afterEach(() => {
@@ -278,6 +281,33 @@ describe('CopilotSessionSource', () => {
         firstUserMessage: 'Create the feature',
         turnCount: 5,
       });
+    });
+
+    it('populates syntheticRow with workspace metadata when available', () => {
+      mockGetSessionById.mockReturnValue(null);
+      mockExistsSync.mockImplementation((p: string) => p === eventsFilePath('ws-session'));
+      mockReadEventsHead.mockReturnValue({
+        createdAt: '2026-06-01T12:00:00Z',
+        firstUserMessage: 'Fix the extension',
+        turnCount: 3,
+      });
+      mockReadWorkspaceMetadata.mockReturnValue({
+        cwd: '/repos/DefenderCommon',
+        repository: 'microsoft/DefenderCommon/MTP.SovClouds.AdoSidecarExtension',
+        branch: 'users/gaburns/integrate-band-extension',
+        host_type: 'ado',
+      });
+      mockMapToSession.mockReturnValue(makeSession('ws-session'));
+
+      const source = new CopilotSessionSource();
+      source.getSession('ws-session');
+
+      expect(mockMapToSession).toHaveBeenCalledTimes(1);
+      const [syntheticRow] = mockMapToSession.mock.calls[0];
+      expect(syntheticRow.repository).toBe('microsoft/DefenderCommon/MTP.SovClouds.AdoSidecarExtension');
+      expect(syntheticRow.branch).toBe('users/gaburns/integrate-band-extension');
+      expect(syntheticRow.host_type).toBe('ado');
+      expect(syntheticRow.cwd).toBe('/repos/DefenderCommon');
     });
 
     it('handles corrupt events.jsonl gracefully (readEventsHead returns defaults)', () => {

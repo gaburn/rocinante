@@ -6,13 +6,13 @@ import type { SubAgent, AgentStatus, ErrorDetail } from '../../types';
 import type { AdoPullRequest } from '../../types/ado';
 import { getAdoStatus } from '../../services/adoService';
 import { useSessionDeliverables } from '../../hooks/useSessionDeliverables';
+import type { AdoContext } from '../../hooks/useSessionDeliverables';
 import {
   formatRelativeTime,
   formatDuration,
   countAgents,
 } from '../../utils/formatters';
 import {
-  getStatusDotClass,
   getStatusTextClass,
 } from '../../utils/statusColors';
 import { renderInlineMarkdown } from '../../utils/inlineMarkdown';
@@ -63,6 +63,24 @@ import PlanViewer from './PlanViewer';
  * ──────────────────────────────────────────────────────────────── */
 
 /* ── Helpers ──────────────────────────────────────────────────── */
+
+/**
+ * Parse an ADO-format repository string (org/project/repo) into
+ * per-session org/project/repo context for the deliverables API.
+ * GitHub-format (owner/repo) is left as-is — only 3+ segment paths are split.
+ */
+function parseAdoRepository(repository: string | null | undefined): AdoContext {
+  if (!repository) return {};
+  const parts = repository.split('/');
+  if (parts.length >= 3) {
+    return {
+      organization: parts[0],
+      project: parts[1],
+      repository: parts.slice(2).join('/'),
+    };
+  }
+  return { repository };
+}
 
 /** Recursively tallies every agent in the tree by its status. */
 function countAgentsByStatus(agent: SubAgent): Record<AgentStatus, number> {
@@ -265,41 +283,6 @@ function deliverableShortBranch(ref: string): string {
   return ref.replace(/^refs\/heads\//, '');
 }
 
-/* ── Stat card (quick-stats grid item) ────────────────────────
- *  A compact, color-coded tile for a single agent-status count.
- *  Zero-count cards are dimmed so attention stays on what matters. */
-
-interface StatCardProps {
-  status: AgentStatus;
-  label: string;
-  count: number;
-}
-
-function StatCard({ status, label, count }: StatCardProps) {
-  return (
-    <div
-      className={`
-        rounded-lg bg-surface-secondary px-3 py-2
-        transition-opacity duration-150
-        ${count === 0 ? 'opacity-40' : ''}
-      `}
-    >
-      <div className="flex items-center gap-1.5">
-        <span
-          aria-hidden="true"
-          className={`size-1.5 shrink-0 rounded-full ${getStatusDotClass(status)}`}
-        />
-        <span
-          className={`text-lg font-semibold tabular-nums leading-none ${getStatusTextClass(status)}`}
-        >
-          {count}
-        </span>
-      </div>
-      <p className="mt-1 font-mono text-[11px] text-fg/40">{label}</p>
-    </div>
-  );
-}
-
 function ExpandablePrompt({ text }: { text: string }) {
   const [expanded, setExpanded] = useState(false);
   const isLong = text.length > 200;
@@ -375,7 +358,8 @@ export default function SessionDetail() {
   }, []);
 
   // Session deliverables hook — must be called before early return (rules of hooks)
-  const deliverables = useSessionDeliverables(selectedSession?.branch, isAdoConfigured);
+  const adoContext = parseAdoRepository(selectedSession?.repository);
+  const deliverables = useSessionDeliverables(selectedSession?.branch, isAdoConfigured, adoContext);
   const deliverablesCount = deliverables.pullRequests.length + deliverables.workItems.length;
   const [deliverablesExpanded, setDeliverablesExpanded] = useState(true);
 
@@ -741,6 +725,31 @@ export default function SessionDetail() {
                 </span>
               </>
             )}
+            {/* Agent status inline */}
+            <span aria-hidden="true" className="text-fg/15">·</span>
+            <span>
+              Agents: {totalAgents}
+              {(() => {
+                const parts: React.ReactNode[] = [];
+                if (agentCounts.running > 0) parts.push(<span key="r" className={getStatusTextClass('running')}>{agentCounts.running} running</span>);
+                if (agentCounts.blocked > 0) parts.push(<span key="b" className={getStatusTextClass('blocked')}>{agentCounts.blocked} blocked</span>);
+                if (agentCounts.waiting > 0) parts.push(<span key="w" className={getStatusTextClass('waiting')}>{agentCounts.waiting} waiting</span>);
+
+                if (parts.length === 0) {
+                  return <span className="ml-0.5 text-green-400/70">✓</span>;
+                }
+
+                return (
+                  <span className="ml-1">
+                    ({parts.reduce<React.ReactNode[]>((acc, part, i) => {
+                      if (i > 0) acc.push(<span key={`c${i}`} className="text-fg/25">, </span>);
+                      acc.push(part);
+                      return acc;
+                    }, [])})
+                  </span>
+                );
+              })()}
+            </span>
           </div>
 
           {/* Workstream assignment */}
@@ -1113,28 +1122,7 @@ export default function SessionDetail() {
           </section>
         )}
 
-        {/* ── 2 · Quick stats ────────────────────────────── */}
-        {panes.quickStats && (
-          <section className="space-y-2">
-            <div className="flex items-baseline gap-2">
-              <h3 className="font-mono text-[11px] font-medium uppercase tracking-widest text-fg/60">
-                Agents
-              </h3>
-              <span className="font-mono text-[11px] tabular-nums text-fg/20">
-                {totalAgents} total
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              <StatCard status="running"   label="Running"   count={agentCounts.running} />
-              <StatCard status="blocked"   label="Blocked"   count={agentCounts.blocked} />
-              <StatCard status="waiting"   label="Waiting"   count={agentCounts.waiting} />
-              <StatCard status="completed" label="Completed" count={agentCounts.completed} />
-            </div>
-          </section>
-        )}
-
-        {panes.sessionPlan && (
+        {panes.sessionPlan&& (
           <PlanViewer key={session.id} sessionId={session.id} />
         )}
 
