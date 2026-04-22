@@ -228,13 +228,15 @@ function normalizeBranch(refName: string | undefined): string {
   return refName.replace(/^refs\/heads\//, '');
 }
 
-function buildPrUrl(webUrl: string | undefined, repoName: string | undefined, prId: number): string {
+function buildPrUrl(webUrl: string | undefined, repoName: string | undefined, prId: number, organization?: string, project?: string): string {
   if (webUrl) {
     return `${webUrl}/pullrequest/${prId}`;
   }
   const config = getConfig();
+  const org = organization || config.adoOrganization;
+  const proj = project || config.adoProject;
   const repoSegment = repoName ? `${repoName}/` : '';
-  return `https://dev.azure.com/${config.adoOrganization}/${config.adoProject}/_git/${repoSegment}pullrequest/${prId}`;
+  return `https://dev.azure.com/${encodeURIComponent(org)}/${encodeURIComponent(proj)}/_git/${repoSegment}pullrequest/${prId}`;
 }
 
 export async function getPullRequestsByBranches(
@@ -291,7 +293,7 @@ export async function getPullRequestsByBranches(
           displayName: reviewer.displayName ?? '',
           vote: typeof reviewer.vote === 'number' ? reviewer.vote : 0,
         })),
-        url: buildPrUrl(pr.repository?.webUrl, pr.repository?.name, pr.pullRequestId),
+        url: buildPrUrl(pr.repository?.webUrl, pr.repository?.name, pr.pullRequestId, organization, project),
       });
     }
   }

@@ -201,7 +201,7 @@ adoRouter.get('/ado/session-deliverables', async (req, res) => {
   let result: { pullRequests: import('../../src/types/ado.js').AdoPullRequest[]; workItems: import('../../src/types/ado.js').AdoWorkItem[] } | null = null;
 
   try {
-    result = await fetchDeliverablesViaMcp(project, trimmedBranch, repository);
+    result = await fetchDeliverablesViaMcp(project, trimmedBranch, repository, organization);
     console.log(`[ADO] ${new Date().toISOString()} MCP path succeeded:`, result.pullRequests.length, 'PRs,', result.workItems.length, 'WIs');
   } catch (err) {
     console.log(`[ADO] ${new Date().toISOString()} MCP path failed:`, err instanceof Error ? err.message : String(err));
@@ -232,11 +232,12 @@ adoRouter.get('/ado/session-deliverables', async (req, res) => {
   res.json(result);
 });
 
-async function fetchDeliverablesViaMcp(project: string, branch: string, repository: string) {
+async function fetchDeliverablesViaMcp(project: string, branch: string, repository: string, organization?: string) {
   const opts: Parameters<typeof mcpListPullRequests>[0] = {
     project,
     sourceRefName: `refs/heads/${branch}`,
     status: 'All',
+    organization,
   };
   if (repository) {
     opts.repositoryId = repository;
@@ -253,6 +254,7 @@ async function fetchDeliverablesViaMcp(project: string, branch: string, reposito
           repositoryId: pr.repositoryId!,
           pullRequestId: pr.id,
           includeWorkItemRefs: true,
+          organization,
         }),
       ),
   );

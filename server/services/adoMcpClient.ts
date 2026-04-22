@@ -281,13 +281,15 @@ function normalizeBranch(refName: string | undefined): string {
   return refName.replace(/^refs\/heads\//, '');
 }
 
-function buildPrUrl(webUrl: string | undefined, repoName: string | undefined, prId: number): string {
+function buildPrUrl(webUrl: string | undefined, repoName: string | undefined, prId: number, organization?: string, project?: string): string {
   if (webUrl) {
     return `${webUrl}/pullrequest/${prId}`;
   }
   const config = getConfig();
+  const org = organization || config.adoOrganization;
+  const proj = project || config.adoProject;
   const repoSegment = repoName ? `${repoName}/` : '';
-  return `https://dev.azure.com/${config.adoOrganization}/${config.adoProject}/_git/${repoSegment}pullrequest/${prId}`;
+  return `https://dev.azure.com/${encodeURIComponent(org)}/${encodeURIComponent(proj)}/_git/${repoSegment}pullrequest/${prId}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -303,6 +305,7 @@ export async function mcpListPullRequests(opts: {
   sourceRefName?: string;
   status?: string;
   top?: number;
+  organization?: string;
 }): Promise<AdoPullRequest[]> {
   const cacheKey = `listPRs:${JSON.stringify(opts)}`;
   const cached = getCached<AdoPullRequest[]>(cacheKey);
@@ -321,7 +324,7 @@ export async function mcpListPullRequests(opts: {
 
   const prs: AdoPullRequest[] = items
     .filter((item: Record<string, unknown>) => typeof item.pullRequestId === 'number')
-    .map((item: Record<string, unknown>) => mapPullRequest(item));
+    .map((item: Record<string, unknown>) => mapPullRequest(item, opts.organization, opts.project));
 
   setCache(cacheKey, prs);
   return prs;
@@ -335,6 +338,7 @@ export async function mcpGetPullRequest(opts: {
   repositoryId: string;
   pullRequestId: number;
   includeWorkItemRefs?: boolean;
+  organization?: string;
 }): Promise<{ pr: AdoPullRequest; workItemIds: number[] }> {
   const cacheKey = `getPR:${opts.repositoryId}:${opts.pullRequestId}:${opts.includeWorkItemRefs}`;
   const cached = getCached<{ pr: AdoPullRequest; workItemIds: number[] }>(cacheKey);
@@ -352,7 +356,7 @@ export async function mcpGetPullRequest(opts: {
   const raw = await callTool('get_pull_request_by_id', args);
   const data = isObj(raw) ? raw : {};
 
-  const pr = mapPullRequest(data);
+  const pr = mapPullRequest(data, opts.organization, opts.project);
   let workItemIds: number[] = [];
 
   if (opts.includeWorkItemRefs && Array.isArray(data.workItemRefs)) {
@@ -442,7 +446,7 @@ function isObj(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
 }
 
-function mapPullRequest(item: Record<string, unknown>): AdoPullRequest {
+function mapPullRequest(item: Record<string, unknown>, organization?: string, project?: string): AdoPullRequest {
   const repo = isObj(item.repository) ? item.repository : {};
   const createdBy = isObj(item.createdBy) ? item.createdBy : {};
   const reviewersRaw = Array.isArray(item.reviewers) ? item.reviewers : [];
@@ -464,6 +468,6 @@ function mapPullRequest(item: Record<string, unknown>): AdoPullRequest {
       displayName: (r.displayName as string) ?? '',
       vote: typeof r.vote === 'number' ? r.vote : 0,
     })),
-    url: buildPrUrl(repo.webUrl as string | undefined, repo.name as string | undefined, (item.pullRequestId as number) ?? 0),
+    url: buildPrUrl(repo.webUrl as string | undefined, repo.name as string | undefined, (item.pullRequestId as number) ?? 0, organization, project),
   };
 }
