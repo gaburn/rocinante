@@ -13,7 +13,6 @@ import {
   countAgents,
 } from '../../utils/formatters';
 import {
-  getStatusDotClass,
   getStatusTextClass,
 } from '../../utils/statusColors';
 import { renderInlineMarkdown } from '../../utils/inlineMarkdown';
@@ -282,41 +281,6 @@ function deliverableWorkItemStateBadgeClasses(state: string): string {
 
 function deliverableShortBranch(ref: string): string {
   return ref.replace(/^refs\/heads\//, '');
-}
-
-/* ── Stat card (quick-stats grid item) ────────────────────────
- *  A compact, color-coded tile for a single agent-status count.
- *  Zero-count cards are dimmed so attention stays on what matters. */
-
-interface StatCardProps {
-  status: AgentStatus;
-  label: string;
-  count: number;
-}
-
-function StatCard({ status, label, count }: StatCardProps) {
-  return (
-    <div
-      className={`
-        rounded-lg bg-surface-secondary px-3 py-2
-        transition-opacity duration-150
-        ${count === 0 ? 'opacity-40' : ''}
-      `}
-    >
-      <div className="flex items-center gap-1.5">
-        <span
-          aria-hidden="true"
-          className={`size-1.5 shrink-0 rounded-full ${getStatusDotClass(status)}`}
-        />
-        <span
-          className={`text-lg font-semibold tabular-nums leading-none ${getStatusTextClass(status)}`}
-        >
-          {count}
-        </span>
-      </div>
-      <p className="mt-1 font-mono text-[11px] text-fg/40">{label}</p>
-    </div>
-  );
 }
 
 function ExpandablePrompt({ text }: { text: string }) {
@@ -1158,28 +1122,7 @@ export default function SessionDetail() {
           </section>
         )}
 
-        {/* ── 2 · Quick stats ────────────────────────────── */}
-        {panes.quickStats && (
-          <section className="space-y-2">
-            <div className="flex items-baseline gap-2">
-              <h3 className="font-mono text-[11px] font-medium uppercase tracking-widest text-fg/60">
-                Agents
-              </h3>
-              <span className="font-mono text-[11px] tabular-nums text-fg/20">
-                {totalAgents} total
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              <StatCard status="running"   label="Running"   count={agentCounts.running} />
-              <StatCard status="blocked"   label="Blocked"   count={agentCounts.blocked} />
-              <StatCard status="waiting"   label="Waiting"   count={agentCounts.waiting} />
-              <StatCard status="completed" label="Completed" count={agentCounts.completed} />
-            </div>
-          </section>
-        )}
-
-        {panes.sessionPlan && (
+        {panes.sessionPlan&& (
           <PlanViewer key={session.id} sessionId={session.id} />
         )}
 

@@ -13,7 +13,6 @@ export type ShellType = 'pwsh' | 'powershell' | 'cmd' | 'bash' | 'custom';
 
 export interface PaneVisibility {
   gitContext: boolean;
-  quickStats: boolean;
   performanceWaterfall: boolean;
   agentHierarchy: boolean;
   eventTimeline: boolean;
@@ -85,7 +84,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
     customShellPath: '',
     paneVisibility: {
       gitContext: true,
-      quickStats: true,
       performanceWaterfall: false,
       agentHierarchy: true,
       eventTimeline: true,

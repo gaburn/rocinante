@@ -876,21 +876,6 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                   />
                 </FieldRow>
 
-                <FieldRow label="Quick Stats">
-                  <Toggle
-                    label="Show quick stats pane"
-                    checked={display.paneVisibility.quickStats}
-                    onChange={(v) =>
-                      updateDisplaySettings({
-                        paneVisibility: {
-                          ...settings.display.paneVisibility,
-                          quickStats: v,
-                        },
-                      })
-                    }
-                  />
-                </FieldRow>
-
                 <FieldRow label="Performance Waterfall">
                   <Toggle
                     label="Show performance waterfall pane"
