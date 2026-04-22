@@ -137,7 +137,8 @@ export default function StatusSummaryBar() {
                   {content}
 
                   {/* Popover — shown on hover */}
-                  <div className="absolute left-0 top-full mt-2 z-50 hidden group-hover:block min-w-[200px] max-w-[320px] rounded-lg border border-border-default bg-surface-secondary shadow-lg">
+                  <div className="absolute left-0 top-full z-50 hidden group-hover:block min-w-[200px] max-w-[320px] pt-2">
+                   <div className="rounded-lg border border-border-default bg-surface-secondary shadow-lg">
                     <div className="px-3 py-2 border-b border-border-default">
                       <span className="font-mono text-[11px] font-medium uppercase tracking-widest text-fg/60">
                         Waiting for input
@@ -156,6 +157,7 @@ export default function StatusSummaryBar() {
                         </button>
                       ))}
                     </div>
+                   </div>
                   </div>
                 </div>
               ) : (
