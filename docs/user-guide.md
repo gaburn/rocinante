@@ -17,9 +17,10 @@ See `screenshot.png` in the project root for an example of the kanban board.
 5. [Session Detail Panel](#session-detail-panel)
 6. [Auto-Archive Rules](#auto-archive-rules)
 7. [Settings](#settings)
-8. [Demo Mode](#demo-mode)
-9. [Status Filters](#status-filters)
-10. [Tips](#tips)
+8. [Azure DevOps Integration](#azure-devops-integration)
+9. [Demo Mode](#demo-mode)
+10. [Status Filters](#status-filters)
+11. [Tips](#tips)
 
 ---
 
@@ -261,6 +262,35 @@ Shows the current version number and a link to the GitHub repository.
 ### Reset to Defaults
 
 A button at the bottom of the settings panel resets all settings to their defaults.
+
+---
+
+## Azure DevOps Integration
+
+Rocinante can display Pull Requests and Work Items from Azure DevOps alongside your sessions.
+
+### Configuration
+
+Set your ADO connection in **Settings > Azure DevOps**, or configure via environment variables:
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `ADO_ORG` | ADO organization name | `microsoft` |
+| `ADO_PROJECT` | ADO project name | `WDATP` |
+| `ADO_REPOSITORY` | Repository name (optional) | `InE.AlertsApiService` |
+| `ADO_FILTER_BY_CREATOR` | Only show your PRs (opt-in) | `true` |
+
+Configuration persists to `~/.rocinante/ado-config.json`.
+
+### Per-Session Context
+
+Rocinante reads each session's workspace.yaml to determine which ADO project the session belongs to. This means sessions from different ADO projects show the correct PRs automatically — no manual config switching needed.
+
+The `repository` field in workspace.yaml follows the format `{org}/{project}/{repo}` for ADO-hosted sessions, which Rocinante parses to query the right ADO project.
+
+### Waiting Sessions
+
+When sessions are waiting for user input (e.g., `ask_user` tool), the **Waiting** indicator in the status bar pulses amber. Hover to see a list of waiting sessions, and click any session to navigate directly to it.
 
 ---
 

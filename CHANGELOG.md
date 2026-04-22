@@ -2,6 +2,28 @@
 
 All notable changes to Rocinante will be documented in this file.
 
+## [1.6.0] - 2026-04-22
+
+### Added
+- **Per-session ADO context** — PR queries now use each session's own ADO organization and project (from workspace.yaml) instead of the global config. Sessions across different ADO projects show the correct PRs and work items
+- **Repository-scoped PR fetching** — PRs filtered by specific repository (both MCP and REST paths), eliminating cross-repo noise from the ADO pane
+- **Workspace metadata reader** — session mapper reads branch, repository, and host_type from workspace.yaml, providing accurate session-time values instead of stale git HEAD / basename fallbacks
+- **Inline agent stats** — Running/Blocked/Waiting/Completed counts displayed in the session header metadata row with color-coded status text
+- **Waiting sessions popover** — status bar "Waiting" indicator pulses amber when sessions need input; hover reveals a popover listing each waiting session; click to navigate directly
+- **Opt-in creator filter** — `adoFilterByCreator` config option (default off) filters PRs by the authenticated ADO user
+- **ADO repository config** — `adoRepository` field in server config, persisted to `~/.rocinante/ado-config.json`, configurable via env var `ADO_REPOSITORY`
+- **Per-session ADO API params** — session-deliverables endpoint accepts `organization`, `project`, and `repository` query params for per-session overrides
+
+### Changed
+- **Quick Stats removed** — the StatCard grid pane replaced by compact inline agent status in the header metadata row
+- **`quickStats` setting removed** — the pane visibility toggle no longer exists in settings
+
+### Fixed
+- **Wrong-project PRs** — sessions from `DefenderCommon` no longer show PRs from `Windows Defender` (or any other globally-configured project)
+- **Stale branch data** — session branch now comes from workspace.yaml (session-time value) instead of current git HEAD which may have changed
+- **PR link URLs** — `buildPrUrl` fallback now uses per-session org/project instead of global config, producing correct ADO links
+- **Hover popover gap** — waiting sessions popover uses transparent bridge padding so mouse can reach clickable session buttons
+
 ## [1.2.1] - 2026-04-03
 
 ### Added
