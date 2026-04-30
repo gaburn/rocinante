@@ -1069,6 +1069,46 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
             )}
           </Section>
 
+          {/* ━━━━━━━━━━ Section: Focus & Limits ━━━━━━━━━━━━━━━ */}
+          <Section title="Focus & Limits">
+            <FieldRow label="Enable Focus Mode">
+              <Toggle
+                checked={display.focusModeEnabled}
+                onChange={(v) => updateDisplaySettings({ focusModeEnabled: v })}
+                label="Enable Focus Mode"
+              />
+            </FieldRow>
+
+            <FieldRow
+              label="Workstream Threshold"
+              hint="Max workstreams you can focus on; also triggers the active-workstream warning when exceeded."
+            >
+              <input
+                type="number"
+                min={1}
+                max={20}
+                value={display.workstreamThreshold}
+                onChange={(e) => {
+                  const v = Math.max(1, Math.min(20, Number(e.target.value) || 1));
+                  updateDisplaySettings({ workstreamThreshold: v });
+                }}
+                aria-label="Workstream threshold"
+                data-testid="workstream-threshold-input"
+                className="
+                  w-20 appearance-none
+                  bg-surface-tertiary border border-border-default rounded-md
+                  px-3 py-1.5
+                  text-sm text-fg/80 font-mono text-center tabular-nums
+                  transition-colors duration-150
+                  hover:border-fg/20
+                  focus-visible:outline-none focus-visible:ring-2
+                  focus-visible:ring-border-active focus-visible:ring-offset-1
+                  focus-visible:ring-offset-surface-secondary
+                "
+              />
+            </FieldRow>
+          </Section>
+
           {/* ━━━━━━━━━━ Section: Auto-Archive Rules ━━━━━━━━━━━━━━━ */}
           <Section title="Auto-Archive Rules">
             <div className="space-y-3">

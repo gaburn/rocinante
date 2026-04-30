@@ -19,8 +19,10 @@ import StatusSummaryBar from '../common/StatusSummaryBar';
 import StatusFilter from '../filters/StatusFilter';
 import KanbanColumn, { COLUMN_SORTABLE_PREFIX } from './KanbanColumn';
 import KanbanTile from './KanbanTile';
+import FocusWarningBanner from './FocusWarningBanner';
 import WelcomeCard from '../sessions/WelcomeCard';
 import NewWorkstreamDialog from './NewWorkstreamDialog';
+import { useFocusMode } from '../../hooks/useFocusMode';
 
 /* ─────────────────────────────────────────────────────────
  * KanbanBoard
@@ -91,6 +93,7 @@ export default function KanbanBoard() {
     archiveWorkstream,
     updateWorkstreamRegistry,
     toggleFavorite,
+    toggleFocus,
   } = useSessionActions();
 
   const { openLaunchTerminal } = useTerminalContext();
@@ -101,6 +104,17 @@ export default function KanbanBoard() {
   const [activeDragColumnName, setActiveDragColumnName] = useState<string | null>(null);
   const [showNewWorkstream, setShowNewWorkstream] = useState(false);
   const [newWorkstreamDefaultPath, setNewWorkstreamDefaultPath] = useState<string | undefined>();
+
+  // Focus mode state
+  const {
+    activeWorkstreamCount,
+    focusedWorkstreamNames,
+    shouldShowWarning,
+    workstreamThreshold,
+    focusModeEnabled,
+  } = useFocusMode();
+  const [showAllWorkstreams, setShowAllWorkstreams] = useState(false);
+  const [focusLimitMsg, setFocusLimitMsg] = useState<string | null>(null);
 
   // Cached agent detection for quick in-column session launches
   type AgentType = 'copilot' | 'claude' | 'shell';
@@ -166,24 +180,47 @@ export default function KanbanBoard() {
     if (searchQuery.trim()) {
       cols = cols.filter((c) => c.sessions.length > 0);
     }
-    // Sort favorited workstreams before non-favorited; Ungrouped always last.
-    // Uses live workstreamRegistry so toggling ★ immediately reorders columns.
+    // Sort: focused → favorited → rest → ungrouped (when focus mode on)
+    // Otherwise: favorited → rest → ungrouped
     return [...cols].sort((a, b) => {
       const aIsUngrouped = a.id === UNGROUPED_ID;
       const bIsUngrouped = b.id === UNGROUPED_ID;
       if (aIsUngrouped && !bIsUngrouped) return 1;
       if (!aIsUngrouped && bIsUngrouped) return -1;
+      if (focusModeEnabled) {
+        const aFocus = workstreamRegistry[a.name]?.focused ? 1 : 0;
+        const bFocus = workstreamRegistry[b.name]?.focused ? 1 : 0;
+        if (aFocus !== bFocus) return bFocus - aFocus;
+      }
       const aFav = workstreamRegistry[a.name]?.favorited ? 1 : 0;
       const bFav = workstreamRegistry[b.name]?.favorited ? 1 : 0;
       if (aFav !== bFav) return bFav - aFav;
-      return 0; // preserve existing order within group
+      return 0;
     });
-  }, [columns, sessions, hasAnyWorkstreams, searchQuery, workstreamRegistry]);
+  }, [columns, sessions, hasAnyWorkstreams, searchQuery, workstreamRegistry, focusModeEnabled]);
+
+  // Separate focused vs non-focused columns for rendering when focus mode is active
+  const { visibleColumns, hiddenCount } = useMemo(() => {
+    if (!focusModeEnabled || showAllWorkstreams) {
+      return { visibleColumns: effectiveColumns, hiddenCount: 0 };
+    }
+    const focused = effectiveColumns.filter(
+      (col) => col.id === UNGROUPED_ID || workstreamRegistry[col.name]?.focused,
+    );
+    // If no workstreams are pinned, show all (don't hide the board)
+    if (focused.length <= 1 && focused[0]?.id === UNGROUPED_ID) {
+      return { visibleColumns: effectiveColumns, hiddenCount: 0 };
+    }
+    const hidden = effectiveColumns.filter(
+      (col) => col.id !== UNGROUPED_ID && !workstreamRegistry[col.name]?.focused,
+    );
+    return { visibleColumns: focused, hiddenCount: hidden.length };
+  }, [effectiveColumns, focusModeEnabled, showAllWorkstreams, workstreamRegistry]);
 
   // Column sortable ids for SortableContext (all columns, Ungrouped disabled via prop)
   const columnSortableIds = useMemo(
-    () => effectiveColumns.map((col) => `${COLUMN_SORTABLE_PREFIX}${col.id}`),
-    [effectiveColumns],
+    () => visibleColumns.map((col) => `${COLUMN_SORTABLE_PREFIX}${col.id}`),
+    [visibleColumns],
   );
 
   /* ── Drag handlers ─────────────────────────────── */
@@ -328,6 +365,19 @@ export default function KanbanBoard() {
     [workstreamRegistry, updateWorkstreamRegistry, openLaunchTerminal],
   );
 
+  const handleToggleFocus = useCallback(
+    (colName: string) => {
+      const result = toggleFocus(colName);
+      if (!result.ok && result.reason === 'limit_reached') {
+        setFocusLimitMsg(`Focus limit reached (${workstreamThreshold}). Unpin a workstream first.`);
+        setTimeout(() => setFocusLimitMsg(null), 2500);
+      } else {
+        setFocusLimitMsg(null);
+      }
+    },
+    [toggleFocus, workstreamThreshold],
+  );
+
   // Column being dragged (for overlay ghost)
   const activeDragColumn = useMemo(() => {
     if (!activeDragColumnName) return null;
@@ -343,6 +393,14 @@ export default function KanbanBoard() {
       {/* ── Top bar: summary / search / status filter ── */}
       <div className="shrink-0 space-y-2 border-b border-border-default bg-surface-primary p-3">
         <StatusSummaryBar />
+
+        {shouldShowWarning && (
+          <FocusWarningBanner
+            activeCount={activeWorkstreamCount}
+            threshold={workstreamThreshold}
+            onDismiss={() => {}}
+          />
+        )}
 
         <div className="relative">
           <svg
@@ -561,7 +619,7 @@ export default function KanbanBoard() {
           >
             <SortableContext items={columnSortableIds} strategy={horizontalListSortingStrategy}>
               <div className="flex h-full gap-4 overflow-x-auto p-4 kanban-scrollable">
-                {effectiveColumns.map((col) => (
+                {visibleColumns.map((col) => (
                   <KanbanColumn
                     key={col.id}
                     id={col.id}
@@ -594,11 +652,64 @@ export default function KanbanBoard() {
                         ? () => toggleFavorite(col.name)
                         : undefined
                     }
+                    isFocused={Boolean(workstreamRegistry[col.name]?.focused)}
+                    onToggleFocus={
+                      focusModeEnabled && col.id !== UNGROUPED_ID && col.name !== 'All Sessions'
+                        ? () => handleToggleFocus(col.name)
+                        : undefined
+                    }
+                    focusLimitMessage={focusLimitMsg}
                     isSortable={col.id !== UNGROUPED_ID && col.name !== 'All Sessions'}
                     conversationSearchResults={conversationSearchResults}
                     searchQuery={searchQuery}
                   />
                 ))}
+
+                {/* Summary tile for hidden non-focus columns */}
+                {hiddenCount > 0 && (
+                  <div
+                    data-testid="focus-hidden-summary"
+                    className="
+                      flex flex-col items-center justify-center shrink-0
+                      w-[220px] min-h-[120px] rounded-lg
+                      border border-border-default/40 bg-surface-secondary/40
+                      text-fg/40 text-sm
+                    "
+                  >
+                    <span className="font-mono text-lg">+{hiddenCount}</span>
+                    <span className="text-xs mt-1">other workstream{hiddenCount !== 1 ? 's' : ''}</span>
+                    <button
+                      type="button"
+                      data-testid="focus-show-all"
+                      onClick={() => setShowAllWorkstreams(true)}
+                      className="
+                        mt-3 rounded-md border border-border-default
+                        px-3 py-1 text-xs text-fg/60
+                        transition-colors hover:border-border-active hover:text-fg/80
+                      "
+                    >
+                      Show all
+                    </button>
+                  </div>
+                )}
+
+                {/* "Back to focus" pill when showing all in focus mode */}
+                {focusModeEnabled && showAllWorkstreams && focusedWorkstreamNames.length > 0 && (
+                  <div className="flex items-center shrink-0">
+                    <button
+                      type="button"
+                      data-testid="focus-collapse"
+                      onClick={() => setShowAllWorkstreams(false)}
+                      className="
+                        rounded-md border border-border-default
+                        px-3 py-1.5 text-xs text-fg/50
+                        transition-colors hover:border-border-active hover:text-fg/80
+                      "
+                    >
+                      Focus only
+                    </button>
+                  </div>
+                )}
               </div>
             </SortableContext>
 

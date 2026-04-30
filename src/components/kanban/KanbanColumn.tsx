@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { useSortable, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -34,6 +35,9 @@ interface KanbanColumnProps {
   onNewSession?: () => void;
   isFavorited?: boolean;
   onToggleFavorite?: () => void;
+  isFocused?: boolean;
+  onToggleFocus?: () => void;
+  focusLimitMessage?: string | null;
   isSortable?: boolean;
   conversationSearchResults?: Map<string, ConversationMatch>;
   searchQuery?: string;
@@ -51,6 +55,9 @@ export default function KanbanColumn({
   onNewSession,
   isFavorited = false,
   onToggleFavorite,
+  isFocused = false,
+  onToggleFocus,
+  focusLimitMessage = null,
   isSortable = false,
   conversationSearchResults,
   searchQuery,
@@ -77,6 +84,9 @@ export default function KanbanColumn({
 
   const sorted = sortTiles(sessions);
   const sessionIds = sorted.map((s) => s.id);
+
+  // Transient feedback when focus limit is reached
+  const [showLimitMsg, setShowLimitMsg] = useState(false);
 
   const columnStyle = isSortable
     ? {
@@ -148,6 +158,43 @@ export default function KanbanColumn({
             </span>
           </button>
         )}
+        {onToggleFocus && (
+          <button
+            type="button"
+            data-testid={`focus-pin-${name}`}
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={() => {
+              onToggleFocus();
+              if (focusLimitMessage) {
+                setShowLimitMsg(true);
+                setTimeout(() => setShowLimitMsg(false), 2500);
+              }
+            }}
+            className={`shrink-0 rounded p-0.5 transition-colors ${
+              isFocused
+                ? 'text-blue-400 hover:text-blue-300'
+                : 'text-fg/25 hover:text-fg/60 hover:bg-surface-tertiary'
+            }`}
+            aria-label={isFocused ? `Unpin ${name} from focus` : `Pin ${name} to focus`}
+            title={isFocused ? 'Remove from focus' : 'Add to focus'}
+          >
+            <svg
+              aria-hidden="true"
+              className="h-3.5 w-3.5"
+              fill={isFocused ? 'currentColor' : 'none'}
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M12 2l0 10" />
+              <path d="M18 8l-12 0" />
+              <path d="M15 2l-6 0" />
+              <path d="M12 12l0 10" />
+            </svg>
+          </button>
+        )}
         {onNewSession && (
           <button
             type="button"
@@ -196,6 +243,16 @@ export default function KanbanColumn({
           </button>
         )}
       </div>
+
+      {/* Focus limit feedback */}
+      {showLimitMsg && focusLimitMessage && (
+        <div
+          data-testid="focus-limit-message"
+          className="px-3 py-1.5 text-[11px] text-amber-400/80 border-b border-border-default/30"
+        >
+          {focusLimitMessage}
+        </div>
+      )}
 
       {/* Scrollable tile area */}
       <div
