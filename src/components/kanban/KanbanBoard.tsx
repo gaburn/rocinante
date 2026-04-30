@@ -204,14 +204,14 @@ export default function KanbanBoard() {
       return { visibleColumns: effectiveColumns, hiddenCount: 0 };
     }
     const focused = effectiveColumns.filter(
-      (col) => col.id === UNGROUPED_ID || workstreamRegistry[col.name]?.focused,
+      (col) => col.id !== UNGROUPED_ID && workstreamRegistry[col.name]?.focused,
     );
     // If no workstreams are pinned, show all (don't hide the board)
-    if (focused.length <= 1 && focused[0]?.id === UNGROUPED_ID) {
+    if (focused.length === 0) {
       return { visibleColumns: effectiveColumns, hiddenCount: 0 };
     }
     const hidden = effectiveColumns.filter(
-      (col) => col.id !== UNGROUPED_ID && !workstreamRegistry[col.name]?.focused,
+      (col) => col.id === UNGROUPED_ID || !workstreamRegistry[col.name]?.focused,
     );
     return { visibleColumns: focused, hiddenCount: hidden.length };
   }, [effectiveColumns, focusModeEnabled, showAllWorkstreams, workstreamRegistry]);
