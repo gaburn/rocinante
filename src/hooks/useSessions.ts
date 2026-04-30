@@ -11,7 +11,7 @@ import { normalizePath } from '../utils/normalizePath'
 import { useArchive } from './useArchive'
 import { useAutoArchive, type UseAutoArchiveResult } from './useAutoArchive'
 import { useSessionNames } from './useSessionNames'
-import { useWorkstreams, type WorkstreamRegistryEntry } from './useWorkstreams'
+import { useWorkstreams, type WorkstreamRegistryEntry, type ToggleFocusResult } from './useWorkstreams'
 
 export interface ConversationMatch {
   snippet: string
@@ -69,6 +69,7 @@ export interface UseSessionsResult {
   deleteWorkstream: (name: string) => void
   archiveWorkstream: (name: string) => void
   toggleFavorite: (name: string) => void
+  toggleFocus: (name: string) => ToggleFocusResult
   setWorkstreamDescription: (workstreamName: string, description: string) => void
   removeWorkstreamDescription: (workstreamName: string) => void
   autoGroupByRepository: () => void
@@ -645,6 +646,7 @@ export function useSessions(): UseSessionsResult {
     deleteWorkstream: workstreams.deleteWorkstream,
     archiveWorkstream: workstreams.archiveWorkstream,
     toggleFavorite: workstreams.toggleFavorite,
+    toggleFocus: workstreams.toggleFocus,
     setWorkstreamDescription: workstreams.setDescription,
     removeWorkstreamDescription: workstreams.removeDescription,
     autoGroupByRepository: handleAutoGroupByRepository,
