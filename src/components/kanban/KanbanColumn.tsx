@@ -36,8 +36,8 @@ interface KanbanColumnProps {
   isFavorited?: boolean;
   onToggleFavorite?: () => void;
   isFocused?: boolean;
-  onToggleFocus?: () => void;
-  focusLimitMessage?: string | null;
+  onToggleFocus?: () => { ok: boolean; reason?: string };
+  focusLimitReached?: string | null;
   isSortable?: boolean;
   conversationSearchResults?: Map<string, ConversationMatch>;
   searchQuery?: string;
@@ -57,7 +57,6 @@ export default function KanbanColumn({
   onToggleFavorite,
   isFocused = false,
   onToggleFocus,
-  focusLimitMessage = null,
   isSortable = false,
   conversationSearchResults,
   searchQuery,
@@ -87,6 +86,7 @@ export default function KanbanColumn({
 
   // Transient feedback when focus limit is reached
   const [showLimitMsg, setShowLimitMsg] = useState(false);
+  const [limitMsg, setLimitMsg] = useState<string | null>(null);
 
   const columnStyle = isSortable
     ? {
@@ -164,8 +164,9 @@ export default function KanbanColumn({
             data-testid={`focus-pin-${name}`}
             onPointerDown={(e) => e.stopPropagation()}
             onClick={() => {
-              onToggleFocus();
-              if (focusLimitMessage) {
+              const result = onToggleFocus();
+              if (result && !result.ok && result.reason === 'limit_reached') {
+                setLimitMsg('Focus limit reached. Unpin a workstream first.');
                 setShowLimitMsg(true);
                 setTimeout(() => setShowLimitMsg(false), 2500);
               }
@@ -245,12 +246,12 @@ export default function KanbanColumn({
       </div>
 
       {/* Focus limit feedback */}
-      {showLimitMsg && focusLimitMessage && (
+      {showLimitMsg && limitMsg && (
         <div
           data-testid="focus-limit-message"
           className="px-3 py-1.5 text-[11px] text-amber-400/80 border-b border-border-default/30"
         >
-          {focusLimitMessage}
+          {limitMsg}
         </div>
       )}
 

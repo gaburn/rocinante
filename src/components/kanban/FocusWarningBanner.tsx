@@ -3,7 +3,8 @@ import { useState, useEffect } from 'react';
 interface FocusWarningBannerProps {
   activeCount: number;
   threshold: number;
-  onDismiss: () => void;
+  /** Optional callback fired when the banner is dismissed. */
+  onDismiss?: () => void;
 }
 
 /**
@@ -47,7 +48,7 @@ export default function FocusWarningBanner({
         data-testid="focus-warning-dismiss"
         onClick={() => {
           setDismissedAtCount(activeCount);
-          onDismiss();
+          onDismiss?.();
         }}
         className="
           shrink-0 rounded px-2 py-0.5 text-xs font-medium

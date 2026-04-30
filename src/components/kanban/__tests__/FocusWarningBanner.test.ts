@@ -15,7 +15,6 @@ function renderBanner(activeCount: number, threshold: number) {
     React.createElement(FocusWarningBanner, {
       activeCount,
       threshold,
-      onDismiss: () => {},
     }),
   )
 }

@@ -114,7 +114,6 @@ export default function KanbanBoard() {
     focusModeEnabled,
   } = useFocusMode();
   const [showAllWorkstreams, setShowAllWorkstreams] = useState(false);
-  const [focusLimitMsg, setFocusLimitMsg] = useState<string | null>(null);
 
   // Cached agent detection for quick in-column session launches
   type AgentType = 'copilot' | 'claude' | 'shell';
@@ -367,15 +366,9 @@ export default function KanbanBoard() {
 
   const handleToggleFocus = useCallback(
     (colName: string) => {
-      const result = toggleFocus(colName);
-      if (!result.ok && result.reason === 'limit_reached') {
-        setFocusLimitMsg(`Focus limit reached (${workstreamThreshold}). Unpin a workstream first.`);
-        setTimeout(() => setFocusLimitMsg(null), 2500);
-      } else {
-        setFocusLimitMsg(null);
-      }
+      return toggleFocus(colName);
     },
-    [toggleFocus, workstreamThreshold],
+    [toggleFocus],
   );
 
   // Column being dragged (for overlay ghost)
@@ -398,7 +391,6 @@ export default function KanbanBoard() {
           <FocusWarningBanner
             activeCount={activeWorkstreamCount}
             threshold={workstreamThreshold}
-            onDismiss={() => {}}
           />
         )}
 
@@ -658,7 +650,6 @@ export default function KanbanBoard() {
                         ? () => handleToggleFocus(col.name)
                         : undefined
                     }
-                    focusLimitMessage={focusLimitMsg}
                     isSortable={col.id !== UNGROUPED_ID && col.name !== 'All Sessions'}
                     conversationSearchResults={conversationSearchResults}
                     searchQuery={searchQuery}
