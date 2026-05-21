@@ -1,7 +1,7 @@
 import { createContext, useContext, useMemo, type ReactNode } from 'react'
 import { useSessions, type UseSessionsResult, type SessionGroup, type ConversationMatch } from '../hooks/useSessions'
 import type { Session, SessionSummary, SessionStatus, StatusCounts } from '../types'
-import type { WorkstreamRegistryEntry } from '../hooks/useWorkstreams'
+import type { WorkstreamRegistryEntry, ToggleFocusResult } from '../hooks/useWorkstreams'
 import type { UseAutoArchiveResult } from '../hooks/useAutoArchive'
 
 /* ──────────────────────────────────────────────────────────────
@@ -71,6 +71,7 @@ export interface SessionActionsContextValue {
   deleteWorkstream: (name: string) => void
   archiveWorkstream: (name: string) => void
   toggleFavorite: (name: string) => void
+  toggleFocus: (name: string) => ToggleFocusResult
   setWorkstreamDescription:(workstreamName: string, description: string) => void
   removeWorkstreamDescription: (workstreamName: string) => void
   autoGroupByRepository: () => void
@@ -152,6 +153,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     deleteWorkstream: s.deleteWorkstream,
     archiveWorkstream: s.archiveWorkstream,
     toggleFavorite: s.toggleFavorite,
+    toggleFocus: s.toggleFocus,
     setWorkstreamDescription:s.setWorkstreamDescription,
     removeWorkstreamDescription: s.removeWorkstreamDescription,
     autoGroupByRepository: s.autoGroupByRepository,
@@ -163,7 +165,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     s.unarchiveSession, s.toggleArchive, s.archiveAndSelectNext,
     s.archiveAllCompleted, s.getWorkstream, s.setWorkstream,
     s.removeWorkstream, s.getCustomName, s.setSessionName,
-    s.removeSessionName, s.renameWorkstream, s.deleteWorkstream, s.archiveWorkstream, s.toggleFavorite,
+    s.removeSessionName, s.renameWorkstream, s.deleteWorkstream, s.archiveWorkstream, s.toggleFavorite, s.toggleFocus,
     s.setWorkstreamDescription, s.removeWorkstreamDescription,
     s.autoGroupByRepository, s.createWorkstream, s.updateWorkstreamRegistry,
   ])
