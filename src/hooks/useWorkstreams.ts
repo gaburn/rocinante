@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useWorkstreamMeta } from './useWorkstreamMeta'
+import { useSettingsContext } from '../context/SettingsContext'
 import type { SessionSummary } from '../types'
 
 const WORKSTREAM_STORAGE_KEY = 'rocinante-workstreams'
@@ -14,6 +15,7 @@ export interface WorkstreamRegistryEntry {
   description?: string
   archived?: boolean
   favorited?: boolean
+  focused?: boolean
 }
 
 function loadWorkstreamRegistry(): Record<string, WorkstreamRegistryEntry> {
@@ -36,6 +38,7 @@ function loadWorkstreamRegistry(): Record<string, WorkstreamRegistryEntry> {
           ...(typeof entry.description === 'string' ? { description: entry.description } : {}),
           ...(typeof entry.archived === 'boolean' ? { archived: entry.archived } : {}),
           ...(typeof entry.favorited === 'boolean' ? { favorited: entry.favorited } : {}),
+          ...(typeof entry.focused === 'boolean' ? { focused: entry.focused } : {}),
         }
       }
     }
@@ -78,6 +81,10 @@ function repoDisplayName(repo: string): string {
   return segments[segments.length - 1] || repo
 }
 
+export type ToggleFocusResult =
+  | { ok: true; focused: boolean }
+  | { ok: false; reason: 'limit_reached' | 'ungrouped' }
+
 export interface UseWorkstreamsResult {
   getWorkstream: (sessionId: string) => string | null
   setWorkstream: (sessionId: string, name: string) => void
@@ -90,6 +97,7 @@ export interface UseWorkstreamsResult {
   deleteWorkstream: (name: string) => void
   archiveWorkstream: (name: string) => void
   toggleFavorite: (name: string) => void
+  toggleFocus: (name: string) => ToggleFocusResult
   pruneStaleIds: (activeIds: string[]) => void
   autoGroupByRepository: (sessions: SessionSummary[]) => void
   hasAnyWorkstreams: boolean
@@ -110,6 +118,7 @@ export function useWorkstreams(): UseWorkstreamsResult {
   )
   const storageKeyRef = useRef(WORKSTREAM_STORAGE_KEY)
   const meta = useWorkstreamMeta()
+  const { settings } = useSettingsContext()
 
   useEffect(() => {
     try {
@@ -285,6 +294,36 @@ export function useWorkstreams(): UseWorkstreamsResult {
     })
   }, [])
 
+  const toggleFocus = useCallback((name: string): ToggleFocusResult => {
+    // The Ungrouped workstream cannot be focused
+    if (!name || name === 'Ungrouped') {
+      return { ok: false, reason: 'ungrouped' }
+    }
+
+    const existing = registry[name] ?? { createdAt: new Date().toISOString() }
+
+    // If already focused, unfocus it
+    if (existing.focused) {
+      setRegistry((current) => {
+        const entry = current[name] ?? { createdAt: new Date().toISOString() }
+        return { ...current, [name]: { ...entry, focused: undefined } }
+      })
+      return { ok: true, focused: false }
+    }
+
+    // Check limit before focusing
+    const focusedCount = Object.values(registry).filter((e) => e.focused).length
+    if (focusedCount >= settings.display.workstreamThreshold) {
+      return { ok: false, reason: 'limit_reached' }
+    }
+
+    setRegistry((current) => {
+      const entry = current[name] ?? { createdAt: new Date().toISOString() }
+      return { ...current, [name]: { ...entry, focused: true } }
+    })
+    return { ok: true, focused: true }
+  }, [registry, settings.display.workstreamThreshold])
+
   const pruneStaleIds= useCallback((activeIds: string[]) => {
     setWorkstreamMap((current) => {
       if (Object.keys(current).length === 0) {
@@ -378,6 +417,7 @@ export function useWorkstreams(): UseWorkstreamsResult {
     deleteWorkstream,
     archiveWorkstream,
     toggleFavorite,
+    toggleFocus,
     pruneStaleIds,
     autoGroupByRepository,
     hasAnyWorkstreams,

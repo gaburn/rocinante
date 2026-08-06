@@ -38,6 +38,8 @@ export interface DisplaySettings {
   customShellPath: string;
   paneVisibility: PaneVisibility;
   autoArchiveRules: AutoArchiveRule[];
+  focusModeEnabled: boolean;
+  workstreamThreshold: number; // governs max focused workstreams AND active-warning trigger (default 3, min 1, max 20)
 }
 
 export type SessionSourceOption = 'auto' | 'copilot' | 'claude' | 'both';
@@ -90,6 +92,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
       sessionPlan: true,
     },
     autoArchiveRules: [],
+    focusModeEnabled: false,
+    workstreamThreshold: 3,
   },
   data: {
     sessionStateDir: '', // empty = use server default
