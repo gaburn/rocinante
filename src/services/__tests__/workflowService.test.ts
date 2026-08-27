@@ -17,11 +17,8 @@ import {
  * Key behaviors under test:
  *  - server error messages (body.error) must be surfaced to the caller
  *    instead of being swallowed.
- *  - GET /api/workflows returns a single flat array mixing valid workflow
- *    views with corrupt/unreadable entries (distinguished by `sourceFile`);
+ *  - GET /api/workflows returns valid and corrupt workflow entries separately;
  *    the client must split these into `{ workflows, errors }`.
- *  - POST .../run-step supports the current flat workflow response and the
- *    legacy `{ runId, workflowSessionId, workflow }` envelope.
  */
 
 function jsonResponse(body: unknown, ok = true, status = ok ? 200 : 500): Response {
@@ -45,9 +42,11 @@ describe('workflowService', () => {
   });
 
   describe('listWorkflows', () => {
-    it('normalizes a bare array of valid workflow views', async () => {
+    it('returns valid workflow views from the server envelope', async () => {
       const workflows = [{ id: 'w1', name: 'Test', mode: 'simple', status: 'pending', phases: [] }];
-      vi.mocked(globalThis.fetch).mockResolvedValueOnce(jsonResponse(workflows));
+      vi.mocked(globalThis.fetch).mockResolvedValueOnce(
+        jsonResponse({ workflows, errors: [] }),
+      );
 
       const result = await listWorkflows();
 
@@ -56,7 +55,7 @@ describe('workflowService', () => {
       expect(result.errors).toEqual([]);
     });
 
-    it('splits a flat array mixing valid and corrupt entries', async () => {
+    it('normalizes corrupt workflow entries', async () => {
       const valid = { id: 'w1', name: 'Test', mode: 'simple', status: 'running', phases: [] };
       const corrupt = {
         id: 'w2',
@@ -64,7 +63,9 @@ describe('workflowService', () => {
         sourceFile: 'w2.json',
         error: { code: 'invalid-state', message: 'Corrupt persisted state' },
       };
-      vi.mocked(globalThis.fetch).mockResolvedValueOnce(jsonResponse([valid, corrupt]));
+      vi.mocked(globalThis.fetch).mockResolvedValueOnce(
+        jsonResponse({ workflows: [valid], errors: [corrupt] }),
+      );
 
       const result = await listWorkflows();
 
@@ -75,7 +76,9 @@ describe('workflowService', () => {
 
     it('falls back to a generic message for a corrupt entry without an error message', async () => {
       const corrupt = { id: 'w3', status: 'error', sourceFile: 'w3.json' };
-      vi.mocked(globalThis.fetch).mockResolvedValueOnce(jsonResponse([corrupt]));
+      vi.mocked(globalThis.fetch).mockResolvedValueOnce(
+        jsonResponse({ workflows: [], errors: [corrupt] }),
+      );
 
       const result = await listWorkflows();
 
@@ -153,23 +156,7 @@ describe('workflowService', () => {
   });
 
   describe('action endpoints', () => {
-    it('runStep posts phaseId/stepId to run-step and unwraps the workflow envelope', async () => {
-      const workflow = { id: 'w1', phases: [] };
-      vi.mocked(globalThis.fetch).mockResolvedValueOnce(
-        jsonResponse({ runId: 'r1', workflowSessionId: 's1', workflow }),
-      );
-
-      const result = await runStep('w1', { phaseId: 'research', stepId: 'research' });
-
-      expect(globalThis.fetch).toHaveBeenCalledWith('/api/workflows/w1/run-step', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phaseId: 'research', stepId: 'research' }),
-      });
-      expect(result).toEqual(workflow);
-    });
-
-    it('runStep accepts the server flat workflow response', async () => {
+    it('runStep accepts the server workflow response', async () => {
       const workflow = {
         id: 'w1',
         name: 'Test',

@@ -113,8 +113,6 @@ export interface WorkflowActivityEntry {
  */
 export interface WorkflowSummary {
   id: string;
-  /** Older/alternate id alias some callers may use; prefer `id`. */
-  workflowId?: string;
   name: string;
   goal: string;
   mode: WorkflowMode | (string & {});
@@ -163,17 +161,6 @@ export interface RunStepRequest {
   phaseId: string;
   stepId: string;
 }
-
-/** Preferred run-step envelope; older servers may return the workflow fields at the top level. */
-export interface RunStepEnvelope {
-  runId: string;
-  workflowSessionId: string;
-  workflow: WorkflowDetail;
-}
-
-export type RunStepResult =
-  | RunStepEnvelope
-  | (WorkflowDetail & { runId: string; workflowSessionId: string });
 
 export interface RegisterOutputRequest {
   phaseId: string;

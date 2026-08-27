@@ -4,8 +4,6 @@ import type {
   WorkflowListErrorEntry,
   CreateWorkflowRequest,
   RunStepRequest,
-  RunStepEnvelope,
-  RunStepResult,
   RegisterOutputRequest,
   ApproveRequest,
   ModeGateRequest,
@@ -52,27 +50,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
-function isRunStepEnvelope(value: RunStepResult): value is RunStepEnvelope {
-  return isRecord(value.workflow);
-}
-
 /** A corrupt/unreadable persisted workflow is distinguished by its unique `sourceFile` field. */
 function isCorruptEntry(value: unknown): value is Record<string, unknown> {
   return isRecord(value) && typeof value.sourceFile === 'string';
 }
 
-/**
- * GET /api/workflows — the server returns a single flat array mixing valid,
- * restorable workflow views with corrupt/unreadable entries (sorted by id).
- * Also tolerates a `{ workflows, errors }` envelope shape for resilience.
- */
+/** GET /api/workflows */
 export async function listWorkflows(): Promise<WorkflowListResult> {
-  const data = await request<unknown>('/api/workflows');
-  const items: unknown[] = Array.isArray(data)
-    ? data
-    : isRecord(data) && Array.isArray(data.workflows)
-      ? [...data.workflows, ...(Array.isArray(data.errors) ? data.errors : [])]
-      : [];
+  const data = await request<{ workflows: unknown[]; errors: unknown[] }>('/api/workflows');
+  const items = [...data.workflows, ...data.errors];
 
   const workflows: WorkflowSummary[] = [];
   const errors: WorkflowListErrorEntry[] = [];
@@ -113,13 +99,12 @@ export function createWorkflow(body: CreateWorkflowRequest): Promise<WorkflowDet
 
 /** POST /api/workflows/:id/run-step — start the next eligible step. */
 export async function runStep(workflowId: string, body: RunStepRequest): Promise<WorkflowDetail> {
-  const result = await postAction<RunStepResult>(workflowId, 'run-step', body);
-  return isRunStepEnvelope(result) ? result.workflow : result;
+  return postAction<WorkflowDetail>(workflowId, 'run-step', body);
 }
 
-/** POST /api/workflows/:id/output — register a running step's summary/artifacts. */
+/** POST /api/workflows/:id/register-output */
 export function registerOutput(workflowId: string, body: RegisterOutputRequest): Promise<WorkflowDetail> {
-  return postAction(workflowId, 'output', body);
+  return postAction(workflowId, 'register-output', body);
 }
 
 /** POST /api/workflows/:id/approve — human approval of awaiting-review output. */

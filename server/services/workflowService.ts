@@ -506,7 +506,23 @@ export class WorkflowService {
       };
       state.workflowSession.updatedAt = completedAt;
       state.updatedAt = completedAt;
-      await this.writeState(state);
+      try {
+        await this.writeState(state);
+      } catch (error) {
+        try {
+          await this.transport.closeWorkflow({
+            workflowId: state.id,
+            workflowSessionId,
+          });
+        } catch (closeError) {
+          console.error('[workflows] Failed to stop a step after persistence failed:', {
+            workflowId: state.id,
+            workflowSessionId,
+            error: closeError instanceof Error ? closeError.message : String(closeError),
+          });
+        }
+        throw error;
+      }
 
       return {
         runId,
@@ -746,13 +762,7 @@ export class WorkflowService {
         throw new WorkflowProblem('Workflow session metadata is missing', 409, 'invalid-state');
       }
 
-      await this.transport.respondToInput({
-        workflowId: state.id,
-        workflowSessionId: state.workflowSession.id,
-        runId: phase.step.runId,
-        requestId,
-        answer,
-      });
+      const beforeResponse = structuredClone(state);
       phase.step.inputRequest = null;
       const timestamp = this.timestamp();
       state.workflowSession.updatedAt = timestamp;
@@ -763,6 +773,34 @@ export class WorkflowService {
         `Input response resumed ${phase.id}/${phase.step.id} run ${phase.step.runId}`,
       );
       await this.writeState(state);
+      try {
+        await this.transport.respondToInput({
+          workflowId: state.id,
+          workflowSessionId: state.workflowSession.id,
+          runId: phase.step.runId,
+          requestId,
+          answer,
+        });
+      } catch (error) {
+        try {
+          await this.writeState(beforeResponse);
+        } catch (rollbackError) {
+          throw new WorkflowProblem(
+            `Failed to deliver input and restore its pending state: ${
+              rollbackError instanceof Error ? rollbackError.message : String(rollbackError)
+            }`,
+            500,
+            'persistence-error',
+          );
+        }
+        throw new WorkflowProblem(
+          `Failed to deliver workflow input: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+          502,
+          'transport-error',
+        );
+      }
       return this.toView(state);
     });
   }

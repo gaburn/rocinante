@@ -83,16 +83,13 @@ export function createWorkflowsRouter(service: WorkflowService): Router {
     });
   }));
 
-  router.post(
-    ['/workflows/:id/output', '/workflows/:id/register-output'],
-    route(async (req, res) => {
-      const workflow = await service.registerOutput(
-        workflowId(req),
-        (req.body ?? {}) as RegisterOutputInput,
-      );
-      return res.json(workflow);
-    }),
-  );
+  router.post('/workflows/:id/register-output', route(async (req, res) => {
+    const workflow = await service.registerOutput(
+      workflowId(req),
+      (req.body ?? {}) as RegisterOutputInput,
+    );
+    return res.json(workflow);
+  }));
 
   router.post('/workflows/:id/approve', route(async (req, res) => {
     const workflow = await service.approve(workflowId(req), (req.body ?? {}) as ApproveStepInput);

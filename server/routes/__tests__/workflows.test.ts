@@ -161,7 +161,7 @@ describe('workflow HTTP API', () => {
     const output = await request<WorkflowView>(
       api!,
       'POST',
-      `/workflows/${workflow.id}/output`,
+      `/workflows/${workflow.id}/register-output`,
       {
         phaseId: pointer.phaseId,
         stepId: pointer.stepId,
@@ -289,6 +289,49 @@ describe('workflow HTTP API', () => {
     expect(unchanged.body.status).toBe('pending');
     expect(unchanged.body.nextEligibleStep?.phaseId).toBe('research');
     expect(unchanged.body.workflowSession).toBeNull();
+    expect(transport.closes).toHaveLength(1);
+  });
+
+  it('does not deliver an input response before its state is durable', async () => {
+    const workflow = await createWorkflow();
+    const started = await request<RunStepResponse>(
+      api!,
+      'POST',
+      `/workflows/${workflow.id}/run-step`,
+      workflow.nextEligibleStep,
+    );
+    const requested = await request<WorkflowView>(
+      api!,
+      'POST',
+      `/workflows/${workflow.id}/input-request`,
+      {
+        phaseId: 'research',
+        stepId: 'research',
+        runId: started.body.runId,
+        requestId: 'durable-input',
+        question: 'Which repository?',
+        choices: ['current'],
+      },
+    );
+    expect(requested.status).toBe(200);
+
+    rmSync(dataDir, { recursive: true, force: true });
+    writeFileSync(dataDir, 'blocks workflow persistence');
+    const response = await request(
+      api!,
+      'POST',
+      `/workflows/${workflow.id}/input-response`,
+      { requestId: 'durable-input', answer: 'current' },
+    );
+    expect(response.status).toBe(500);
+    expect(transport.responses).toHaveLength(0);
+
+    const unchanged = await request<WorkflowView>(
+      api!,
+      'GET',
+      `/workflows/${workflow.id}`,
+    );
+    expect(unchanged.body.phases[0].step.inputRequest?.id).toBe('durable-input');
   });
 
   it('keeps a Research run and successive input requests bound to one session and run', async () => {
@@ -336,7 +379,7 @@ describe('workflow HTTP API', () => {
       const blockedOutput = await request(
         api!,
         'POST',
-        `/workflows/${workflow.id}/output`,
+        `/workflows/${workflow.id}/register-output`,
         {
           phaseId: 'research',
           stepId: 'research',
@@ -374,7 +417,7 @@ describe('workflow HTTP API', () => {
     const output = await request<WorkflowView>(
       api!,
       'POST',
-      `/workflows/${workflow.id}/output`,
+      `/workflows/${workflow.id}/register-output`,
       {
         phaseId: 'research',
         stepId: 'research',
@@ -420,7 +463,7 @@ describe('workflow HTTP API', () => {
       const invalid = await request(
         api!,
         'POST',
-        `/workflows/${workflow.id}/output`,
+        `/workflows/${workflow.id}/register-output`,
         { ...baseOutput, artifacts: [invalidArtifact] },
       );
       expect(invalid.status).toBe(400);
@@ -429,7 +472,7 @@ describe('workflow HTTP API', () => {
     const stale = await request(
       api!,
       'POST',
-      `/workflows/${workflow.id}/output`,
+      `/workflows/${workflow.id}/register-output`,
       { ...baseOutput, runId: 'stale-run' },
     );
     expect(stale.status).toBe(409);
@@ -437,7 +480,7 @@ describe('workflow HTTP API', () => {
     const overLimit = await request(
       api!,
       'POST',
-      `/workflows/${workflow.id}/output`,
+      `/workflows/${workflow.id}/register-output`,
       { ...baseOutput, artifacts: artifactPaths },
     );
     expect(overLimit.status).toBe(400);
@@ -445,7 +488,7 @@ describe('workflow HTTP API', () => {
     const missingArtifact = await request(
       api!,
       'POST',
-      `/workflows/${workflow.id}/output`,
+      `/workflows/${workflow.id}/register-output`,
       baseOutput,
     );
     expect(missingArtifact.status).toBe(409);
@@ -453,7 +496,7 @@ describe('workflow HTTP API', () => {
     const valid = await request<WorkflowView>(
       api!,
       'POST',
-      `/workflows/${workflow.id}/output`,
+      `/workflows/${workflow.id}/register-output`,
       {
         ...baseOutput,
         artifacts: [...artifactPaths.slice(0, 10), artifactPaths[0]],
@@ -465,7 +508,7 @@ describe('workflow HTTP API', () => {
     const duplicate = await request(
       api!,
       'POST',
-      `/workflows/${workflow.id}/output`,
+      `/workflows/${workflow.id}/register-output`,
       baseOutput,
     );
     expect(duplicate.status).toBe(409);
@@ -494,7 +537,7 @@ describe('workflow HTTP API', () => {
     const output = await request<WorkflowView>(
       api!,
       'POST',
-      `/workflows/${workflow.id}/output`,
+      `/workflows/${workflow.id}/register-output`,
       {
         phaseId: 'implement',
         stepId: 'implement',
@@ -652,7 +695,7 @@ describe('workflow HTTP API', () => {
         const output = await request<WorkflowView>(
           api!,
           'POST',
-          `/workflows/${workflow.id}/output`,
+          `/workflows/${workflow.id}/register-output`,
           {
             phaseId: pointer.phaseId,
             stepId: pointer.stepId,
