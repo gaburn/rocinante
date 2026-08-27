@@ -17,18 +17,27 @@ export interface WorkflowPhaseDefinition {
   stepName: string;
   requiresApproval: boolean;
   requiresArtifact: boolean;
+  initiallySkipped?: boolean;
+  skippedForClassifications?: readonly BugFixClassification[];
 }
 
 export interface WorkflowModeDefinition {
   id: WorkflowMode;
   name: string;
   phases: readonly WorkflowPhaseDefinition[];
+  requiresClassification?: boolean;
+  modeGate?: {
+    afterPhaseId: string;
+    choices: readonly ArchitectureChoice[];
+    skippedPhases: Readonly<Partial<Record<ArchitectureChoice, readonly string[]>>>;
+  };
 }
 
 function phase(
   id: string,
   name: string,
   requiresApproval = false,
+  options: Pick<WorkflowPhaseDefinition, 'initiallySkipped' | 'skippedForClassifications'> = {},
 ): WorkflowPhaseDefinition {
   return {
     id,
@@ -37,6 +46,7 @@ function phase(
     stepName: name,
     requiresApproval,
     requiresArtifact: true,
+    ...options,
   };
 }
 
@@ -47,7 +57,7 @@ export const WORKFLOW_CATALOG: Readonly<Record<WorkflowMode, WorkflowModeDefinit
     phases: [
       phase('research', 'Research'),
       phase('implement', 'Implement', true),
-      phase('pr', 'PR', true),
+      phase('pr', 'PR', true, { initiallySkipped: true }),
     ],
   },
   full: {
@@ -66,8 +76,11 @@ export const WORKFLOW_CATALOG: Readonly<Record<WorkflowMode, WorkflowModeDefinit
   'bug-fix': {
     id: 'bug-fix',
     name: 'Bug Fix',
+    requiresClassification: true,
     phases: [
-      phase('intake', 'Intake / Verification'),
+      phase('intake', 'Intake / Verification', false, {
+        skippedForClassifications: ['confirmed'],
+      }),
       phase('diagnose', 'Diagnose'),
       phase('fix', 'Fix', true),
       phase('formal-review', 'Formal Review', true),
@@ -78,6 +91,13 @@ export const WORKFLOW_CATALOG: Readonly<Record<WorkflowMode, WorkflowModeDefinit
   'architecture-health': {
     id: 'architecture-health',
     name: 'Architecture Health',
+    modeGate: {
+      afterPhaseId: 'shape',
+      choices: ['direct', 'planned'],
+      skippedPhases: {
+        direct: ['specification', 'tasks'],
+      },
+    },
     phases: [
       phase('shape', 'Shape'),
       phase('specification', 'Specification'),

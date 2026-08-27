@@ -1,12 +1,10 @@
 import type { BugFixClassification, WorkflowMode } from '../types/workflows';
+import {
+  WORKFLOW_CATALOG,
+  WORKFLOW_MODES,
+} from '../../server/services/workflowCatalog';
 
-/**
- * Client-side preview of the bounded, opinionated mode catalog
- * (mirrors server/services/workflowCatalog.ts — the server remains the
- * sole source of truth for actual phase/step state once a workflow is
- * created; this catalog exists only to render the "selected path"
- * preview on the creation form).
- */
+/** Client projection of the server-owned catalog used by the creation preview. */
 export interface CatalogPhasePreview {
   id: string;
   title: string;
@@ -26,78 +24,38 @@ export interface ModeCatalogEntry {
   phases: CatalogPhasePreview[];
 }
 
-export const WORKFLOW_MODE_CATALOG: ModeCatalogEntry[] = [
-  {
-    mode: 'simple',
-    label: 'Simple',
-    description:
-      'A short, direct path for well-scoped work: research the change, then implement it. The Pull Request phase is skipped automatically.',
-    phases: [
-      { id: 'research', title: 'Research' },
-      { id: 'implement', title: 'Implement', requiresApproval: true },
-      { id: 'pr', title: 'PR', requiresApproval: true, alwaysSkipped: true },
-    ],
-  },
-  {
-    mode: 'full',
-    label: 'Full',
-    description:
-      'The complete engineering path for substantial changes: prototype and plan before implementing, then a formal review before finalizing.',
-    phases: [
-      { id: 'research', title: 'Research' },
-      { id: 'prototype', title: 'Prototype' },
-      { id: 'plan', title: 'Plan' },
-      { id: 'implement', title: 'Implement', requiresApproval: true },
-      { id: 'formal-review', title: 'Formal Review', requiresApproval: true },
-      { id: 'finalize', title: 'Finalize', requiresApproval: true },
-      { id: 'pr', title: 'PR', requiresApproval: true },
-    ],
-  },
-  {
-    mode: 'bug-fix',
-    label: 'Bug Fix',
-    description:
-      'Diagnose and fix a defect. Unverified or externally-reported bugs add an Intake / Verification phase first.',
-    phases: [
-      { id: 'intake', title: 'Intake / Verification', skippedWhenConfirmed: true },
-      { id: 'diagnose', title: 'Diagnose' },
-      { id: 'fix', title: 'Fix', requiresApproval: true },
-      { id: 'formal-review', title: 'Formal Review', requiresApproval: true },
-      { id: 'finalize', title: 'Finalize', requiresApproval: true },
-      { id: 'pr', title: 'PR', requiresApproval: true },
-    ],
-  },
-  {
-    mode: 'architecture-health',
-    label: 'Architecture Health',
-    description:
-      'Shape the change, then a Mode Gate chooses to implement directly or produce a Specification and Tasks first.',
-    phases: [
-      { id: 'shape', title: 'Shape' },
-      { id: 'specification', title: 'Specification', skippableByModeGate: true },
-      { id: 'tasks', title: 'Tasks', skippableByModeGate: true },
-      { id: 'implement', title: 'Implement', requiresApproval: true },
-      { id: 'formal-review', title: 'Formal Review', requiresApproval: true },
-      { id: 'finalize', title: 'Finalize', requiresApproval: true },
-      { id: 'pr', title: 'PR', requiresApproval: true },
-    ],
-  },
-  {
-    mode: 'wayfinding',
-    label: 'Wayfinding',
-    description:
-      'Explore direction before committing: wayfind, write a specification, break it into tasks, then implement and review.',
-    phases: [
-      { id: 'wayfind', title: 'Wayfind / Workflow Map', requiresApproval: true },
-      { id: 'specification', title: 'Specification' },
-      { id: 'tasks', title: 'Tasks' },
-      { id: 'implement', title: 'Implement', requiresApproval: true },
-      { id: 'formal-review', title: 'Formal Review', requiresApproval: true },
-      { id: 'finalize', title: 'Finalize', requiresApproval: true },
-      { id: 'pr', title: 'PR', requiresApproval: true },
-    ],
-  },
-];
+const MODE_DESCRIPTIONS: Record<WorkflowMode, string> = {
+  simple:
+    'A short, direct path for well-scoped work: research the change, then implement it. The Pull Request phase is skipped automatically.',
+  full:
+    'The complete engineering path for substantial changes: prototype and plan before implementing, then a formal review before finalizing.',
+  'bug-fix':
+    'Diagnose and fix a defect. Unverified or externally-reported bugs add an Intake / Verification phase first.',
+  'architecture-health':
+    'Shape the change, then a Mode Gate chooses to implement directly or produce a Specification and Tasks first.',
+  wayfinding:
+    'Explore direction before committing: wayfind, write a specification, break it into tasks, then implement and review.',
+};
+
+export const WORKFLOW_MODE_CATALOG: ModeCatalogEntry[] = WORKFLOW_MODES.map((mode) => {
+  const definition = WORKFLOW_CATALOG[mode];
+  const modeGateSkipped = new Set(
+    Object.values(definition.modeGate?.skippedPhases ?? {}).flat(),
+  );
+  return {
+    mode,
+    label: definition.name,
+    description: MODE_DESCRIPTIONS[mode],
+    phases: definition.phases.map((phase) => ({
+      id: phase.id,
+      title: phase.name,
+      requiresApproval: phase.requiresApproval,
+      alwaysSkipped: phase.initiallySkipped,
+      skippedWhenConfirmed: phase.skippedForClassifications?.includes('confirmed'),
+      skippableByModeGate: modeGateSkipped.has(phase.id),
+    })),
+  };
+});
 
 export function getModeCatalogEntry(mode: WorkflowMode): ModeCatalogEntry {
   return WORKFLOW_MODE_CATALOG.find((entry) => entry.mode === mode) ?? WORKFLOW_MODE_CATALOG[0];

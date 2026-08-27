@@ -23,6 +23,7 @@ import {
 } from './workflowCatalog.js';
 import {
   CopilotPtyWorkflowTransport,
+  type StartWorkflowStepResult,
   type WorkflowSessionTransport,
 } from './workflowTransport.js';
 
@@ -364,7 +365,7 @@ export class WorkflowService {
     }
 
     let classification: BugFixClassification | null = null;
-    if (mode === 'bug-fix') {
+    if (WORKFLOW_CATALOG[mode].requiresClassification) {
       classification = parseBugFixClassification(input.classification);
       if (!classification) {
         throw new WorkflowProblem(
@@ -394,7 +395,7 @@ export class WorkflowService {
     const id = randomUUID();
     const timestamp = this.timestamp();
     const phases = WORKFLOW_CATALOG[mode].phases.map((definition) =>
-      this.createPhaseState(definition, this.isInitiallySkipped(mode, classification, definition.id)),
+      this.createPhaseState(definition, this.isInitiallySkipped(definition, classification)),
     );
     const state: WorkflowState = {
       schemaVersion: SCHEMA_VERSION,
@@ -459,8 +460,9 @@ export class WorkflowService {
       state.updatedAt = startedAt;
       this.addActivity(state, 'step-started', `Started ${phaseId}/${stepId} run ${runId}`);
 
+      let result: StartWorkflowStepResult;
       try {
-        const result = await this.transport.startStep({
+        result = await this.transport.startStep({
           workflowId: state.id,
           workflowSessionId: state.workflowSession?.id ?? null,
           runId,
@@ -472,46 +474,7 @@ export class WorkflowService {
           goal: state.goal,
           repositoryTarget: state.repositoryTarget,
         });
-        const workflowSessionId = requiredString(
-          result.workflowSessionId,
-          'transport workflowSessionId',
-        );
-        const transportName = requiredString(result.transport, 'transport name');
-        if (state.workflowSession && state.workflowSession.id !== workflowSessionId) {
-          throw new Error('Transport attempted to replace the linked workflow session');
-        }
-
-        const completedAt = this.timestamp();
-        state.workflowSession = state.workflowSession ?? {
-          id: workflowSessionId,
-          transport: transportName,
-          createdAt: completedAt,
-          updatedAt: completedAt,
-        };
-        state.workflowSession.updatedAt = completedAt;
-        state.updatedAt = completedAt;
-        await this.writeState(state);
-
-        return {
-          runId,
-          workflowSessionId,
-          workflow: this.toView(state),
-        };
       } catch (error) {
-        next.status = 'pending';
-        next.step.status = 'pending';
-        next.step.runId = null;
-        next.step.startedAt = null;
-        const failedAt = this.timestamp();
-        state.updatedAt = failedAt;
-        this.addActivity(
-          state,
-          'dispatch-failed',
-          `Failed to dispatch ${phaseId}/${stepId}: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-        );
-        await this.writeState(state);
         throw new WorkflowProblem(
           `Failed to dispatch workflow step: ${
             error instanceof Error ? error.message : String(error)
@@ -520,6 +483,36 @@ export class WorkflowService {
           'transport-error',
         );
       }
+
+      const workflowSessionId = requiredString(
+        result.workflowSessionId,
+        'transport workflowSessionId',
+      );
+      const transportName = requiredString(result.transport, 'transport name');
+      if (state.workflowSession && state.workflowSession.id !== workflowSessionId) {
+        throw new WorkflowProblem(
+          'Transport attempted to replace the linked workflow session',
+          502,
+          'transport-error',
+        );
+      }
+
+      const completedAt = this.timestamp();
+      state.workflowSession = state.workflowSession ?? {
+        id: workflowSessionId,
+        transport: transportName,
+        createdAt: completedAt,
+        updatedAt: completedAt,
+      };
+      state.workflowSession.updatedAt = completedAt;
+      state.updatedAt = completedAt;
+      await this.writeState(state);
+
+      return {
+        runId,
+        workflowSessionId,
+        workflow: this.toView(state),
+      };
     });
   }
 
@@ -642,7 +635,8 @@ export class WorkflowService {
     }
 
     return this.serialized(id, async (state) => {
-      if (state.mode !== 'architecture-health') {
+      const gate = WORKFLOW_CATALOG[state.mode].modeGate;
+      if (!gate) {
         throw new WorkflowProblem(
           'Mode gates are only valid for architecture-health workflows',
           409,
@@ -652,8 +646,11 @@ export class WorkflowService {
       if (state.architectureChoice) {
         throw new WorkflowProblem('Architecture mode gate is already selected', 409, 'duplicate');
       }
-      const shape = state.phases.find((phase) => phase.id === 'shape');
-      if (!shape || shape.status !== 'complete') {
+      if (!gate.choices.includes(choice)) {
+        throw new WorkflowProblem('Choice is not valid for this workflow mode', 400, 'validation');
+      }
+      const prerequisite = state.phases.find((phase) => phase.id === gate.afterPhaseId);
+      if (!prerequisite || prerequisite.status !== 'complete') {
         throw new WorkflowProblem(
           'Architecture mode gate is available only after Shape completes',
           409,
@@ -662,8 +659,7 @@ export class WorkflowService {
       }
 
       state.architectureChoice = choice;
-      if (choice === 'direct') {
-        for (const phaseId of ['specification', 'tasks']) {
+      for (const phaseId of gate.skippedPhases[choice] ?? []) {
           const phase = state.phases.find((candidate) => candidate.id === phaseId);
           if (!phase || phase.status !== 'pending') {
             throw new WorkflowProblem(
@@ -674,7 +670,6 @@ export class WorkflowService {
           }
           phase.status = 'skipped';
           phase.step.status = 'skipped';
-        }
       }
       state.updatedAt = this.timestamp();
       this.addActivity(state, 'mode-gate', `Selected architecture path: ${choice}`);
@@ -841,7 +836,7 @@ export class WorkflowService {
     const classification = raw.classification === null
       ? null
       : parseBugFixClassification(raw.classification);
-    if (mode === 'bug-fix') {
+    if (WORKFLOW_CATALOG[mode].requiresClassification) {
       assertState(classification !== null, 'Bug Fix classification is required');
     } else {
       assertState(raw.classification === null, 'Classification is valid only for Bug Fix');
@@ -852,7 +847,7 @@ export class WorkflowService {
         || raw.architectureChoice === 'planned',
       'Invalid architecture choice',
     );
-    if (mode !== 'architecture-health') {
+    if (!WORKFLOW_CATALOG[mode].modeGate) {
       assertState(raw.architectureChoice === null, 'Architecture choice is valid only in Architecture Health');
     }
     assertState(Array.isArray(raw.phases), 'Workflow phases must be an array');
@@ -1095,6 +1090,9 @@ export class WorkflowService {
         `${definition.id} awaiting-review state is incomplete`,
       );
     }
+    if ((status === 'awaiting-review' || status === 'complete') && definition.requiresArtifact) {
+      assertState(artifacts.length > 0, `${definition.id} is missing its required artifact`);
+    }
     if (status === 'complete') {
       assertState(
         typeof step.summary === 'string'
@@ -1138,32 +1136,36 @@ export class WorkflowService {
     architectureChoice: ArchitectureChoice | null,
     phases: WorkflowPhaseState[],
   ): void {
+    const definition = WORKFLOW_CATALOG[mode];
+    const expectedSkipped = new Set(
+      definition.phases
+        .filter((phase) => this.isInitiallySkipped(phase, classification))
+        .map((phase) => phase.id),
+    );
+    if (architectureChoice) {
+      for (const phaseId of definition.modeGate?.skippedPhases[architectureChoice] ?? []) {
+        expectedSkipped.add(phaseId);
+      }
+    }
     const skipped = new Set(
       phases.filter((phase) => phase.status === 'skipped').map((phase) => phase.id),
     );
-    if (mode === 'simple') {
-      assertState(skipped.size === 1 && skipped.has('pr'), 'Simple must omit only its optional PR');
-    } else if (mode === 'bug-fix' && classification === 'confirmed') {
-      assertState(
-        skipped.size === 1 && skipped.has('intake'),
-        'Confirmed Bug Fix must skip Intake / Verification',
-      );
-    } else if (mode === 'architecture-health' && architectureChoice === 'direct') {
-      assertState(
-        skipped.size === 2 && skipped.has('specification') && skipped.has('tasks'),
-        'Direct Architecture Health must skip Specification and Tasks',
-      );
-    } else {
-      assertState(skipped.size === 0, 'Workflow contains unexpected skipped phases');
-    }
+    assertState(
+      skipped.size === expectedSkipped.size
+        && [...skipped].every((phaseId) => expectedSkipped.has(phaseId)),
+      'Workflow contains unexpected skipped phases',
+    );
 
-    if (mode === 'architecture-health' && architectureChoice !== null) {
-      assertState(phases[0].status === 'complete', 'Architecture choice requires completed Shape');
+    const gate = definition.modeGate;
+    if (gate && architectureChoice !== null) {
+      const prerequisite = phases.find((phase) => phase.id === gate.afterPhaseId);
+      assertState(prerequisite?.status === 'complete', 'Mode Gate choice requires its prerequisite');
     }
-    if (mode === 'architecture-health' && architectureChoice === null) {
+    if (gate && architectureChoice === null) {
+      const prerequisiteIndex = phases.findIndex((phase) => phase.id === gate.afterPhaseId);
       assertState(
-        phases.slice(1).every((phase) => phase.status === 'pending'),
-        'Architecture phases cannot advance before the mode gate',
+        phases.slice(prerequisiteIndex + 1).every((phase) => phase.status === 'pending'),
+        'Workflow phases cannot advance before the mode gate',
       );
     }
 
@@ -1234,14 +1236,12 @@ export class WorkflowService {
   }
 
   private isInitiallySkipped(
-    mode: WorkflowMode,
+    definition: WorkflowPhaseDefinition,
     classification: BugFixClassification | null,
-    phaseId: string,
   ): boolean {
-    return (mode === 'simple' && phaseId === 'pr')
-      || (mode === 'bug-fix'
-        && classification === 'confirmed'
-        && phaseId === 'intake');
+    return definition.initiallySkipped === true
+      || (classification !== null
+        && definition.skippedForClassifications?.includes(classification) === true);
   }
 
   private getMutableState(id: string): WorkflowState {
@@ -1268,7 +1268,10 @@ export class WorkflowService {
     this.queues.set(id, queueMarker);
     await previous.catch(() => {});
     try {
-      return await operation(this.getMutableState(id));
+      const draft = structuredClone(this.getMutableState(id));
+      const result = await operation(draft);
+      this.workflows.set(id, draft);
+      return result;
     } finally {
       release();
       if (this.queues.get(id) === queueMarker) {
@@ -1436,11 +1439,8 @@ export class WorkflowService {
       if (phase.status === 'complete' || phase.status === 'skipped') {
         continue;
       }
-      if (
-        state.mode === 'architecture-health'
-        && phase.id !== 'shape'
-        && state.architectureChoice === null
-      ) {
+      const gate = WORKFLOW_CATALOG[state.mode].modeGate;
+      if (gate && phase.id !== gate.afterPhaseId && state.architectureChoice === null) {
         return null;
       }
       return phase.status === 'pending' ? phase : null;
@@ -1482,15 +1482,19 @@ export class WorkflowService {
             runId: pendingPhase.step.runId,
           }
         : null;
+    const gate = WORKFLOW_CATALOG[copy.mode].modeGate;
+    const gatePrerequisite = gate
+      ? copy.phases.find((phase) => phase.id === gate.afterPhaseId)
+      : null;
     const modeGate: WorkflowModeGateView | null =
-      copy.mode === 'architecture-health'
+      gate
         && copy.architectureChoice === null
-        && copy.phases[0]?.status === 'complete'
+        && gatePrerequisite?.status === 'complete'
         ? {
-            phaseId: 'shape',
-            stepId: 'shape',
+            phaseId: gatePrerequisite.id,
+            stepId: gatePrerequisite.step.id,
             question: 'How should this architecture work continue?',
-            choices: ['direct', 'planned'],
+            choices: [...gate.choices],
           }
         : null;
     const nextStep = next

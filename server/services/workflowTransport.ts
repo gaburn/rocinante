@@ -59,9 +59,13 @@ export class CopilotPtyWorkflowTransport implements WorkflowSessionTransport {
     if (existingPty) {
       existingPty.write(`${prompt}\r`);
     } else {
+      const configuredCommand = getConfig().launchCommands.copilot || 'copilot';
+      const sessionArgument = request.workflowSessionId
+        ? `--resume=${workflowSessionId}`
+        : `--session-id=${workflowSessionId}`;
       const ptyProcess = spawnPty(ptyId, {
         cwd: request.repositoryTarget,
-        startupCommand: getConfig().launchCommands.copilot || 'copilot',
+        startupCommand: `${configuredCommand} ${sessionArgument}`,
       });
       const timer = setTimeout(() => ptyProcess.write(`${prompt}\r`), 1_000);
       timer.unref();

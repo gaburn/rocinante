@@ -269,6 +269,28 @@ describe('workflow HTTP API', () => {
     expect(errorSpy).toHaveBeenCalledTimes(2);
   });
 
+  it('does not advance live state when persistence fails', async () => {
+    const workflow = await createWorkflow();
+    rmSync(dataDir, { recursive: true, force: true });
+    writeFileSync(dataDir, 'blocks workflow persistence');
+    const started = await request(
+      api!,
+      'POST',
+      `/workflows/${workflow.id}/run-step`,
+      workflow.nextEligibleStep,
+    );
+    expect(started.status).toBe(500);
+
+    const unchanged = await request<WorkflowView>(
+      api!,
+      'GET',
+      `/workflows/${workflow.id}`,
+    );
+    expect(unchanged.body.status).toBe('pending');
+    expect(unchanged.body.nextEligibleStep?.phaseId).toBe('research');
+    expect(unchanged.body.workflowSession).toBeNull();
+  });
+
   it('keeps a Research run and successive input requests bound to one session and run', async () => {
     writeFileSync(path.join(repositoryTarget, 'evidence.md'), 'evidence');
     const workflow = await createWorkflow();
