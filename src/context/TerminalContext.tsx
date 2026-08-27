@@ -34,6 +34,7 @@ interface TerminalContextValue {
   openSessionTerminal: (session: Session) => void;
   openShellTerminal: (session: Session) => void;
   openLaunchTerminal: (launchId: string, workstreamName: string, cwd: string) => void;
+  openWorkflowTerminal: (workflowId: string, workflowName: string, cwd: string) => void;
 }
 
 const TerminalContext = createContext<TerminalContextValue | null>(null);
@@ -43,7 +44,7 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
   const tabs = useTerminalTabs();
   const { selectedSession } = useSessionSelection();
 
-  const { openTab, hasTab, setActiveTab, followSession, openLaunchTab } = tabs;
+  const { openTab, hasTab, setActiveTab, followSession, openLaunchTab, openWorkflowTab } = tabs;
   const { openTerminal, isTerminalOpen } = panel;
 
   const openSessionTerminal = useCallback(
@@ -70,6 +71,14 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
     [openLaunchTab, openTerminal],
   );
 
+  const openWorkflowTerminal = useCallback(
+    (workflowId: string, workflowName: string, cwd: string) => {
+      openWorkflowTab(workflowId, `${workflowName} (workflow)`, cwd);
+      openTerminal();
+    },
+    [openTerminal, openWorkflowTab],
+  );
+
   useEffect(() => {
     if (!followSession || !selectedSession || !isTerminalOpen) return;
     if (hasTab(selectedSession.id)) {
@@ -85,6 +94,7 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
         openSessionTerminal,
         openShellTerminal,
         openLaunchTerminal,
+        openWorkflowTerminal,
       }}
     >
       {children}

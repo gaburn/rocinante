@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Rocinante workflow state prototype</title>
+<body>
+<h1>Rocinante workflow state prototype</h1>
+<label>Mode <select id="mode"></select></label>
+<button id="reset">Reset</button>
+<button id="run">Run next</button>
+<button id="disconnect">Disconnect/reconnect</button>
+<button id="input">Request/answer input</button>
+<button id="output">Register output</button>
+<button id="approve">Approve</button>
+<pre id="state" aria-live="polite"></pre>
+<script>
+const CATALOG = {
+  simple: [['research','Research',false],['implement','Implement',false],['pr','Pull request',true]],
+  full: [['research','Research'],['prototype','Prototype'],['plan','Plan'],['implement','Implement'],['iterate','Formal Review'],['finalize','Finalize'],['pr','Pull request']],
+  'bug-fix': [['diagnose','Diagnose and Fix'],['iterate','Formal Review'],['finalize','Finalize'],['pr','Pull request']],
+  'architecture-health': [['shape','Shape'],['mode-gate','Implementation path'],['implement','Implement'],['iterate','Formal Review'],['finalize','Finalize'],['pr','Pull request']],
+  wayfinding: [['wayfind','Wayfind'],['specification','Specification'],['tasks','Tasks'],['implement','Implement'],['iterate','Formal Review'],['finalize','Finalize'],['pr','Pull request']],
+};
+const makeState = mode => ({
+  workflowId: crypto.randomUUID(), mode, sessionId: crypto.randomUUID(),
+  browserConnected: true, runner: 'idle', pendingInput: null,
+  phases: CATALOG[mode].map(([id,title,optional=false]) =>
+    ({id,title,optional,status:optional?'optional':'pending',artifact:null}))
+});
+const next = state => state.phases.find(p => p.status === 'pending');
+function reduce(state, action) {
+  const phase = state.phases.find(p => p.status === 'running');
+  if (action === 'connect') return {...state,browserConnected:!state.browserConnected};
+  if (action === 'run' && state.runner === 'idle' && next(state)) {
+    next(state).status = 'running'; return {...state,runner:'running'};
+  }
+  if (action === 'input' && phase) {
+    if (state.pendingInput) return {...state,pendingInput:null,runner:'running'};
+    return {...state,pendingInput:{phaseId:phase.id,question:'Choose repository',choices:['current']},runner:'awaiting-input'};
+  }
+  if (action === 'output' && phase && state.runner === 'running') {
+    phase.artifact = `${phase.id}.md`;
+    phase.status = ['research','prototype','plan','specification','tasks','wayfind','shape'].includes(phase.id) ? 'complete' : 'awaiting-review';
+    return {...state,runner:'idle'};
+  }
+  if (action === 'approve') {
+    const review = state.phases.find(p => p.status === 'awaiting-review');
+    if (review) { review.status = 'complete'; return {...state,error:null}; }
+    return {...state,error:'Nothing is ready for Approval. Output must be registered first.'};
+  }
+  return {...state,error:'Invalid transition'};
+}
+let current = makeState('simple');
+const mode = document.querySelector('#mode');
+const render = () => document.querySelector('#state').textContent = JSON.stringify(current,null,2);
+Object.keys(CATALOG).forEach(id => mode.add(new Option(id,id)));
+mode.onchange = () => { current=makeState(mode.value); render(); };
+document.querySelector('#reset').onclick = () => { current=makeState(mode.value); render(); };
+document.querySelector('#run').onclick = () => { current=reduce(current,'run'); render(); };
+document.querySelector('#disconnect').onclick = () => { current=reduce(current,'connect'); render(); };
+document.querySelector('#input').onclick = () => { current=reduce(current,'input'); render(); };
+document.querySelector('#output').onclick = () => { current=reduce(current,'output'); render(); };
+document.querySelector('#approve').onclick = () => { current=reduce(current,'approve'); render(); };
+render();
+</script>
+</body>
+</html>
+

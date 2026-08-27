@@ -13,10 +13,13 @@ import configRouter from './routes/config.js';
 import adoRouter from './routes/ado.js';
 import telemetryRouter from './routes/telemetry.js';
 import workstreamsRouter from './routes/workstreams.js';
+import { createWorkflowsRouter } from './routes/workflows.js';
 import { attachTerminalWebSocket } from './routes/terminal.js';
+import { WorkflowService } from './services/workflowService.js';
 
 const app = express();
 const config = getConfig();
+const workflowService = new WorkflowService();
 const DEBUG = process.env.DEBUG === 'true' || process.env.NODE_ENV !== 'production';
 const allowedOrigins = (
   process.env.ALLOWED_ORIGINS || 'http://localhost:5173,http://localhost:3001'
@@ -49,6 +52,7 @@ app.use('/api', configRouter);
 app.use('/api', adoRouter);
 app.use('/api', telemetryRouter);
 app.use('/api', workstreamsRouter);
+app.use('/api', createWorkflowsRouter(workflowService));
 
 if (process.env.NODE_ENV === 'production') {
   const staticLimiter = rateLimit({ max: 200, windowMs: 60_000 });
@@ -108,6 +112,5 @@ function shutdown(signal: 'SIGINT' | 'SIGTERM'): void {
 
 process.on('SIGINT', () => shutdown('SIGINT'));
 process.on('SIGTERM', () => shutdown('SIGTERM'));
-
 
 

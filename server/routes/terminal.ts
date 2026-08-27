@@ -71,16 +71,27 @@ function getStartupCommandForAgent(agentType: LaunchRecord['agentType']): string
   return cmd || undefined;
 }
 
-function wireUpPty(ws: WebSocket, id: string, ptyProcess: ReturnType<typeof spawnPty>): void {
-  let isClosed = false;
+function wireUpPty(
+  ws: WebSocket,
+  id: string,
+  ptyProcess: ReturnType<typeof spawnPty>,
+  terminateOnDisconnect = true,
+): void {
+  let isDisposed = false;
+  let ptyDataDisposable: ReturnType<typeof ptyProcess.onData> | null = null;
+  let ptyExitDisposable: ReturnType<typeof ptyProcess.onExit> | null = null;
 
   const disposeConnection = (): void => {
-    if (isClosed) {
+    if (isDisposed) {
       return;
     }
 
-    isClosed = true;
-    killPty(id);
+    isDisposed = true;
+    ptyDataDisposable?.dispose();
+    ptyExitDisposable?.dispose();
+    if (terminateOnDisconnect) {
+      killPty(id);
+    }
   };
 
   ws.on('error', (error) => {
@@ -88,18 +99,19 @@ function wireUpPty(ws: WebSocket, id: string, ptyProcess: ReturnType<typeof spaw
     disposeConnection();
   });
 
-  const ptyDataDisposable = ptyProcess.onData((data) => {
+  ptyDataDisposable = ptyProcess.onData((data) => {
     if (ws.readyState === WebSocket.OPEN) {
       ws.send(data);
     }
   });
 
-  const ptyExitDisposable = ptyProcess.onExit(({ exitCode }) => {
+  ptyExitDisposable = ptyProcess.onExit(({ exitCode }) => {
     const exitPayload = JSON.stringify({ type: 'exit', code: exitCode });
     if (ws.readyState === WebSocket.OPEN) {
       ws.send(exitPayload);
     }
 
+    killPty(id);
     ws.close();
     disposeConnection();
   });
@@ -119,8 +131,6 @@ function wireUpPty(ws: WebSocket, id: string, ptyProcess: ReturnType<typeof spaw
   });
 
   ws.on('close', () => {
-    ptyDataDisposable.dispose();
-    ptyExitDisposable.dispose();
     disposeConnection();
   });
 }
@@ -131,9 +141,32 @@ export function attachTerminalWebSocket(server: HttpServer): void {
   terminalWss.on('connection', (ws, req: IncomingMessage) => {
     const url = new URL(req.url ?? '', 'http://localhost');
     const launchId = url.searchParams.get('launchId');
+    const rawWorkflowId = url.searchParams.get('workflowId');
     const rawSessionId = url.searchParams.get('sessionId');
     const cwdParam = url.searchParams.get('cwd');
     const shell = url.searchParams.get('shell');
+
+    if (rawWorkflowId) {
+      let workflowId: string;
+      try {
+        workflowId = sanitizeSessionId(rawWorkflowId);
+      } catch (err) {
+        const error = err as Error;
+        ws.send(JSON.stringify({ type: 'error', message: `Invalid workflow ID: ${error.message}` }));
+        ws.close();
+        return;
+      }
+
+      const ptyProcess = getPty(`workflow-${workflowId}`);
+      if (!ptyProcess) {
+        ws.send(JSON.stringify({ type: 'error', message: 'Workflow session is not active in this server process' }));
+        ws.close(4002, 'Workflow session unavailable');
+        return;
+      }
+
+      wireUpPty(ws, `workflow-${workflowId}`, ptyProcess, false);
+      return;
+    }
 
     // launchId path: consume a launch record and derive cwd + startup command
     if (launchId) {

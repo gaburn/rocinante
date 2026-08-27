@@ -34,7 +34,7 @@ export interface UseSessionsResult {
   statusFilter: SessionStatus | 'all'
   sourceFilter: 'copilot' | 'claude' | 'all'
   searchQuery: string
-  viewMode: 'list' | 'network' | 'stats'
+  viewMode: 'list' | 'network' | 'stats' | 'workflows'
   showArchived: boolean
   statusCounts: StatusCounts
   archivedCount: number
@@ -47,7 +47,7 @@ export interface UseSessionsResult {
   setStatusFilter: (status: SessionStatus | 'all') => void
   setSourceFilter: (source: 'copilot' | 'claude' | 'all') => void
   setSearchQuery: (query: string) => void
-  setViewMode: (mode: 'list' | 'network' | 'stats') => void
+  setViewMode: (mode: 'list' | 'network' | 'stats' | 'workflows') => void
   setShowArchived: (show: boolean) => void
   isArchived: (id: string) => boolean
   archiveSession: (id: string) => void
@@ -113,7 +113,7 @@ export function useSessions(): UseSessionsResult {
   const [statusFilter, setStatusFilter] = useState<SessionStatus | 'all'>('all')
   const [sourceFilter, setSourceFilter] = useState<'copilot' | 'claude' | 'all'>('all')
   const [searchQuery, setSearchQuery] = useState('')
-  const [viewMode, setViewMode] = useState<'list' | 'network' | 'stats'>(
+  const [viewMode, setViewMode] = useState<'list' | 'network' | 'stats' | 'workflows'>(
     settings.display.defaultViewMode,
   )
   const [showArchived, setShowArchived] = useState(false)

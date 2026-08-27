@@ -22,7 +22,7 @@ export interface SessionDataContextValue {
   statusFilter: SessionStatus | 'all'
   sourceFilter: 'copilot' | 'claude' | 'all'
   searchQuery: string
-  viewMode: 'list' | 'network' | 'stats'
+  viewMode: 'list' | 'network' | 'stats' | 'workflows'
   showArchived: boolean
   autoRefreshEnabled: boolean
   groupedSessions: { groups: SessionGroup[]; ungrouped: SessionSummary[] }
@@ -51,7 +51,7 @@ export interface SessionActionsContextValue {
   setStatusFilter: (status: SessionStatus | 'all') => void
   setSourceFilter: (source: 'copilot' | 'claude' | 'all') => void
   setSearchQuery: (query: string) => void
-  setViewMode: (mode: 'list' | 'network' | 'stats') => void
+  setViewMode: (mode: 'list' | 'network' | 'stats' | 'workflows') => void
   setShowArchived: (show: boolean) => void
   refreshSessions: () => void
   toggleAutoRefresh: () => void
