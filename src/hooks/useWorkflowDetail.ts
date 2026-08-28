@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   getWorkflow,
   runStep,
+  resumeStep,
   approveWorkflow,
   chooseModeGate,
   respondToInput,
@@ -15,13 +16,14 @@ export interface UseWorkflowDetailResult {
   isLoading: boolean;
   /** Load error — clears once a subsequent fetch succeeds. */
   error: string | null;
-  /** Error from the last action (run-step/approve/mode-gate/input-response). */
+  /** Error from the last workflow action. */
   actionError: string | null;
   isActing: boolean;
   refresh: () => void;
   clearActionError: () => void;
   startStep: (phaseId: string, stepId: string) => Promise<void>;
-  approve: (phaseId?: string, stepId?: string) => Promise<void>;
+  resumeStep: (phaseId: string, stepId: string, runId: string) => Promise<void>;
+  approve: (phaseId: string, stepId: string, runId: string, artifact: string) => Promise<void>;
   chooseGate: (choice: ArchitectureChoice) => Promise<void>;
   answerInput: (requestId: string, answer: string, phaseId?: string, stepId?: string) => Promise<void>;
 }
@@ -98,10 +100,18 @@ export function useWorkflowDetail(workflowId: string | null): UseWorkflowDetailR
     [runAction, workflowId],
   );
 
-  const approve = useCallback(
-    (phaseId?: string, stepId?: string) => {
+  const resume = useCallback(
+    (phaseId: string, stepId: string, runId: string) => {
       if (!workflowId) return Promise.resolve();
-      return runAction(() => approveWorkflow(workflowId, { phaseId, stepId }));
+      return runAction(() => resumeStep(workflowId, { phaseId, stepId, runId }));
+    },
+    [runAction, workflowId],
+  );
+
+  const approve = useCallback(
+    (phaseId: string, stepId: string, runId: string, artifact: string) => {
+      if (!workflowId) return Promise.resolve();
+      return runAction(() => approveWorkflow(workflowId, { phaseId, stepId, runId, artifact }));
     },
     [runAction, workflowId],
   );
@@ -131,6 +141,7 @@ export function useWorkflowDetail(workflowId: string | null): UseWorkflowDetailR
     refresh,
     clearActionError,
     startStep,
+    resumeStep: resume,
     approve,
     chooseGate,
     answerInput,

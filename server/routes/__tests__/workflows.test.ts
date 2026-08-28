@@ -29,9 +29,15 @@ class FakeWorkflowTransport implements WorkflowSessionTransport {
   readonly starts: StartWorkflowStepRequest[] = [];
   readonly responses: RespondToWorkflowInputRequest[] = [];
   readonly closes: CloseWorkflowSessionRequest[] = [];
+  readonly activeWorkflows = new Set<string>();
+
+  isActive(workflowId: string): boolean {
+    return this.activeWorkflows.has(workflowId);
+  }
 
   async startStep(request: StartWorkflowStepRequest): Promise<StartWorkflowStepResult> {
     this.starts.push(structuredClone(request));
+    this.activeWorkflows.add(request.workflowId);
     return {
       workflowSessionId: request.workflowSessionId ?? `session-${request.workflowId}`,
       transport: 'fake',
@@ -44,6 +50,7 @@ class FakeWorkflowTransport implements WorkflowSessionTransport {
 
   async closeWorkflow(request: CloseWorkflowSessionRequest): Promise<void> {
     this.closes.push(structuredClone(request));
+    this.activeWorkflows.delete(request.workflowId);
   }
 }
 
@@ -182,6 +189,7 @@ describe('workflow HTTP API', () => {
           phaseId: pointer.phaseId,
           stepId: pointer.stepId,
           runId: started.body.runId,
+          artifact: output.body.approvableStep?.artifact.value,
         },
       );
       expect(approved.status).toBe(200);
@@ -216,7 +224,6 @@ describe('workflow HTTP API', () => {
 
     const workflow = await createWorkflow();
     expect(workflow.mode).toBe('simple');
-    expect(workflow.workflowId).toBe(workflow.id);
     expect(workflow.repositoryTarget).toBe(realpathSync(repositoryTarget));
     expect(workflow.phases.map((phase) => phase.name)).toEqual([
       'Research',
@@ -228,10 +235,10 @@ describe('workflow HTTP API', () => {
       'pending',
       'skipped',
     ]);
+    expect(workflow.phases[2].optional).toBe(true);
     expect(workflow.phases[0].steps).toHaveLength(1);
-    expect(workflow.phases[0].title).toBe('Research');
     expect(workflow.phases[0].steps[0].canStart).toBe(true);
-    expect(workflow.percent).toBe(0);
+    expect(workflow.progress.percent).toBe(0);
     expect(workflow.nextEligibleStep?.phaseId).toBe('research');
 
     await stopApi(api);
@@ -253,7 +260,7 @@ describe('workflow HTTP API', () => {
 
     const list = await request<{
       workflows: WorkflowView[];
-      errors: Array<CorruptWorkflowView & { workflowId: string }>;
+      errors: CorruptWorkflowView[];
     }>(api, 'GET', '/workflows');
     expect(list.status).toBe(200);
     expect(list.body.errors.find((entry) => entry.id === 'broken')).toMatchObject({
@@ -267,6 +274,23 @@ describe('workflow HTTP API', () => {
     const corruptDetail = await request<CorruptWorkflowView>(api, 'GET', '/workflows/broken');
     expect(corruptDetail.body.status).toBe('error');
     expect(errorSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('can include a catalogued optional phase at creation', async () => {
+    const result = await request<WorkflowView>(api!, 'POST', '/workflows', {
+      name: 'Simple workflow with PR',
+      goal: 'Ship through a pull request',
+      mode: 'simple',
+      repositoryTarget,
+      optionalPhaseIds: ['pr'],
+    });
+
+    expect(result.status).toBe(201);
+    expect(result.body.phases[2]).toMatchObject({
+      id: 'pr',
+      optional: true,
+      status: 'pending',
+    });
   });
 
   it('does not advance live state when persistence fails', async () => {
@@ -331,7 +355,7 @@ describe('workflow HTTP API', () => {
       'GET',
       `/workflows/${workflow.id}`,
     );
-    expect(unchanged.body.phases[0].step.inputRequest?.id).toBe('durable-input');
+    expect(unchanged.body.phases[0].steps[0].inputRequest?.id).toBe('durable-input');
   });
 
   it('keeps a Research run and successive input requests bound to one session and run', async () => {
@@ -346,7 +370,7 @@ describe('workflow HTTP API', () => {
     );
     expect(started.status).toBe(200);
     expect(started.body.runId).toEqual(expect.any(String));
-    expect(started.body.workflowSessionId).toBe(`session-${workflow.id}`);
+    expect(started.body.workflowSession?.id).toBe(`session-${workflow.id}`);
     expect(started.body.phases[0].status).toBe('running');
 
     const reconnected = await request<WorkflowView>(
@@ -355,7 +379,7 @@ describe('workflow HTTP API', () => {
       `/workflows/${workflow.id}`,
     );
     expect(reconnected.body.status).toBe('running');
-    expect(reconnected.body.workflowSession?.id).toBe(started.body.workflowSessionId);
+    expect(reconnected.body.workflowSession?.id).toBe(started.body.workflowSession?.id);
     expect(transport.starts).toHaveLength(1);
 
     for (const requestId of ['research-question-1', 'research-question-2']) {
@@ -374,7 +398,7 @@ describe('workflow HTTP API', () => {
         },
       );
       expect(requested.status).toBe(200);
-      expect(requested.body.phases[0].step.inputRequest?.id).toBe(requestId);
+      expect(requested.body.phases[0].steps[0].inputRequest?.id).toBe(requestId);
 
       const blockedOutput = await request(
         api!,
@@ -408,8 +432,8 @@ describe('workflow HTTP API', () => {
         },
       );
       expect(resumed.status).toBe(200);
-      expect(resumed.body.phases[0].step.status).toBe('running');
-      expect(resumed.body.phases[0].step.runId).toBe(started.body.runId);
+      expect(resumed.body.phases[0].steps[0].status).toBe('running');
+      expect(resumed.body.phases[0].steps[0].runId).toBe(started.body.runId);
     }
 
     expect(transport.responses).toHaveLength(2);
@@ -429,6 +453,43 @@ describe('workflow HTTP API', () => {
     expect(output.status).toBe(200);
     expect(output.body.phases[0].status).toBe('complete');
     expect(output.body.nextEligibleStep?.phaseId).toBe('implement');
+  });
+
+  it('resumes a persisted running step after the server restarts', async () => {
+    const workflow = await createWorkflow();
+    const started = await request<RunStepResponse>(
+      api!,
+      'POST',
+      `/workflows/${workflow.id}/run-step`,
+      workflow.nextEligibleStep,
+    );
+    await stopApi(api);
+
+    const restoredTransport = new FakeWorkflowTransport();
+    api = await startApi(new WorkflowService({ dataDir, transport: restoredTransport }));
+    const restored = await request<WorkflowView>(api, 'GET', `/workflows/${workflow.id}`);
+    expect(restored.body.recoverableStep).toMatchObject({
+      phaseId: 'research',
+      stepId: 'research',
+    });
+
+    const resumed = await request<WorkflowView>(
+      api,
+      'POST',
+      `/workflows/${workflow.id}/resume-step`,
+      {
+        phaseId: 'research',
+        stepId: 'research',
+        runId: started.body.runId,
+      },
+    );
+    expect(resumed.status).toBe(200);
+    expect(restoredTransport.starts).toHaveLength(1);
+    expect(restoredTransport.starts[0]).toMatchObject({
+      runId: started.body.runId,
+      workflowSessionId: started.body.workflowSession?.id,
+    });
+    expect(resumed.body.recoverableStep).toBeNull();
   });
 
   it('validates artifacts and rejects concurrent, stale, and duplicate callbacks', async () => {
@@ -530,7 +591,12 @@ describe('workflow HTTP API', () => {
       api!,
       'POST',
       `/workflows/${workflow.id}/approve`,
-      { runId: started.body.runId },
+      {
+        phaseId: 'implement',
+        stepId: 'implement',
+        runId: started.body.runId,
+        artifact: 'implementation.md',
+      },
     );
     expect(prematureApproval.status).toBe(409);
 
@@ -563,6 +629,39 @@ describe('workflow HTTP API', () => {
     expect(restored.body.status).toBe('awaiting-review');
     expect(restored.body.workflowSession?.id).toBe(`session-${workflow.id}`);
 
+    const staleApproval = await request(
+      api,
+      'POST',
+      `/workflows/${workflow.id}/approve`,
+      {
+        phaseId: 'implement',
+        stepId: 'implement',
+        runId: 'stale-run',
+      },
+    );
+    expect(staleApproval.status).toBe(409);
+
+    const missingContext = await request(
+      api,
+      'POST',
+      `/workflows/${workflow.id}/approve`,
+      {},
+    );
+    expect(missingContext.status).toBe(400);
+
+    const mismatchedArtifact = await request(
+      api,
+      'POST',
+      `/workflows/${workflow.id}/approve`,
+      {
+        phaseId: 'implement',
+        stepId: 'implement',
+        runId: started.body.runId,
+        artifact: 'https://example.test/unrelated',
+      },
+    );
+    expect(mismatchedArtifact.status).toBe(409);
+
     const approved = await request<WorkflowView>(
       api,
       'POST',
@@ -571,6 +670,7 @@ describe('workflow HTTP API', () => {
         phaseId: 'implement',
         stepId: 'implement',
         runId: started.body.runId,
+        artifact: 'implementation.md',
       },
     );
     expect(approved.status).toBe(200);
@@ -700,6 +800,7 @@ describe('workflow HTTP API', () => {
             phaseId: pointer.phaseId,
             stepId: pointer.stepId,
             runId: started.body.runId,
+            artifact: workflow.approvableStep?.artifact.value,
             summary: `${pointer.phaseName} complete`,
             artifacts: [
               `https://example.test/${workflow.id}/${pointer.phaseId}/${pointer.stepId}`,
@@ -717,6 +818,7 @@ describe('workflow HTTP API', () => {
               phaseId: pointer.phaseId,
               stepId: pointer.stepId,
               runId: started.body.runId,
+              artifact: workflow.approvableStep?.artifact.value,
             },
           );
           expect(approved.status).toBe(200);

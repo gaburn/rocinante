@@ -49,15 +49,11 @@ export function createWorkflowsRouter(service: WorkflowService): Router {
 
   router.get('/workflows', (_req, res) => {
     const workflows: WorkflowView[] = [];
-    const errors: Array<CorruptWorkflowView & { workflowId: string }> = [];
+    const errors: CorruptWorkflowView[] = [];
     for (const entry of service.list()) {
       if (entry.status === 'error') {
         const error = entry as CorruptWorkflowView;
-        errors.push({
-          ...error,
-          workflowId: error.id,
-          message: error.error.message,
-        });
+        errors.push({ ...error, message: error.error.message });
       } else {
         workflows.push(entry);
       }
@@ -81,6 +77,11 @@ export function createWorkflowsRouter(service: WorkflowService): Router {
       runId: result.runId,
       workflowSessionId: result.workflowSessionId,
     });
+  }));
+
+  router.post('/workflows/:id/resume-step', route(async (req, res) => {
+    const workflow = await service.resumeStep(workflowId(req), (req.body ?? {}) as StepContextInput);
+    return res.json(workflow);
   }));
 
   router.post('/workflows/:id/register-output', route(async (req, res) => {

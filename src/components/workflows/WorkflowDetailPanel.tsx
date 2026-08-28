@@ -4,11 +4,8 @@ import { useTerminalContext } from '../../context/TerminalContext';
 import type {
   ArchitectureChoice,
   WorkflowArtifact,
-  WorkflowDetail,
-  WorkflowInputRequest,
-  WorkflowPhase,
-  WorkflowStepPointer,
-  WorkflowStepState,
+  WorkflowStatus,
+  WorkflowStepStatus,
 } from '../../types/workflows';
 import {
   getWorkflowStatusBgClass,
@@ -23,17 +20,6 @@ interface WorkflowDetailPanelProps {
   workflowId: string;
 }
 
-interface LocatedInputRequest {
-  phase: WorkflowPhase;
-  step: WorkflowStepState;
-  request: WorkflowInputRequest;
-}
-
-interface LocatedStep {
-  phase: WorkflowPhase;
-  step: WorkflowStepState;
-}
-
 const ARCHITECTURE_CHOICES: { value: ArchitectureChoice; label: string; description: string }[] = [
   { value: 'direct', label: 'Direct', description: 'Implement directly. Specification and Tasks are skipped.' },
   {
@@ -42,37 +28,6 @@ const ARCHITECTURE_CHOICES: { value: ArchitectureChoice; label: string; descript
     description: 'Produce a Specification and a Tasks breakdown before implementing.',
   },
 ];
-
-function findPendingInput(detail: WorkflowDetail): LocatedInputRequest | null {
-  for (const phase of detail.phases ?? []) {
-    for (const step of phase.steps ?? []) {
-      if (step.inputRequest) return { phase, step, request: step.inputRequest };
-    }
-  }
-  return null;
-}
-
-function findApprovableStep(detail: WorkflowDetail): LocatedStep | null {
-  for (const phase of detail.phases ?? []) {
-    for (const step of phase.steps ?? []) {
-      if (step.status === 'awaiting-review') return { phase, step };
-    }
-  }
-  return null;
-}
-
-/** The Architecture Health Mode Gate has no dynamic choices from the server —
- * it becomes available once Shape completes and no continuation is chosen yet. */
-function isModeGatePending(detail: WorkflowDetail): boolean {
-  if (detail.mode !== 'architecture-health') return false;
-  if ((detail.architectureChoice ?? null) !== null) return false;
-  const shape = (detail.phases ?? []).find((p) => p.id === 'shape');
-  return shape?.status === 'complete';
-}
-
-function matchesPointer(phase: WorkflowPhase, step: WorkflowStepState, pointer: WorkflowStepPointer | null | undefined): boolean {
-  return !!pointer && pointer.phaseId === phase.id && pointer.stepId === step.id;
-}
 
 function ArtifactLink({ artifact }: { artifact: WorkflowArtifact }) {
   if (artifact.type === 'url') {
@@ -94,7 +49,7 @@ function ArtifactLink({ artifact }: { artifact: WorkflowArtifact }) {
   );
 }
 
-function StatusBadge({ status }: { status: string | undefined }) {
+function StatusBadge({ status }: { status: WorkflowStatus | WorkflowStepStatus | 'error' }) {
   const s = status ?? 'pending';
   return (
     <span
@@ -116,23 +71,22 @@ export default function WorkflowDetailPanel({ workflowId }: WorkflowDetailPanelP
   const { openWorkflowTerminal } = useTerminalContext();
   const {
     detail, isLoading, error, actionError, isActing,
-    refresh, clearActionError, startStep, approve, chooseGate, answerInput,
+    refresh, clearActionError, startStep, resumeStep, approve, chooseGate, answerInput,
   } = useWorkflowDetail(workflowId);
 
-  const pendingInput = detail ? findPendingInput(detail) : null;
-  const approvable = detail ? findApprovableStep(detail) : null;
-  const showModeGate = detail ? isModeGatePending(detail) : false;
+  const pendingInput = detail?.pendingInput ?? null;
+  const approvable = detail?.approvableStep ?? null;
+  const modeGate = detail?.modeGate ?? null;
+  const showModeGate = modeGate !== null;
   const nextEligible = detail?.nextEligibleStep ?? null;
+  const recoverable = detail?.recoverableStep ?? null;
 
   const [answer, setAnswer] = useState('');
   const [gateChoice, setGateChoice] = useState<ArchitectureChoice | ''>('');
 
-  // Reset local form state whenever the underlying request identity changes,
-  // computed during render (React's documented "adjust state on prop change"
-  // pattern) rather than in an effect, to avoid a redundant render pass.
-  const [lastRequestId, setLastRequestId] = useState<string | undefined>(pendingInput?.request.id);
-  if (pendingInput?.request.id !== lastRequestId) {
-    setLastRequestId(pendingInput?.request.id);
+  const [lastRequestId, setLastRequestId] = useState<string | undefined>(pendingInput?.requestId);
+  if (pendingInput?.requestId !== lastRequestId) {
+    setLastRequestId(pendingInput?.requestId);
     setAnswer('');
   }
 
@@ -181,17 +135,16 @@ export default function WorkflowDetailPanel({ workflowId }: WorkflowDetailPanelP
 
   const sessionId = detail.workflowSession?.id;
 
-  // The single, obvious next action for this workflow.
   let nextActionLabel = 'The current step is running. No action is needed right now.';
-  if (pendingInput) nextActionLabel = 'Answer the pending input request below.';
+  if (recoverable) nextActionLabel = `Resume interrupted step: "${recoverable.stepName}".`;
+  else if (pendingInput) nextActionLabel = 'Answer the pending input request below.';
   else if (showModeGate) nextActionLabel = 'Choose how this workflow continues below.';
-  else if (approvable) nextActionLabel = `Approve output for "${approvable.step.name}".`;
+  else if (approvable) nextActionLabel = `Approve output for "${approvable.stepName}".`;
   else if (nextEligible) nextActionLabel = `Start the next step: "${nextEligible.stepName}".`;
   else if (detail.status === 'complete') nextActionLabel = 'This workflow is complete.';
 
   return (
     <div className="p-6 space-y-5">
-      {/* ── Header ── */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="text-lg font-semibold text-fg-heading truncate">{detail.name}</h2>
@@ -210,7 +163,6 @@ export default function WorkflowDetailPanel({ workflowId }: WorkflowDetailPanelP
         </div>
       </div>
 
-      {/* ── Metadata row ── */}
       <dl className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
         <div>
           <dt className="text-fg-secondary">Mode</dt>
@@ -275,7 +227,6 @@ export default function WorkflowDetailPanel({ workflowId }: WorkflowDetailPanelP
         </div>
       )}
 
-      {/* ── Obvious next action ── */}
       <div
         aria-live="polite"
         className="rounded-lg border border-border-active/40 bg-surface-hover px-3 py-2.5 text-sm text-fg-heading"
@@ -298,11 +249,34 @@ export default function WorkflowDetailPanel({ workflowId }: WorkflowDetailPanelP
           <div className="mt-2">
             <button
               type="button"
-              onClick={() => void approve(approvable.phase.id, approvable.step.id)}
+              onClick={() => {
+                if (approvable.runId) {
+                  void approve(
+                    approvable.phaseId,
+                    approvable.stepId,
+                    approvable.runId,
+                    approvable.artifact.value,
+                  );
+                }
+              }}
               disabled={isActing}
               className="rounded-md bg-emerald-500/15 border border-emerald-500/40 px-3 py-1.5 text-xs font-medium text-emerald-400 hover:bg-emerald-500/25 transition-colors disabled:opacity-50"
             >
-              {isActing ? 'Approving…' : `Approve "${approvable.step.name}"`}
+              {isActing ? 'Approving…' : `Approve "${approvable.stepName}"`}
+            </button>
+          </div>
+        )}
+        {!showModeGate && !approvable && recoverable && (
+          <div className="mt-2">
+            <button
+              type="button"
+              onClick={() => {
+                if (recoverable.runId) void resumeStep(recoverable.phaseId, recoverable.stepId, recoverable.runId);
+              }}
+              disabled={isActing}
+              className="rounded-md bg-amber-500/20 border border-amber-500/50 px-3 py-1.5 text-xs font-medium text-amber-300 hover:bg-amber-500/30 transition-colors disabled:opacity-50"
+            >
+              {isActing ? 'Resuming…' : `Resume "${recoverable.stepName}"`}
             </button>
           </div>
         )}
@@ -317,17 +291,16 @@ export default function WorkflowDetailPanel({ workflowId }: WorkflowDetailPanelP
         </div>
       )}
 
-      {/* ── Pending Input Request ── */}
       {pendingInput && (
         <section aria-labelledby="wf-pending-input-heading" className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3">
           <h3 id="wf-pending-input-heading" className="text-sm font-semibold text-amber-300">
-            Input requested — {pendingInput.phase.name} / {pendingInput.step.name}
+            Input requested — {pendingInput.phaseName} / {pendingInput.stepName}
           </h3>
-          <p className="mt-1 text-sm text-fg-heading">{pendingInput.request.question}</p>
+          <p className="mt-1 text-sm text-fg-heading">{pendingInput.question}</p>
 
-          {pendingInput.request.artifactRefs.length > 0 && (
+          {pendingInput.artifactRefs.length > 0 && (
             <ul className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
-              {pendingInput.request.artifactRefs.map((a, i) => (
+              {pendingInput.artifactRefs.map((a, i) => (
                 <li key={`${a.type}:${a.value}:${i}`}>
                   <ArtifactLink artifact={a} />
                 </li>
@@ -335,19 +308,24 @@ export default function WorkflowDetailPanel({ workflowId }: WorkflowDetailPanelP
             </ul>
           )}
 
+          {recoverable ? (
+            <p className="mt-2 text-xs text-amber-300">
+              Resume the interrupted Step before answering this request.
+            </p>
+          ) : (
           <form
             onSubmit={(e) => {
               e.preventDefault();
               if (!answer) return;
-              void answerInput(pendingInput.request.id, answer, pendingInput.phase.id, pendingInput.step.id);
+              void answerInput(pendingInput.requestId, answer, pendingInput.phaseId, pendingInput.stepId);
             }}
             className="mt-2 space-y-2"
           >
-            {pendingInput.request.choices.length > 0 ? (
+            {pendingInput.choices.length > 0 ? (
               <fieldset>
                 <legend className="sr-only">Answer choices</legend>
                 <div className="space-y-1.5">
-                  {pendingInput.request.choices.map((choice) => (
+                  {pendingInput.choices.map((choice) => (
                     <label key={choice} className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="radio"
@@ -383,10 +361,10 @@ export default function WorkflowDetailPanel({ workflowId }: WorkflowDetailPanelP
               {isActing ? 'Submitting…' : 'Submit answer'}
             </button>
           </form>
+          )}
         </section>
       )}
 
-      {/* ── Mode Gate ── */}
       {showModeGate && (
         <section aria-labelledby="wf-mode-gate-heading" className="rounded-lg border border-blue-500/40 bg-blue-500/10 p-3">
           <h3 id="wf-mode-gate-heading" className="text-sm font-semibold text-blue-300">
@@ -407,7 +385,7 @@ export default function WorkflowDetailPanel({ workflowId }: WorkflowDetailPanelP
             <fieldset>
               <legend className="sr-only">Continuation choices</legend>
               <div className="space-y-1.5">
-                {ARCHITECTURE_CHOICES.map((opt) => (
+                {ARCHITECTURE_CHOICES.filter((option) => modeGate?.choices.includes(option.value)).map((opt) => (
                   <label key={opt.value} className="flex items-start gap-2 cursor-pointer">
                     <input
                       type="radio"
@@ -435,7 +413,6 @@ export default function WorkflowDetailPanel({ workflowId }: WorkflowDetailPanelP
         </section>
       )}
 
-      {/* ── Phases / Steps ── */}
       <section aria-labelledby="wf-phases-heading">
         <h3 id="wf-phases-heading" className="text-sm font-semibold text-fg-heading mb-2">
           Phases
@@ -451,8 +428,9 @@ export default function WorkflowDetailPanel({ workflowId }: WorkflowDetailPanelP
               {phase.steps && phase.steps.length > 0 && (
                 <ol className="mt-2 space-y-2 border-l border-border-default pl-3">
                   {phase.steps.map((step) => {
-                    const canStart = matchesPointer(phase, step, nextEligible) && !pendingInput && !showModeGate;
-                    const canApprove = step.status === 'awaiting-review';
+                    const canStart = step.canStart;
+                    const approvalArtifact = step.artifacts[0]?.value;
+                    const canApprove = step.canApprove && approvalArtifact !== undefined;
                     return (
                       <li key={step.id}>
                         <div className="flex items-center justify-between gap-2">
@@ -489,7 +467,11 @@ export default function WorkflowDetailPanel({ workflowId }: WorkflowDetailPanelP
                             {canApprove && (
                               <button
                                 type="button"
-                                onClick={() => void approve(phase.id, step.id)}
+                                onClick={() => {
+                                  if (step.runId && approvalArtifact) {
+                                    void approve(phase.id, step.id, step.runId, approvalArtifact);
+                                  }
+                                }}
                                 disabled={isActing}
                                 className="rounded-md bg-emerald-500/15 border border-emerald-500/40 px-2 py-1 text-[11px] font-medium text-emerald-400 hover:bg-emerald-500/25 transition-colors disabled:opacity-50"
                               >

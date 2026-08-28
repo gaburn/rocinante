@@ -24,6 +24,7 @@ export default function CreateWorkflowForm({
   const [repositoryTarget, setRepositoryTarget] = useState(defaultRepositoryTarget ?? '');
   const [mode, setMode] = useState<WorkflowMode>('simple');
   const [classification, setClassification] = useState<BugFixClassification | ''>('');
+  const [includedOptionalPhases, setIncludedOptionalPhases] = useState<string[]>([]);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const catalogEntry = useMemo(() => getModeCatalogEntry(mode), [mode]);
@@ -54,6 +55,9 @@ export default function CreateWorkflowForm({
       repositoryTarget: trimmedTarget,
       mode,
       ...(isBugFix && classification ? { classification } : {}),
+      ...(includedOptionalPhases.length > 0
+        ? { optionalPhaseIds: includedOptionalPhases }
+        : {}),
     };
 
     try {
@@ -165,6 +169,7 @@ export default function CreateWorkflowForm({
                     onChange={() => {
                       setMode(entry.mode);
                       if (entry.mode !== 'bug-fix') setClassification('');
+                      setIncludedOptionalPhases([]);
                     }}
                     className="accent-border-active"
                   />
@@ -205,14 +210,35 @@ export default function CreateWorkflowForm({
           </fieldset>
         )}
 
-        {/* ── Bounded mode path preview ── */}
+        {catalogEntry.phases.some((phase) => phase.optional) && (
+          <fieldset>
+            <legend className="text-xs font-medium text-fg-secondary mb-2">Optional phases</legend>
+            {catalogEntry.phases.filter((phase) => phase.optional).map((phase) => (
+              <label key={phase.id} className="flex items-center gap-2 text-xs text-fg-heading">
+                <input
+                  type="checkbox"
+                  checked={includedOptionalPhases.includes(phase.id)}
+                  onChange={(event) => setIncludedOptionalPhases((current) =>
+                    event.target.checked
+                      ? [...current, phase.id]
+                      : current.filter((id) => id !== phase.id))}
+                  className="accent-border-active"
+                />
+                Include {phase.title}
+              </label>
+            ))}
+          </fieldset>
+        )}
+
+
         <div className="rounded-lg border border-border-default bg-surface-secondary p-3">
           <h3 className="text-xs font-semibold text-fg-heading">
             {catalogEntry.label} path preview
           </h3>
           <ol className="mt-2 flex flex-wrap items-center gap-1.5" aria-label={`${catalogEntry.label} bounded phase path`}>
             {previewPhases.map((phase, i) => {
-              const skipped = isPhaseInitiallySkipped(phase, effectiveClassification);
+              const skipped = isPhaseInitiallySkipped(phase, effectiveClassification)
+                && !includedOptionalPhases.includes(phase.id);
               return (
                 <li key={phase.id} className="flex items-center gap-1.5">
                   <span

@@ -132,55 +132,37 @@ export function useTerminalTabs(): UseTerminalTabsResult {
     setPendingCloseTabId(null);
   }, []);
 
+  const openManagedTab = useCallback((nextTab: TerminalTab) => {
+    const existingTab = tabs.find((tab) => tab.sessionId === nextTab.sessionId);
+    if (existingTab) {
+      setActiveTabId(existingTab.sessionId);
+      return;
+    }
+    if (tabs.length >= MAX_TERMINAL_TABS) return;
+    setTabs((currentTabs) => [...currentTabs, nextTab]);
+    setActiveTabId(nextTab.sessionId);
+  }, [tabs]);
+
   const openLaunchTab = useCallback(
-    (launchId: string, label: string, cwd: string) => {
-      const tabId = `launch-${launchId}`;
-      const existingTab = tabs.find((tab) => tab.sessionId === tabId);
-      if (existingTab) {
-        setActiveTabId(existingTab.sessionId);
-        return;
-      }
-
-      if (tabs.length >= MAX_TERMINAL_TABS) {
-        return;
-      }
-
-      const nextTab: TerminalTab = {
-        sessionId: tabId,
-        sessionName: label,
-        cwd,
-        mode: 'launch',
-        launchId,
-      };
-
-      setTabs((currentTabs) => [...currentTabs, nextTab]);
-      setActiveTabId(tabId);
-    },
-    [tabs],
+    (launchId: string, label: string, cwd: string) => openManagedTab({
+      sessionId: `launch-${launchId}`,
+      sessionName: label,
+      cwd,
+      mode: 'launch',
+      launchId,
+    }),
+    [openManagedTab],
   );
 
   const openWorkflowTab = useCallback(
-    (workflowId: string, label: string, cwd: string) => {
-      const tabId = `workflow-${workflowId}`;
-      const existingTab = tabs.find((tab) => tab.sessionId === tabId);
-      if (existingTab) {
-        setActiveTabId(existingTab.sessionId);
-        return;
-      }
-      if (tabs.length >= MAX_TERMINAL_TABS) {
-        return;
-      }
-
-      setTabs((currentTabs) => [...currentTabs, {
-        sessionId: tabId,
+    (workflowId: string, label: string, cwd: string) => openManagedTab({
+        sessionId: `workflow-tab-${workflowId}`,
         sessionName: label,
         cwd,
         mode: 'workflow',
         workflowId,
-      }]);
-      setActiveTabId(tabId);
-    },
-    [tabs],
+      }),
+    [openManagedTab],
   );
 
   return {

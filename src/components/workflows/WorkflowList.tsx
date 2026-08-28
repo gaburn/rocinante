@@ -42,7 +42,7 @@ export default function WorkflowList({ workflows, errors, selectedId, onSelect, 
 
       <ul className="space-y-2">
         {workflows.map((w) => {
-          const id = w.id ?? w.workflowId ?? '';
+          const id = w.id;
           const isSelected = id === selectedId;
           const pct = progressOf(w);
           return (

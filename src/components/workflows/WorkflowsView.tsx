@@ -34,14 +34,12 @@ export default function WorkflowsView() {
   }
 
   function handleCreated(workflow: WorkflowDetail) {
-    const id = workflow.id ?? workflow.workflowId ?? null;
-    setSelectedId(id);
+    setSelectedId(workflow.id);
     setShowCreateForm(false);
   }
 
   return (
     <div className="h-full w-full overflow-hidden flex flex-col bg-surface-primary">
-      {/* ── Page header ── */}
       <div className="flex shrink-0 items-center justify-between border-b border-border-default px-6 py-4">
         <div>
           <h2 className="text-lg font-semibold text-fg-heading">Workflows</h2>
@@ -69,14 +67,12 @@ export default function WorkflowsView() {
         </div>
       </div>
 
-      {/* ── Load error banner ── */}
       {error && (
         <div role="alert" className="shrink-0 border-b border-red-500/30 bg-red-500/10 px-6 py-2 text-xs text-red-400">
           {error}
         </div>
       )}
 
-      {/* ── Two-pane body: list + detail/create ── */}
       <div className="flex-1 min-h-0 flex flex-col md:flex-row">
         <aside className="layout-scrollable min-h-0 overflow-y-auto md:w-80 shrink-0 border-b md:border-b-0 md:border-r border-border-default h-[32vh] md:h-auto">
           <WorkflowList

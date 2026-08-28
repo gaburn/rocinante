@@ -62,6 +62,7 @@ describe('workflowService', () => {
         status: 'error',
         sourceFile: 'w2.json',
         error: { code: 'invalid-state', message: 'Corrupt persisted state' },
+        message: 'Corrupt persisted state',
       };
       vi.mocked(globalThis.fetch).mockResolvedValueOnce(
         jsonResponse({ workflows: [valid], errors: [corrupt] }),
@@ -75,7 +76,13 @@ describe('workflowService', () => {
     });
 
     it('falls back to a generic message for a corrupt entry without an error message', async () => {
-      const corrupt = { id: 'w3', status: 'error', sourceFile: 'w3.json' };
+      const corrupt = {
+        id: 'w3',
+        status: 'error',
+        sourceFile: 'w3.json',
+        error: { code: 'invalid-state', message: 'This workflow entry could not be read.' },
+        message: 'This workflow entry could not be read.',
+      };
       vi.mocked(globalThis.fetch).mockResolvedValueOnce(
         jsonResponse({ workflows: [], errors: [corrupt] }),
       );
@@ -180,7 +187,12 @@ describe('workflowService', () => {
         jsonResponse({ error: 'Nothing is ready for approval' }, false, 409),
       );
       await expect(
-        approveWorkflow('w1', { phaseId: 'implement', stepId: 'implement' }),
+        approveWorkflow('w1', {
+          phaseId: 'implement',
+          stepId: 'implement',
+          runId: 'run-1',
+          artifact: 'implementation.md',
+        }),
       ).rejects.toThrow('Nothing is ready for approval');
     });
   });

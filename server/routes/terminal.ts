@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { IncomingMessage, Server as HttpServer } from 'node:http';
 import { WebSocketServer, WebSocket } from 'ws';
 import { spawnPty, killPty, getPty } from '../services/ptyManager.js';
+import { workflowPtyId } from '../services/workflowTransport.js';
 import { sanitizeSessionId } from '../utils/sanitize.js';
 import { consumeLaunch } from '../services/launchManager.js';
 import type { LaunchRecord } from '../services/launchManager.js';
@@ -157,14 +158,15 @@ export function attachTerminalWebSocket(server: HttpServer): void {
         return;
       }
 
-      const ptyProcess = getPty(`workflow-${workflowId}`);
+      const ptyId = workflowPtyId(workflowId);
+      const ptyProcess = getPty(ptyId);
       if (!ptyProcess) {
         ws.send(JSON.stringify({ type: 'error', message: 'Workflow session is not active in this server process' }));
         ws.close(4002, 'Workflow session unavailable');
         return;
       }
 
-      wireUpPty(ws, `workflow-${workflowId}`, ptyProcess, false);
+      wireUpPty(ws, ptyId, ptyProcess, false);
       return;
     }
 

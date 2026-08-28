@@ -2,14 +2,14 @@ import type { BugFixClassification, WorkflowMode } from '../types/workflows';
 import {
   WORKFLOW_CATALOG,
   WORKFLOW_MODES,
-} from '../../server/services/workflowCatalog';
+} from '../../shared/workflowCatalog';
 
 /** Client projection of the server-owned catalog used by the creation preview. */
 export interface CatalogPhasePreview {
   id: string;
   title: string;
   requiresApproval?: boolean;
-  /** Present when this phase is always skipped for the mode (e.g. Simple's PR). */
+  optional?: boolean;
   alwaysSkipped?: boolean;
   /** Present when classification === 'confirmed' skips this phase (Bug Fix only). */
   skippedWhenConfirmed?: boolean;
@@ -50,6 +50,7 @@ export const WORKFLOW_MODE_CATALOG: ModeCatalogEntry[] = WORKFLOW_MODES.map((mod
       id: phase.id,
       title: phase.name,
       requiresApproval: phase.requiresApproval,
+      optional: phase.optional,
       alwaysSkipped: phase.initiallySkipped,
       skippedWhenConfirmed: phase.skippedForClassifications?.includes('confirmed'),
       skippableByModeGate: modeGateSkipped.has(phase.id),

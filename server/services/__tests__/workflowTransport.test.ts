@@ -36,10 +36,19 @@ describe('CopilotPtyWorkflowTransport', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.getConfig.mockReturnValue({
+      apiPort: 3001,
       launchCommands: { copilot: 'copilot-custom' },
     });
+
     mocks.getPty.mockReturnValue(undefined);
     mocks.spawnPty.mockReturnValue({ write: mocks.write });
+  });
+
+  it('reports whether the server-owned workflow PTY is active', () => {
+    const transport = new CopilotPtyWorkflowTransport();
+    expect(transport.isActive('workflow-1')).toBe(false);
+    mocks.getPty.mockReturnValue({ write: mocks.write });
+    expect(transport.isActive('workflow-1')).toBe(true);
   });
 
   it('assigns the generated workflow session ID when starting a new Copilot session', async () => {
@@ -84,6 +93,11 @@ describe('CopilotPtyWorkflowTransport', () => {
     });
 
     expect(mocks.spawnPty).not.toHaveBeenCalled();
-    expect(mocks.write).toHaveBeenCalledOnce();
+    expect(mocks.write).toHaveBeenCalledWith(expect.stringContaining(
+      'POST http://localhost:3001/api/workflows/workflow-1/register-output',
+    ));
+    expect(mocks.write).toHaveBeenCalledWith(expect.stringContaining(
+      '"phaseId":"research","stepId":"research","runId":"run-1"',
+    ));
   });
 });
