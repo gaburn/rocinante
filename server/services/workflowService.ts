@@ -20,159 +20,42 @@ import {
   type BugFixClassification,
   type WorkflowMode,
   type WorkflowPhaseDefinition,
-} from './workflowCatalog.js';
+} from '../../shared/workflowCatalog.js';
 import {
   CopilotPtyWorkflowTransport,
   type StartWorkflowStepResult,
   type WorkflowSessionTransport,
 } from './workflowTransport.js';
+import {
+  artifactKey,
+  uniqueArtifacts,
+  validateArtifact,
+  validatePersistedArtifact,
+} from './workflowArtifacts.js';
+import { findNextEligible, toWorkflowView } from './workflowProjection.js';
+import {
+  WORKFLOW_STEP_STATUSES,
+  type CorruptWorkflowView,
+  type WorkflowActivity,
+  type WorkflowArtifact,
+  type WorkflowInputRequest,
+  type WorkflowPhaseData,
+  type WorkflowSessionMetadata,
+  type WorkflowState,
+  type WorkflowStepStatus,
+  type WorkflowView,
+} from '../../shared/workflowTypes.js';
 
 const SCHEMA_VERSION = 1;
 const MAX_ARTIFACTS = 10;
 const MAX_ACTIVITY = 100;
-const STEP_STATUSES = [
-  'pending',
-  'running',
-  'awaiting-review',
-  'complete',
-  'skipped',
-] as const;
+export type {
+  CorruptWorkflowView,
+  WorkflowArtifact,
+  WorkflowView,
+} from '../../shared/workflowTypes.js';
 
-export type WorkflowStepStatus = (typeof STEP_STATUSES)[number];
-export type WorkflowStatus = Exclude<WorkflowStepStatus, 'skipped'>;
-
-export interface WorkflowArtifact {
-  type: 'url' | 'path';
-  value: string;
-}
-
-export interface WorkflowInputRequest {
-  id: string;
-  question: string;
-  choices: string[];
-  artifactRefs: WorkflowArtifact[];
-  createdAt: string;
-}
-
-export interface WorkflowStepState {
-  id: string;
-  name: string;
-  status: WorkflowStepStatus;
-  requiresApproval: boolean;
-  runId: string | null;
-  summary: string | null;
-  artifacts: WorkflowArtifact[];
-  inputRequest: WorkflowInputRequest | null;
-  startedAt: string | null;
-  completedAt: string | null;
-  approvedAt: string | null;
-}
-
-export interface WorkflowPhaseState {
-  id: string;
-  name: string;
-  status: WorkflowStepStatus;
-  step: WorkflowStepState;
-}
-
-export interface WorkflowSessionMetadata {
-  id: string;
-  transport: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface WorkflowActivity {
-  id: string;
-  type: string;
-  message: string;
-  createdAt: string;
-}
-
-interface WorkflowState {
-  schemaVersion: number;
-  id: string;
-  name: string;
-  goal: string;
-  mode: WorkflowMode;
-  classification: BugFixClassification | null;
-  repositoryTarget: string;
-  architectureChoice: ArchitectureChoice | null;
-  workflowSession: WorkflowSessionMetadata | null;
-  phases: WorkflowPhaseState[];
-  artifacts: WorkflowArtifact[];
-  inputRequestIds: string[];
-  activity: WorkflowActivity[];
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface WorkflowStepPointer {
-  phaseId: string;
-  phaseName: string;
-  stepId: string;
-  stepName: string;
-  runId: string | null;
-}
-export interface WorkflowStepView extends WorkflowStepState {
-  canStart: boolean;
-  canApprove: boolean;
-}
-export interface WorkflowPhaseView extends WorkflowPhaseState {
-  optional: boolean;
-  steps: WorkflowStepView[];
-}
-
-export interface WorkflowInputRequestView {
-  requestId: string;
-  question: string;
-  choices: string[];
-  artifactRefs: WorkflowArtifact[];
-  phaseId: string;
-  phaseName: string;
-  stepId: string;
-  stepName: string;
-  runId: string;
-}
-
-export interface WorkflowModeGateView {
-  phaseId: string;
-  stepId: string;
-  question: string;
-  choices: ArchitectureChoice[];
-}
-
-export interface WorkflowApprovalTarget extends WorkflowStepPointer {
-  artifact: WorkflowArtifact;
-}
-
-export interface WorkflowView extends Omit<WorkflowState, 'phases' | 'artifacts'> {
-  phases: WorkflowPhaseView[];
-  artifacts: WorkflowArtifact[];
-  status: WorkflowStatus;
-  progress: {
-    completed: number;
-    total: number;
-    percent: number;
-  };
-  currentPhase: WorkflowStepPointer | null;
-  nextEligibleStep: WorkflowStepPointer | null;
-  recoverableStep: WorkflowStepPointer | null;
-  approvableStep: WorkflowApprovalTarget | null;
-  pendingInput: WorkflowInputRequestView | null;
-  modeGate: WorkflowModeGateView | null;
-}
-
-export interface CorruptWorkflowView {
-  id: string;
-  message: string;
-  status: 'error';
-  sourceFile: string;
-  error: {
-    code: 'invalid-state' | 'unsupported-version';
-    message: string;
-  };
-}
+type WorkflowPhaseState = WorkflowPhaseData;
 
 export interface CreateWorkflowInput {
   name?: unknown;
@@ -245,32 +128,6 @@ function optionalMatchingString(value: unknown, field: string): string | null {
     return null;
   }
   return requiredString(value, field);
-}
-
-function artifactKey(artifact: WorkflowArtifact): string {
-  return `${artifact.type}:${artifact.value}`;
-}
-
-function uniqueArtifacts(artifacts: WorkflowArtifact[]): WorkflowArtifact[] {
-  const seen = new Set<string>();
-  return artifacts.filter((artifact) => {
-    const key = artifactKey(artifact);
-    if (seen.has(key)) {
-      return false;
-    }
-    seen.add(key);
-    return true;
-  });
-}
-
-function phasePointer(phase: WorkflowPhaseState): WorkflowStepPointer {
-  return {
-    phaseId: phase.id,
-    phaseName: phase.name,
-    stepId: phase.step.id,
-    stepName: phase.step.name,
-    runId: phase.step.runId,
-  };
 }
 
 function isTimestamp(value: unknown): value is string {
@@ -438,7 +295,7 @@ export class WorkflowService {
     const requestedStepId = optionalMatchingString(input.stepId, 'stepId');
 
     return this.serialized(id, async (state) => {
-      const next = this.findNextEligible(state);
+      const next = findNextEligible(state);
       if (!next) {
         throw new WorkflowProblem(
           'No step is currently eligible to run',
@@ -462,18 +319,28 @@ export class WorkflowService {
       const stepId = next.step.id;
       const runId = randomUUID();
       const startedAt = this.timestamp();
+      const beforeStart = structuredClone(state);
+      const workflowSessionId = state.workflowSession?.id ?? randomUUID();
       next.status = 'running';
       next.step.status = 'running';
       next.step.runId = runId;
       next.step.startedAt = startedAt;
+      state.workflowSession = state.workflowSession ?? {
+        id: workflowSessionId,
+        transport: this.transport.name,
+        createdAt: startedAt,
+        updatedAt: startedAt,
+      };
+      state.workflowSession.updatedAt = startedAt;
       state.updatedAt = startedAt;
       this.addActivity(state, 'step-started', `Started ${phaseId}/${stepId} run ${runId}`);
+      await this.writeState(state);
 
       let result: StartWorkflowStepResult;
       try {
         result = await this.transport.startStep({
           workflowId: state.id,
-          workflowSessionId: state.workflowSession?.id ?? null,
+          workflowSessionId,
           runId,
           phaseId,
           stepId,
@@ -484,6 +351,7 @@ export class WorkflowService {
           repositoryTarget: state.repositoryTarget,
         });
       } catch (error) {
+        await this.writeState(beforeStart);
         throw new WorkflowProblem(
           `Failed to dispatch workflow step: ${
             error instanceof Error ? error.message : String(error)
@@ -493,44 +361,19 @@ export class WorkflowService {
         );
       }
 
-      const workflowSessionId = requiredString(
+      const returnedSessionId = requiredString(
         result.workflowSessionId,
         'transport workflowSessionId',
       );
       const transportName = requiredString(result.transport, 'transport name');
-      if (state.workflowSession && state.workflowSession.id !== workflowSessionId) {
+      if (returnedSessionId !== workflowSessionId || transportName !== this.transport.name) {
+        await this.transport.closeWorkflow({ workflowId: state.id, workflowSessionId });
+        await this.writeState(beforeStart);
         throw new WorkflowProblem(
-          'Transport attempted to replace the linked workflow session',
+          'Transport attempted to replace the linked workflow session or transport',
           502,
           'transport-error',
         );
-      }
-
-      const completedAt = this.timestamp();
-      state.workflowSession = state.workflowSession ?? {
-        id: workflowSessionId,
-        transport: transportName,
-        createdAt: completedAt,
-        updatedAt: completedAt,
-      };
-      state.workflowSession.updatedAt = completedAt;
-      state.updatedAt = completedAt;
-      try {
-        await this.writeState(state);
-      } catch (error) {
-        try {
-          await this.transport.closeWorkflow({
-            workflowId: state.id,
-            workflowSessionId,
-          });
-        } catch (closeError) {
-          console.error('[workflows] Failed to stop a step after persistence failed:', {
-            workflowId: state.id,
-            workflowSessionId,
-            error: closeError instanceof Error ? closeError.message : String(closeError),
-          });
-        }
-        throw error;
       }
 
       return {
@@ -650,9 +493,15 @@ export class WorkflowService {
         );
       }
 
-      const [artifact] = await this.readArtifacts([input.artifact], state.repositoryTarget, 'artifact');
-      if (!artifact) {
-        throw new WorkflowProblem('artifact is required', 400, 'validation');
+      let artifact: WorkflowArtifact;
+      try {
+        artifact = validateArtifact(input.artifact, state.repositoryTarget, false);
+      } catch (error) {
+        throw new WorkflowProblem(
+          `artifact: ${error instanceof Error ? error.message : String(error)}`,
+          400,
+          'invalid-artifact',
+        );
       }
       if (!phase.step.artifacts.some((candidate) => artifactKey(candidate) === artifactKey(artifact))) {
         throw new WorkflowProblem(
@@ -816,7 +665,24 @@ export class WorkflowService {
         throw new WorkflowProblem('Workflow session metadata is missing', 409, 'invalid-state');
       }
 
-      const beforeResponse = structuredClone(state);
+      // ponytail: at-least-once delivery keeps requests recoverable; add acknowledgements if duplicate answers matter.
+      try {
+        await this.transport.respondToInput({
+          workflowId: state.id,
+          workflowSessionId: state.workflowSession.id,
+          runId: phase.step.runId,
+          requestId,
+          answer,
+        });
+      } catch (error) {
+        throw new WorkflowProblem(
+          `Failed to deliver workflow input: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+          502,
+          'transport-error',
+        );
+      }
       phase.step.inputRequest = null;
       const timestamp = this.timestamp();
       state.workflowSession.updatedAt = timestamp;
@@ -827,34 +693,6 @@ export class WorkflowService {
         `Input response resumed ${phase.id}/${phase.step.id} run ${phase.step.runId}`,
       );
       await this.writeState(state);
-      try {
-        await this.transport.respondToInput({
-          workflowId: state.id,
-          workflowSessionId: state.workflowSession.id,
-          runId: phase.step.runId,
-          requestId,
-          answer,
-        });
-      } catch (error) {
-        try {
-          await this.writeState(beforeResponse);
-        } catch (rollbackError) {
-          throw new WorkflowProblem(
-            `Failed to deliver input and restore its pending state: ${
-              rollbackError instanceof Error ? rollbackError.message : String(rollbackError)
-            }`,
-            500,
-            'persistence-error',
-          );
-        }
-        throw new WorkflowProblem(
-          `Failed to deliver workflow input: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-          502,
-          'transport-error',
-        );
-      }
       return this.toView(state);
     });
   }
@@ -949,7 +787,7 @@ export class WorkflowService {
     assertState(isTimestamp(raw.createdAt) && isTimestamp(raw.updatedAt), 'Invalid workflow timestamps');
 
     const artifacts = raw.artifacts.map((artifact, index) =>
-      this.validatePersistedArtifact(artifact, raw.repositoryTarget as string, `artifacts[${index}]`),
+      validatePersistedArtifact(artifact, raw.repositoryTarget as string, `artifacts[${index}]`),
     );
     assertState(artifacts.length <= MAX_ARTIFACTS, `Workflow exceeds ${MAX_ARTIFACTS} artifacts`);
     assertState(
@@ -1055,7 +893,7 @@ export class WorkflowService {
     assertState(isRecord(raw), `Phase ${definition.id} must be an object`);
     assertExactKeys(raw, ['id', 'name', 'status', 'step'], `Phase ${definition.id}`);
     assertState(raw.id === definition.id && raw.name === definition.name, `Invalid phase ${definition.id}`);
-    assertState(STEP_STATUSES.includes(raw.status as WorkflowStepStatus), `Invalid status for ${definition.id}`);
+    assertState(WORKFLOW_STEP_STATUSES.includes(raw.status as WorkflowStepStatus), `Invalid status for ${definition.id}`);
     assertState(isRecord(raw.step), `Invalid step for ${definition.id}`);
     const step = raw.step;
     assertExactKeys(
@@ -1081,7 +919,7 @@ export class WorkflowService {
         && step.requiresApproval === definition.requiresApproval,
       `Step ${definition.stepId} does not match the mode catalog`,
     );
-    assertState(STEP_STATUSES.includes(step.status as WorkflowStepStatus), `Invalid step status for ${definition.id}`);
+    assertState(WORKFLOW_STEP_STATUSES.includes(step.status as WorkflowStepStatus), `Invalid step status for ${definition.id}`);
     assertState(step.status === raw.status, `Phase and step status differ for ${definition.id}`);
     assertState(step.runId === null || (typeof step.runId === 'string' && step.runId.length > 0), `Invalid runId for ${definition.id}`);
     assertState(step.summary === null || typeof step.summary === 'string', `Invalid summary for ${definition.id}`);
@@ -1091,7 +929,7 @@ export class WorkflowService {
     assertNullableTimestamp(step.approvedAt, `${definition.id}.approvedAt`);
 
     const artifacts = step.artifacts.map((artifact, index) =>
-      this.validatePersistedArtifact(
+      validatePersistedArtifact(
         artifact,
         repositoryTarget,
         `${definition.id}.artifacts[${index}]`,
@@ -1124,7 +962,7 @@ export class WorkflowService {
         `Invalid input request for ${definition.id}`,
       );
       const artifactRefs = request.artifactRefs.map((artifact, index) =>
-        this.validatePersistedArtifact(
+        validatePersistedArtifact(
           artifact,
           repositoryTarget,
           `${definition.id}.inputRequest.artifactRefs[${index}]`,
@@ -1273,6 +1111,7 @@ export class WorkflowService {
         continue;
       }
       if (phase.status === 'running' || phase.status === 'awaiting-review') {
+        assertState(!encounteredIncomplete, `Active phase ${phase.id} is out of order`);
         activeCount += 1;
       }
       if (phase.status === 'complete') {
@@ -1282,29 +1121,6 @@ export class WorkflowService {
       }
     }
     assertState(activeCount <= 1, 'Workflow has concurrent active work');
-  }
-
-  private validatePersistedArtifact(
-    raw: unknown,
-    repositoryTarget: string,
-    field: string,
-  ): WorkflowArtifact {
-    assertState(isRecord(raw), `${field} must be an artifact object`);
-    assertExactKeys(raw, ['type', 'value'], field);
-    assertState(
-      (raw.type === 'url' || raw.type === 'path') && typeof raw.value === 'string',
-      `${field} is invalid`,
-    );
-    try {
-      const validated = this.validateArtifact(raw, repositoryTarget);
-      assertState(
-        validated.type === raw.type && validated.value === raw.value,
-        `${field} is not canonical`,
-      );
-      return validated;
-    } catch (error) {
-      throw new Error(`${field}: ${error instanceof Error ? error.message : String(error)}`);
-    }
   }
 
   private createPhaseState(
@@ -1436,7 +1252,7 @@ export class WorkflowService {
     }
     const artifacts = raw.map((artifact, index) => {
       try {
-        return this.validateArtifact(artifact, repositoryTarget);
+        return validateArtifact(artifact, repositoryTarget);
       } catch (error) {
         throw new WorkflowProblem(
           `${field}[${index}]: ${error instanceof Error ? error.message : String(error)}`,
@@ -1446,75 +1262,6 @@ export class WorkflowService {
       }
     });
     return uniqueArtifacts(artifacts);
-  }
-
-  private validateArtifact(raw: unknown, repositoryTarget: string): WorkflowArtifact {
-    let value: string;
-    let declaredType: unknown;
-    if (typeof raw === 'string') {
-      value = raw.trim();
-    } else if (isRecord(raw)) {
-      const candidate = raw.value ?? raw.ref ?? raw.url ?? raw.path;
-      if (typeof candidate !== 'string') {
-        throw new Error('artifact value must be a string');
-      }
-      value = candidate.trim();
-      declaredType = raw.type ?? raw.kind;
-      if (declaredType === undefined && typeof raw.url === 'string') {
-        declaredType = 'url';
-      }
-      if (declaredType === undefined && typeof raw.path === 'string') {
-        declaredType = 'path';
-      }
-    } else {
-      throw new Error('artifact must be a string or artifact object');
-    }
-    if (value.length === 0 || value.includes('\0')) {
-      throw new Error('artifact value must be nonempty and contain no null bytes');
-    }
-
-    if (/^[A-Za-z][A-Za-z0-9+.-]*:/.test(value) || declaredType === 'url') {
-      let url: URL;
-      try {
-        url = new URL(value);
-      } catch {
-        throw new Error('artifact URL is invalid');
-      }
-      if (url.protocol !== 'https:') {
-        throw new Error('artifact URLs must use HTTPS');
-      }
-      if (declaredType !== undefined && declaredType !== 'url') {
-        throw new Error('artifact type does not match its URL value');
-      }
-      return { type: 'url', value: url.toString() };
-    }
-
-    if (declaredType !== undefined && declaredType !== 'path') {
-      throw new Error('local artifact type must be path');
-    }
-    if (path.isAbsolute(value)) {
-      throw new Error('local artifact paths must be repository-relative');
-    }
-    if (value.split(/[\\/]+/).includes('..')) {
-      throw new Error('local artifact paths cannot contain traversal segments');
-    }
-
-    const candidatePath = path.resolve(repositoryTarget, value);
-    let realArtifactPath: string;
-    try {
-      realArtifactPath = realpathSync(candidatePath);
-      statSync(realArtifactPath);
-    } catch {
-      throw new Error('local artifact path does not exist');
-    }
-    const relative = path.relative(repositoryTarget, realArtifactPath);
-    if (relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
-      throw new Error('local artifact path resolves outside repositoryTarget');
-    }
-    return {
-      type: 'path',
-      value: (relative || '.').split(path.sep).join('/'),
-    };
   }
 
   private addArtifacts(state: WorkflowState, incoming: WorkflowArtifact[]): void {
@@ -1529,105 +1276,8 @@ export class WorkflowService {
     state.artifacts = combined;
   }
 
-  private findNextEligible(state: WorkflowState): WorkflowPhaseState | null {
-    if (state.phases.some((phase) => phase.status === 'running' || phase.status === 'awaiting-review')) {
-      return null;
-    }
-    for (const phase of state.phases) {
-      if (phase.status === 'complete' || phase.status === 'skipped') {
-        continue;
-      }
-      const gate = WORKFLOW_CATALOG[state.mode].modeGate;
-      if (gate && phase.id !== gate.afterPhaseId && state.architectureChoice === null) {
-        return null;
-      }
-      return phase.status === 'pending' ? phase : null;
-    }
-    return null;
-  }
-
   private toView(state: WorkflowState): WorkflowView {
-    const copy = structuredClone(state);
-    const active = copy.phases.find(
-      (phase) => phase.status === 'running' || phase.status === 'awaiting-review',
-    );
-    const next = this.findNextEligible(copy);
-    const recoverable = active?.status === 'running'
-      && active.step.runId
-      && copy.workflowSession
-      && !this.transport.isActive(copy.id)
-      ? phasePointer(active)
-      : null;
-    const selected = copy.phases.filter((phase) => phase.status !== 'skipped');
-    const completed = selected.filter((phase) => phase.status === 'complete').length;
-    const status: WorkflowStatus = active?.status === 'awaiting-review'
-      ? 'awaiting-review'
-      : active?.status === 'running'
-        ? 'running'
-        : completed === selected.length
-          ? 'complete'
-          : 'pending';
-    const progress = {
-      completed,
-      total: selected.length,
-      percent: selected.length === 0 ? 100 : Math.round((completed / selected.length) * 100),
-    };
-    const pendingPhase = copy.phases.find((phase) => phase.step.inputRequest !== null);
-    const pendingRequest = pendingPhase?.step.inputRequest;
-    const pendingInput: WorkflowInputRequestView | null =
-      pendingPhase && pendingRequest && pendingPhase.step.runId
-        ? {
-            requestId: pendingRequest.id,
-            question: pendingRequest.question,
-            choices: [...pendingRequest.choices],
-            artifactRefs: structuredClone(pendingRequest.artifactRefs),
-            phaseId: pendingPhase.id,
-            phaseName: pendingPhase.name,
-            stepId: pendingPhase.step.id,
-            stepName: pendingPhase.step.name,
-            runId: pendingPhase.step.runId,
-          }
-        : null;
-    const gate = WORKFLOW_CATALOG[copy.mode].modeGate;
-    const gatePrerequisite = gate
-      ? copy.phases.find((phase) => phase.id === gate.afterPhaseId)
-      : null;
-    const modeGate: WorkflowModeGateView | null =
-      gate
-        && copy.architectureChoice === null
-        && gatePrerequisite?.status === 'complete'
-        ? {
-            phaseId: gatePrerequisite.id,
-            stepId: gatePrerequisite.step.id,
-            question: 'How should this architecture work continue?',
-            choices: [...gate.choices],
-          }
-        : null;
-    return {
-      ...copy,
-      phases: copy.phases.map((phase) => ({
-        ...phase,
-        optional: WORKFLOW_CATALOG[copy.mode].phases.find(
-          (definition) => definition.id === phase.id,
-        )?.optional === true,
-        steps: [{
-          ...structuredClone(phase.step),
-          canStart: next?.id === phase.id && next.step.id === phase.step.id,
-          canApprove: phase.step.status === 'awaiting-review',
-        }],
-      })),
-      artifacts: structuredClone(copy.artifacts),
-      status,
-      progress,
-      currentPhase: active ? phasePointer(active) : next ? phasePointer(next) : null,
-      nextEligibleStep: next ? phasePointer(next) : null,
-      recoverableStep: recoverable,
-      approvableStep: active?.status === 'awaiting-review' && active.step.artifacts[0]
-        ? { ...phasePointer(active), artifact: structuredClone(active.step.artifacts[0]) }
-        : null,
-      pendingInput,
-      modeGate,
-    };
+    return toWorkflowView(state, this.transport);
   }
 
   private addActivity(state: WorkflowState, type: string, message: string): void {

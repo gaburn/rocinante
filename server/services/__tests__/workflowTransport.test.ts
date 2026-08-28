@@ -46,6 +46,7 @@ describe('CopilotPtyWorkflowTransport', () => {
 
   it('reports whether the server-owned workflow PTY is active', () => {
     const transport = new CopilotPtyWorkflowTransport();
+    expect(transport.name).toBe('copilot-pty');
     expect(transport.isActive('workflow-1')).toBe(false);
     mocks.getPty.mockReturnValue({ write: mocks.write });
     expect(transport.isActive('workflow-1')).toBe(true);

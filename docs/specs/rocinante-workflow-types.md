@@ -45,6 +45,11 @@ disconnect-safe server ownership before advanced modes.
 State includes stable ID, name, goal, mode, Repository Target, Workflow
 Session ID, ordered phase and Step state, Artifacts, pending Input Request,
 activity, and timestamps. Use one file per workflow under Rocinante app data.
+Persist a running Step before dispatch so restart can resume incomplete
+delivery. Keep an Input Request pending until its answer reaches the active
+Workflow Session. Restore local Artifact references from canonical,
+repository-contained syntax without requiring the referenced file to remain
+present.
 
 Statuses are `pending`, `running`, `awaiting review`, `complete`, and
 `skipped`. Awaiting input is persisted on the active running Step. Only the
@@ -111,4 +116,3 @@ General DAGs, user-authored modes, plugins, Stella state migration, shared
 packages, Claude/generic transport, cloud sync, multi-host editing, server-exit
 survival, ADO automation inside Rocinante, first-slice Autopilot, parallel
 review fan-out, and replacing workstreams.
-

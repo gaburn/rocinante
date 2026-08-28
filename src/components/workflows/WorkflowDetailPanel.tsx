@@ -80,6 +80,9 @@ export default function WorkflowDetailPanel({ workflowId }: WorkflowDetailPanelP
   const showModeGate = modeGate !== null;
   const nextEligible = detail?.nextEligibleStep ?? null;
   const recoverable = detail?.recoverableStep ?? null;
+  const visiblePhases = detail?.mode === 'bug-fix'
+    ? detail.phases.filter((phase) => phase.status !== 'skipped')
+    : detail?.phases ?? [];
 
   const [answer, setAnswer] = useState('');
   const [gateChoice, setGateChoice] = useState<ArchitectureChoice | ''>('');
@@ -418,7 +421,7 @@ export default function WorkflowDetailPanel({ workflowId }: WorkflowDetailPanelP
           Phases
         </h3>
         <ol className="space-y-3">
-          {(detail.phases ?? []).map((phase) => (
+          {visiblePhases.map((phase) => (
             <li key={phase.id} className={`rounded-lg border border-border-default bg-surface-secondary p-3 ${phase.status === 'skipped' ? 'opacity-60' : ''}`}>
               <div className="flex items-center justify-between gap-2">
                 <h4 className="text-sm font-medium text-fg-heading">{phase.name}</h4>

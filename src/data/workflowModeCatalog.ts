@@ -62,6 +62,15 @@ export function getModeCatalogEntry(mode: WorkflowMode): ModeCatalogEntry {
   return WORKFLOW_MODE_CATALOG.find((entry) => entry.mode === mode) ?? WORKFLOW_MODE_CATALOG[0];
 }
 
+export function getVisibleCatalogPhases(
+  entry: ModeCatalogEntry,
+  classification: BugFixClassification | null,
+): CatalogPhasePreview[] {
+  return entry.mode === 'bug-fix'
+    ? entry.phases.filter((phase) => !isPhaseInitiallySkipped(phase, classification))
+    : entry.phases;
+}
+
 /**
  * Resolves whether a given preview phase would be skipped at creation time,
  * given the chosen mode/classification. Architecture Health's Mode Gate is

@@ -2,6 +2,7 @@ import { createServer, type Server } from 'node:http';
 import {
   mkdtempSync,
   mkdirSync,
+  readFileSync,
   readdirSync,
   realpathSync,
   rmSync,
@@ -26,6 +27,7 @@ import type {
 } from '../../services/workflowTransport.js';
 
 class FakeWorkflowTransport implements WorkflowSessionTransport {
+  readonly name = 'fake';
   readonly starts: StartWorkflowStepRequest[] = [];
   readonly responses: RespondToWorkflowInputRequest[] = [];
   readonly closes: CloseWorkflowSessionRequest[] = [];
@@ -293,6 +295,84 @@ describe('workflow HTTP API', () => {
     });
   });
 
+  it('rejects restored active work after an earlier pending phase', async () => {
+    let workflow = await createWorkflow();
+    workflow = await completeStep(workflow);
+    await request<RunStepResponse>(
+      api!,
+      'POST',
+      `/workflows/${workflow.id}/run-step`,
+      workflow.nextEligibleStep,
+    );
+    await stopApi(api);
+
+    const statePath = path.join(dataDir, `${workflow.id}.json`);
+    const state = JSON.parse(readFileSync(statePath, 'utf8')) as {
+      artifacts: unknown[];
+      phases: Array<{
+        status: string;
+        step: {
+          status: string;
+          runId: string | null;
+          summary: string | null;
+          artifacts: unknown[];
+          startedAt: string | null;
+          completedAt: string | null;
+        };
+      }>;
+    };
+    state.artifacts = [];
+    state.phases[0].status = 'pending';
+    Object.assign(state.phases[0].step, {
+      status: 'pending',
+      runId: null,
+      summary: null,
+      artifacts: [],
+      startedAt: null,
+      completedAt: null,
+    });
+    writeFileSync(statePath, JSON.stringify(state));
+
+    api = await startApi(new WorkflowService({ dataDir, transport: new FakeWorkflowTransport() }));
+    const restored = await request<CorruptWorkflowView>(api, 'GET', `/workflows/${workflow.id}`);
+    expect(restored.body).toMatchObject({
+      status: 'error',
+      error: { code: 'invalid-state' },
+    });
+  });
+
+  it('restores canonical artifact references after the file moves', async () => {
+    const artifactPath = path.join(repositoryTarget, 'research.md');
+    writeFileSync(artifactPath, 'research');
+    const workflow = await createWorkflow();
+    const started = await request<RunStepResponse>(
+      api!,
+      'POST',
+      `/workflows/${workflow.id}/run-step`,
+      workflow.nextEligibleStep,
+    );
+    const output = await request<WorkflowView>(
+      api!,
+      'POST',
+      `/workflows/${workflow.id}/register-output`,
+      {
+        phaseId: 'research',
+        stepId: 'research',
+        runId: started.body.runId,
+        summary: 'Research complete',
+        artifacts: ['research.md'],
+      },
+    );
+    expect(output.status).toBe(200);
+    await stopApi(api);
+    rmSync(artifactPath);
+
+    api = await startApi(new WorkflowService({ dataDir, transport: new FakeWorkflowTransport() }));
+    const restored = await request<WorkflowView>(api, 'GET', `/workflows/${workflow.id}`);
+    expect(restored.body.phases[0]).toMatchObject({ status: 'complete' });
+    expect(restored.body.artifacts).toContainEqual({ type: 'path', value: 'research.md' });
+  });
+
   it('does not advance live state when persistence fails', async () => {
     const workflow = await createWorkflow();
     rmSync(dataDir, { recursive: true, force: true });
@@ -313,10 +393,11 @@ describe('workflow HTTP API', () => {
     expect(unchanged.body.status).toBe('pending');
     expect(unchanged.body.nextEligibleStep?.phaseId).toBe('research');
     expect(unchanged.body.workflowSession).toBeNull();
-    expect(transport.closes).toHaveLength(1);
+    expect(transport.starts).toHaveLength(0);
+    expect(transport.closes).toHaveLength(0);
   });
 
-  it('does not deliver an input response before its state is durable', async () => {
+  it('keeps an input request recoverable when response persistence fails', async () => {
     const workflow = await createWorkflow();
     const started = await request<RunStepResponse>(
       api!,
@@ -348,7 +429,7 @@ describe('workflow HTTP API', () => {
       { requestId: 'durable-input', answer: 'current' },
     );
     expect(response.status).toBe(500);
-    expect(transport.responses).toHaveLength(0);
+    expect(transport.responses).toHaveLength(1);
 
     const unchanged = await request<WorkflowView>(
       api!,
@@ -370,7 +451,7 @@ describe('workflow HTTP API', () => {
     );
     expect(started.status).toBe(200);
     expect(started.body.runId).toEqual(expect.any(String));
-    expect(started.body.workflowSession?.id).toBe(`session-${workflow.id}`);
+    expect(started.body.workflowSession?.id).toBe(started.body.workflowSessionId);
     expect(started.body.phases[0].status).toBe('running');
 
     const reconnected = await request<WorkflowView>(
@@ -617,6 +698,7 @@ describe('workflow HTTP API', () => {
     expect(output.body.nextEligibleStep).toBeNull();
 
     await stopApi(api);
+    rmSync(path.join(repositoryTarget, 'implementation.md'));
     api = await startApi(new WorkflowService({
       dataDir,
       transport: new FakeWorkflowTransport(),
@@ -627,7 +709,7 @@ describe('workflow HTTP API', () => {
       `/workflows/${workflow.id}`,
     );
     expect(restored.body.status).toBe('awaiting-review');
-    expect(restored.body.workflowSession?.id).toBe(`session-${workflow.id}`);
+    expect(restored.body.workflowSession?.id).toBe(started.body.workflowSessionId);
 
     const staleApproval = await request(
       api,

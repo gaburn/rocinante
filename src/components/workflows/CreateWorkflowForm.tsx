@@ -1,6 +1,12 @@
 import { useMemo, useState } from 'react';
 import type { BugFixClassification, CreateWorkflowRequest, WorkflowDetail, WorkflowMode } from '../../types/workflows';
-import { BUG_FIX_CLASSIFICATIONS, WORKFLOW_MODE_CATALOG, getModeCatalogEntry, isPhaseInitiallySkipped } from '../../data/workflowModeCatalog';
+import {
+  BUG_FIX_CLASSIFICATIONS,
+  WORKFLOW_MODE_CATALOG,
+  getModeCatalogEntry,
+  getVisibleCatalogPhases,
+  isPhaseInitiallySkipped,
+} from '../../data/workflowModeCatalog';
 
 interface CreateWorkflowFormProps {
   onCreate: (body: CreateWorkflowRequest) => Promise<WorkflowDetail>;
@@ -30,8 +36,11 @@ export default function CreateWorkflowForm({
   const catalogEntry = useMemo(() => getModeCatalogEntry(mode), [mode]);
   const isBugFix = mode === 'bug-fix';
 
-  const previewPhases = useMemo(() => catalogEntry.phases, [catalogEntry]);
   const effectiveClassification = isBugFix && classification ? classification : null;
+  const previewPhases = useMemo(
+    () => getVisibleCatalogPhases(catalogEntry, effectiveClassification),
+    [catalogEntry, effectiveClassification],
+  );
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

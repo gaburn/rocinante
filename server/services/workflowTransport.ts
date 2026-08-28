@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { getConfig } from '../config.js';
 import { getPty, killPty, spawnPty } from './ptyManager.js';
-import type { WorkflowMode } from './workflowCatalog.js';
+import type { WorkflowMode } from '../../shared/workflowCatalog.js';
 
 export interface StartWorkflowStepRequest {
   workflowId: string;
@@ -35,6 +35,7 @@ export interface CloseWorkflowSessionRequest {
 }
 
 export interface WorkflowSessionTransport {
+  readonly name: string;
   isActive(workflowId: string): boolean;
   startStep(request: StartWorkflowStepRequest): Promise<StartWorkflowStepResult>;
   respondToInput(request: RespondToWorkflowInputRequest): Promise<void>;
@@ -46,6 +47,7 @@ export interface WorkflowSessionTransport {
  * report successful work: output is accepted only through the guarded API.
  */
 export class CopilotPtyWorkflowTransport implements WorkflowSessionTransport {
+  readonly name = 'copilot-pty';
   isActive(workflowId: string): boolean {
     return getPty(workflowPtyId(workflowId)) !== undefined;
   }

@@ -3,6 +3,7 @@ import {
   WORKFLOW_MODE_CATALOG,
   BUG_FIX_CLASSIFICATIONS,
   getModeCatalogEntry,
+  getVisibleCatalogPhases,
   isPhaseInitiallySkipped,
 } from '../workflowModeCatalog';
 
@@ -46,6 +47,9 @@ describe('workflowModeCatalog', () => {
     const intake = entry.phases.find((p) => p.id === 'intake')!;
     expect(isPhaseInitiallySkipped(intake, 'confirmed')).toBe(true);
     expect(isPhaseInitiallySkipped(intake, 'unverified-external')).toBe(false);
+    expect(getVisibleCatalogPhases(entry, 'confirmed').map((phase) => phase.id)).toEqual([
+      'diagnose', 'fix', 'formal-review', 'finalize', 'pr',
+    ]);
   });
 
   it('matches the server Architecture Health path (Mode Gate is out-of-band, after Shape)', () => {
