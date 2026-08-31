@@ -31,8 +31,9 @@ const getTerminalTheme = () => {
 interface TerminalInstanceProps {
   sessionId: string
   cwd: string | null
-  mode: 'copilot' | 'shell' | 'launch'
+  mode: 'copilot' | 'shell' | 'launch' | 'workflow'
   launchId?: string
+  workflowId?: string
   className?: string
 }
 
@@ -41,6 +42,7 @@ export default function TerminalInstance({
   cwd,
   mode,
   launchId,
+  workflowId,
   className,
 }: TerminalInstanceProps) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -100,7 +102,9 @@ export default function TerminalInstance({
           settings.display.shell === 'custom'
             ? settings.display.customShellPath
             : settings.display.shell
-        if (mode === 'copilot') {
+        if (mode === 'workflow' && workflowId) {
+          params.set('workflowId', workflowId)
+        } else if (mode === 'copilot') {
           params.set('sessionId', sessionId)
         }
         if (cwd) {
@@ -198,7 +202,7 @@ export default function TerminalInstance({
         termRef.current = null
       }
     }
-  }, [sessionId, cwd, mode, launchId, settings.display.shell, settings.display.customShellPath])
+  }, [sessionId, cwd, mode, launchId, workflowId, settings.display.shell, settings.display.customShellPath])
 
   useEffect(() => {
     if (typeof document === 'undefined') return

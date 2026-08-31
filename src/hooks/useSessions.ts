@@ -7,6 +7,7 @@ import {
 } from '../services/sessionService'
 import { useSettingsContext } from '../context/SettingsContext'
 import type { Session, SessionSummary, SessionStatus, StatusCounts } from '../types'
+import type { ViewMode } from '../types/settings'
 import { normalizePath } from '../utils/normalizePath'
 import { useArchive } from './useArchive'
 import { useAutoArchive, type UseAutoArchiveResult } from './useAutoArchive'
@@ -34,7 +35,7 @@ export interface UseSessionsResult {
   statusFilter: SessionStatus | 'all'
   sourceFilter: 'copilot' | 'claude' | 'all'
   searchQuery: string
-  viewMode: 'list' | 'network' | 'stats'
+  viewMode: ViewMode
   showArchived: boolean
   statusCounts: StatusCounts
   archivedCount: number
@@ -47,7 +48,7 @@ export interface UseSessionsResult {
   setStatusFilter: (status: SessionStatus | 'all') => void
   setSourceFilter: (source: 'copilot' | 'claude' | 'all') => void
   setSearchQuery: (query: string) => void
-  setViewMode: (mode: 'list' | 'network' | 'stats') => void
+  setViewMode: (mode: ViewMode) => void
   setShowArchived: (show: boolean) => void
   isArchived: (id: string) => boolean
   archiveSession: (id: string) => void
@@ -113,7 +114,7 @@ export function useSessions(): UseSessionsResult {
   const [statusFilter, setStatusFilter] = useState<SessionStatus | 'all'>('all')
   const [sourceFilter, setSourceFilter] = useState<'copilot' | 'claude' | 'all'>('all')
   const [searchQuery, setSearchQuery] = useState('')
-  const [viewMode, setViewMode] = useState<'list' | 'network' | 'stats'>(
+  const [viewMode, setViewMode] = useState<ViewMode>(
     settings.display.defaultViewMode,
   )
   const [showArchived, setShowArchived] = useState(false)

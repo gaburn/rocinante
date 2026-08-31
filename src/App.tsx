@@ -5,6 +5,7 @@ import WorkstreamDetail from './components/sessions/WorkstreamDetail'
 import { KanbanBoard } from './components/kanban'
 import { TerminalPanel } from './components/terminal'
 import StatsPage from './components/telemetry/StatsPage'
+import { WorkflowsView } from './components/workflows'
 import { SettingsProvider, useSettingsContext } from './context/SettingsContext'
 import { SessionProvider, useSessionData, useSessionSelection } from './context/SessionContext'
 import { TerminalProvider } from './context/TerminalContext'
@@ -21,6 +22,7 @@ function AppContent() {
   const fullContent =
     viewMode === 'network' ? <NetworkView /> :
     viewMode === 'stats' ? <StatsPage /> :
+    viewMode === 'workflows' ? <WorkflowsView /> :
     undefined
 
   return (

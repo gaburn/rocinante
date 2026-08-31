@@ -83,6 +83,11 @@ export function spawnPty(
   }
 
   ptyById.set(id, ptyProcess);
+  ptyProcess.onExit(() => {
+    if (ptyById.get(id) === ptyProcess) {
+      ptyById.delete(id);
+    }
+  });
   return ptyProcess;
 }
 

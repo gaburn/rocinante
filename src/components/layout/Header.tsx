@@ -46,6 +46,29 @@ function BoardIcon() {
   )
 }
 
+/** Checklist / ordered-steps icon — represents the "workflows" view mode. */
+function WorkflowsIcon() {
+  return (
+    <svg
+      className="h-4 w-4"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="1.5" y="2.5" width="4" height="4" rx="1" />
+      <path d="M5.5 4.5h3.5" />
+      <rect x="1.5" y="9.5" width="4" height="4" rx="1" />
+      <path d="M5.5 11.5h9" />
+      <path d="M3.5 6.5v3" />
+      <circle cx="12.5" cy="4.5" r="1.75" />
+    </svg>
+  )
+}
+
 /** Bar‑chart icon — represents the "stats" view mode. */
 function StatsIcon() {
   return (
@@ -265,6 +288,25 @@ export default function Header() {
             `}
           >
             <StatsIcon />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setViewMode('workflows')}
+            aria-pressed={viewMode === 'workflows'}
+            title="Workflows view"
+            className={`
+              flex items-center justify-center rounded-md px-2 py-1
+              transition-colors duration-150
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-active focus-visible:ring-offset-1 focus-visible:ring-offset-surface-secondary
+              ${
+                viewMode === 'workflows'
+                  ? 'bg-surface-hover text-gray-100'
+                  : 'text-gray-500 hover:text-gray-300'
+              }
+            `}
+          >
+            <WorkflowsIcon />
           </button>
         </div>
 

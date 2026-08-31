@@ -4,8 +4,9 @@ export interface TerminalTab {
   sessionId: string;
   sessionName: string;
   cwd: string | null;
-  mode: 'copilot' | 'shell' | 'launch';
+  mode: 'copilot' | 'shell' | 'launch' | 'workflow';
   launchId?: string;
+  workflowId?: string;
 }
 
 export interface UseTerminalTabsResult {
@@ -21,6 +22,7 @@ export interface UseTerminalTabsResult {
     mode?: 'copilot' | 'shell',
   ) => void;
   openLaunchTab: (launchId: string, label: string, cwd: string) => void;
+  openWorkflowTab: (workflowId: string, label: string, cwd: string) => void;
   setActiveTab: (sessionId: string) => void;
   toggleFollowSession: () => void;
   requestCloseTab: (sessionId: string) => void;
@@ -130,31 +132,37 @@ export function useTerminalTabs(): UseTerminalTabsResult {
     setPendingCloseTabId(null);
   }, []);
 
+  const openManagedTab = useCallback((nextTab: TerminalTab) => {
+    const existingTab = tabs.find((tab) => tab.sessionId === nextTab.sessionId);
+    if (existingTab) {
+      setActiveTabId(existingTab.sessionId);
+      return;
+    }
+    if (tabs.length >= MAX_TERMINAL_TABS) return;
+    setTabs((currentTabs) => [...currentTabs, nextTab]);
+    setActiveTabId(nextTab.sessionId);
+  }, [tabs]);
+
   const openLaunchTab = useCallback(
-    (launchId: string, label: string, cwd: string) => {
-      const tabId = `launch-${launchId}`;
-      const existingTab = tabs.find((tab) => tab.sessionId === tabId);
-      if (existingTab) {
-        setActiveTabId(existingTab.sessionId);
-        return;
-      }
+    (launchId: string, label: string, cwd: string) => openManagedTab({
+      sessionId: `launch-${launchId}`,
+      sessionName: label,
+      cwd,
+      mode: 'launch',
+      launchId,
+    }),
+    [openManagedTab],
+  );
 
-      if (tabs.length >= MAX_TERMINAL_TABS) {
-        return;
-      }
-
-      const nextTab: TerminalTab = {
-        sessionId: tabId,
+  const openWorkflowTab = useCallback(
+    (workflowId: string, label: string, cwd: string) => openManagedTab({
+        sessionId: `workflow-tab-${workflowId}`,
         sessionName: label,
         cwd,
-        mode: 'launch',
-        launchId,
-      };
-
-      setTabs((currentTabs) => [...currentTabs, nextTab]);
-      setActiveTabId(tabId);
-    },
-    [tabs],
+        mode: 'workflow',
+        workflowId,
+      }),
+    [openManagedTab],
   );
 
   return {
@@ -167,6 +175,7 @@ export function useTerminalTabs(): UseTerminalTabsResult {
     canOpenTab,
     openTab,
     openLaunchTab,
+    openWorkflowTab,
     setActiveTab,
     toggleFollowSession,
     requestCloseTab,

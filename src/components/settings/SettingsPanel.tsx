@@ -800,7 +800,7 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
             {/* Default View */}
             <FieldRow label="Default View">
               <div className="flex items-center rounded-lg bg-surface-tertiary p-0.5">
-                {(['list', 'network', 'stats'] as const).map((mode) => (
+                {(['list', 'network', 'stats', 'workflows'] as const).map((mode) => (
                   <button
                     key={mode}
                     type="button"

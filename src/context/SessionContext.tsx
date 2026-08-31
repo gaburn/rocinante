@@ -3,6 +3,7 @@ import { useSessions, type UseSessionsResult, type SessionGroup, type Conversati
 import type { Session, SessionSummary, SessionStatus, StatusCounts } from '../types'
 import type { WorkstreamRegistryEntry } from '../hooks/useWorkstreams'
 import type { UseAutoArchiveResult } from '../hooks/useAutoArchive'
+import type { ViewMode } from '../types/settings'
 
 /* ──────────────────────────────────────────────────────────────
  * Split SessionContext into three focused contexts to reduce
@@ -22,7 +23,7 @@ export interface SessionDataContextValue {
   statusFilter: SessionStatus | 'all'
   sourceFilter: 'copilot' | 'claude' | 'all'
   searchQuery: string
-  viewMode: 'list' | 'network' | 'stats'
+  viewMode: ViewMode
   showArchived: boolean
   autoRefreshEnabled: boolean
   groupedSessions: { groups: SessionGroup[]; ungrouped: SessionSummary[] }
@@ -51,7 +52,7 @@ export interface SessionActionsContextValue {
   setStatusFilter: (status: SessionStatus | 'all') => void
   setSourceFilter: (source: 'copilot' | 'claude' | 'all') => void
   setSearchQuery: (query: string) => void
-  setViewMode: (mode: 'list' | 'network' | 'stats') => void
+  setViewMode: (mode: ViewMode) => void
   setShowArchived: (show: boolean) => void
   refreshSessions: () => void
   toggleAutoRefresh: () => void

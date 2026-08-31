@@ -183,6 +183,7 @@ export default function TerminalPanel() {
                   cwd={tab.cwd}
                   mode={tab.mode}
                   launchId={tab.launchId}
+                  workflowId={tab.workflowId}
                   className="flex-1 min-h-0"
                 />
               </div>
@@ -205,7 +206,7 @@ export default function TerminalPanel() {
       <ConfirmDialog
         isOpen={pendingCloseTabId !== null}
         title="Close Terminal"
-        message={`Close terminal for "${pendingTabName}"? This will end the copilot process.`}
+        message={`Close terminal for "${pendingTabName}"? Workflow terminals keep running on the server; other terminals will end their process.`}
         confirmLabel="Close Terminal"
         onConfirm={confirmCloseTab}
         onCancel={cancelCloseTab}

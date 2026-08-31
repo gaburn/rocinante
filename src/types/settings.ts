@@ -6,6 +6,7 @@ export type NodeSizeScale = 'small' | 'medium' | 'large';
 export type PhysicsStrength = 'tight' | 'medium' | 'loose';
 export type RefreshInterval = 0 | 10000 | 30000 | 60000 | 120000;
 export type ShellType = 'pwsh' | 'powershell' | 'cmd' | 'bash' | 'custom';
+export type ViewMode = 'list' | 'network' | 'stats' | 'workflows';
 
 // ADO settings are managed server-side via /api/ado/config
 // They are NOT part of AppSettings (which is localStorage-only)
@@ -28,7 +29,7 @@ export interface AutoArchiveRule {
 
 export interface DisplaySettings {
   refreshInterval: RefreshInterval;
-  defaultViewMode: 'list' | 'network' | 'stats';
+  defaultViewMode: ViewMode;
   sortOrder: SortOrder;
   showCompletedSessions: boolean;
   theme: ThemeMode;
