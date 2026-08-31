@@ -1,6 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useWorkflowDetail } from '../../hooks/useWorkflowDetail';
 import { useTerminalContext } from '../../context/TerminalContext';
+import { getSessionById } from '../../services/sessionService';
+import { renderInlineMarkdown } from '../../utils/inlineMarkdown';
+import type { WorkflowPhase } from '../../types/workflows';
 import type {
   ArchitectureChoice,
   WorkflowArtifact,
@@ -64,6 +67,172 @@ function StatusBadge({ status }: { status: WorkflowStatus | WorkflowStepStatus |
       />
       {getWorkflowStatusLabel(s)}
     </span>
+  );
+}
+
+function PhaseAgentUpdates({ sessionId }: { sessionId: string }) {
+  const [updates, setUpdates] = useState<string[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    const load = async () => {
+      try {
+        const session = await getSessionById(sessionId, controller.signal);
+        setUpdates(session?.assistantUpdates ?? []);
+        setError(session ? null : 'Agent session is still indexing.');
+      } catch (loadError) {
+        if (loadError instanceof DOMException && loadError.name === 'AbortError') return;
+        setError(loadError instanceof Error ? loadError.message : 'Failed to load agent updates.');
+      }
+    };
+
+    void load();
+    const interval = window.setInterval(() => void load(), 5_000);
+    return () => {
+      controller.abort();
+      window.clearInterval(interval);
+    };
+  }, [sessionId]);
+
+  if (error) {
+    return <p role="alert" className="text-xs text-red-400">{error}</p>;
+  }
+  if (updates === null) {
+    return <div className="h-14 animate-pulse rounded-md bg-surface-tertiary" aria-label="Loading agent updates" />;
+  }
+  if (updates.length === 0) {
+    return <p className="text-xs text-fg-secondary">Waiting for the agent's first update.</p>;
+  }
+
+  return (
+    <div aria-live="polite" className="max-h-64 space-y-2 overflow-y-auto">
+      {[...updates].reverse().map((update, index) => (
+        <p
+          key={`${index}:${update}`}
+          className="whitespace-pre-wrap rounded-md bg-surface-tertiary px-3 py-2 text-xs leading-relaxed text-fg-heading"
+        >
+          {renderInlineMarkdown(update)}
+        </p>
+      ))}
+    </div>
+  );
+}
+
+interface WorkflowPhaseItemProps {
+  phase: WorkflowPhase;
+  sessionId?: string;
+  isActing: boolean;
+  startStep: (phaseId: string, stepId: string) => Promise<void>;
+  approve: (phaseId: string, stepId: string, runId: string, artifact: string) => Promise<void>;
+}
+
+export function WorkflowPhaseItem({
+  phase,
+  sessionId,
+  isActing,
+  startStep,
+  approve,
+}: WorkflowPhaseItemProps) {
+  const [expanded, setExpanded] = useState(phase.status === 'running');
+  const panelId = `workflow-phase-${phase.id}`;
+
+  return (
+    <li className={`rounded-lg border border-border-default bg-surface-secondary ${phase.status === 'skipped' ? 'opacity-60' : ''}`}>
+      <button
+        type="button"
+        aria-expanded={expanded}
+        aria-controls={panelId}
+        onClick={() => setExpanded((value) => !value)}
+        className="flex w-full items-center gap-2 rounded-lg p-3 text-left transition-colors hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-active"
+      >
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 16 16"
+          className={`size-3.5 shrink-0 text-fg-secondary transition-transform ${expanded ? 'rotate-90' : ''}`}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+        >
+          <path d="m6 3 5 5-5 5" />
+        </svg>
+        <h4 className="text-sm font-medium text-fg-heading">{phase.name}</h4>
+        <span className="ml-auto"><StatusBadge status={phase.status} /></span>
+      </button>
+
+      {expanded && (
+        <div id={panelId} className="space-y-3 border-t border-border-default p-3">
+          {phase.status === 'running' && sessionId && (
+            <section aria-label={`${phase.name} agent updates`} className="space-y-2">
+              <h5 className="text-xs font-medium text-fg-heading">{phase.name} agent updates</h5>
+              <PhaseAgentUpdates sessionId={sessionId} />
+            </section>
+          )}
+
+          {phase.steps.length > 0 && (
+            <ol className="space-y-2 border-l border-border-default pl-3">
+              {phase.steps.map((step) => {
+                const canStart = step.canStart;
+                const approvalArtifact = step.artifacts[0]?.value;
+                const canApprove = step.canApprove && approvalArtifact !== undefined;
+                return (
+                  <li key={step.id}>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-medium text-fg-heading">{step.name}</span>
+                      <StatusBadge status={step.status} />
+                    </div>
+
+                    {step.summary && (
+                      <p className="mt-0.5 text-xs text-fg-secondary">{step.summary}</p>
+                    )}
+
+                    {step.artifacts.length > 0 && (
+                      <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
+                        {step.artifacts.map((artifact, index) => (
+                          <li key={`${artifact.type}:${artifact.value}:${index}`}>
+                            <ArtifactLink artifact={artifact} />
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+
+                    {(canStart || canApprove) && (
+                      <div className="mt-1.5 flex gap-2">
+                        {canStart && (
+                          <button
+                            type="button"
+                            onClick={() => void startStep(phase.id, step.id)}
+                            disabled={isActing}
+                            className="rounded-md border border-accent-primary/40 bg-accent-primary/15 px-2 py-1 text-[11px] font-medium text-fg-heading transition-colors hover:bg-accent-primary/25 disabled:opacity-50"
+                          >
+                            Start step
+                          </button>
+                        )}
+                        {canApprove && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (step.runId && approvalArtifact) {
+                                void approve(phase.id, step.id, step.runId, approvalArtifact);
+                              }
+                            }}
+                            disabled={isActing}
+                            className="rounded-md border border-emerald-500/40 bg-emerald-500/15 px-2 py-1 text-[11px] font-medium text-emerald-400 transition-colors hover:bg-emerald-500/25 disabled:opacity-50"
+                          >
+                            Approve
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+        </div>
+      )}
+    </li>
   );
 }
 
@@ -422,73 +591,14 @@ export default function WorkflowDetailPanel({ workflowId }: WorkflowDetailPanelP
         </h3>
         <ol className="space-y-3">
           {visiblePhases.map((phase) => (
-            <li key={phase.id} className={`rounded-lg border border-border-default bg-surface-secondary p-3 ${phase.status === 'skipped' ? 'opacity-60' : ''}`}>
-              <div className="flex items-center justify-between gap-2">
-                <h4 className="text-sm font-medium text-fg-heading">{phase.name}</h4>
-                <StatusBadge status={phase.status} />
-              </div>
-
-              {phase.steps && phase.steps.length > 0 && (
-                <ol className="mt-2 space-y-2 border-l border-border-default pl-3">
-                  {phase.steps.map((step) => {
-                    const canStart = step.canStart;
-                    const approvalArtifact = step.artifacts[0]?.value;
-                    const canApprove = step.canApprove && approvalArtifact !== undefined;
-                    return (
-                      <li key={step.id}>
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-xs font-medium text-fg-heading">{step.name}</span>
-                          <StatusBadge status={step.status} />
-                        </div>
-
-                        {step.summary && (
-                          <p className="mt-0.5 text-xs text-fg-secondary">{step.summary}</p>
-                        )}
-
-                        {step.artifacts && step.artifacts.length > 0 && (
-                          <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
-                            {step.artifacts.map((a, i) => (
-                              <li key={`${a.type}:${a.value}:${i}`}>
-                                <ArtifactLink artifact={a} />
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-
-                        {(canStart || canApprove) && (
-                          <div className="mt-1.5 flex gap-2">
-                            {canStart && (
-                              <button
-                                type="button"
-                                onClick={() => void startStep(phase.id, step.id)}
-                                disabled={isActing}
-                                className="rounded-md bg-accent-primary/15 border border-accent-primary/40 px-2 py-1 text-[11px] font-medium text-fg-heading hover:bg-accent-primary/25 transition-colors disabled:opacity-50"
-                              >
-                                Start step
-                              </button>
-                            )}
-                            {canApprove && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (step.runId && approvalArtifact) {
-                                    void approve(phase.id, step.id, step.runId, approvalArtifact);
-                                  }
-                                }}
-                                disabled={isActing}
-                                className="rounded-md bg-emerald-500/15 border border-emerald-500/40 px-2 py-1 text-[11px] font-medium text-emerald-400 hover:bg-emerald-500/25 transition-colors disabled:opacity-50"
-                              >
-                                Approve
-                              </button>
-                            )}
-                          </div>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ol>
-              )}
-            </li>
+            <WorkflowPhaseItem
+              key={phase.id}
+              phase={phase}
+              sessionId={sessionId}
+              isActing={isActing}
+              startStep={startStep}
+              approve={approve}
+            />
           ))}
         </ol>
       </section>
