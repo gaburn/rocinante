@@ -6,6 +6,7 @@ import type { WorkflowMode } from '../../shared/workflowCatalog.js';
 export interface StartWorkflowStepRequest {
   workflowId: string;
   workflowSessionId: string | null;
+  resume: boolean;
   runId: string;
   phaseId: string;
   stepId: string;
@@ -72,12 +73,12 @@ export class CopilotPtyWorkflowTransport implements WorkflowSessionTransport {
       existingPty.write(`${prompt}\r`);
     } else {
       const configuredCommand = getConfig().launchCommands.copilot || 'copilot';
-      const sessionArgument = request.workflowSessionId
+      const sessionArgument = request.resume
         ? `--resume=${workflowSessionId}`
         : `--session-id=${workflowSessionId}`;
       const ptyProcess = spawnPty(ptyId, {
         cwd: request.repositoryTarget,
-        startupCommand: `${configuredCommand} ${sessionArgument}`,
+        startupCommand: `${configuredCommand} ${sessionArgument}; exit`,
       });
       const timer = setTimeout(() => ptyProcess.write(`${prompt}\r`), 1_000);
       timer.unref();

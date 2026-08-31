@@ -462,6 +462,10 @@ describe('workflow HTTP API', () => {
     expect(reconnected.body.status).toBe('running');
     expect(reconnected.body.workflowSession?.id).toBe(started.body.workflowSession?.id);
     expect(transport.starts).toHaveLength(1);
+    expect(transport.starts[0]).toMatchObject({
+      workflowSessionId: started.body.workflowSessionId,
+      resume: false,
+    });
 
     for (const requestId of ['research-question-1', 'research-question-2']) {
       const requested = await request<WorkflowView>(
@@ -569,6 +573,7 @@ describe('workflow HTTP API', () => {
     expect(restoredTransport.starts[0]).toMatchObject({
       runId: started.body.runId,
       workflowSessionId: started.body.workflowSession?.id,
+      resume: true,
     });
     expect(resumed.body.recoverableStep).toBeNull();
   });

@@ -30,6 +30,7 @@ const baseRequest = {
   mode: 'simple' as const,
   goal: 'Prove durable workflows',
   repositoryTarget: 'C:\\repo',
+  resume: false,
 };
 
 describe('CopilotPtyWorkflowTransport', () => {
@@ -65,7 +66,7 @@ describe('CopilotPtyWorkflowTransport', () => {
     );
     expect(mocks.spawnPty).toHaveBeenCalledWith('workflow-workflow-1', {
       cwd: 'C:\\repo',
-      startupCommand: `copilot-custom --session-id=${result.workflowSessionId}`,
+      startupCommand: `copilot-custom --session-id=${result.workflowSessionId}; exit`,
     });
   });
 
@@ -75,12 +76,13 @@ describe('CopilotPtyWorkflowTransport', () => {
     const result = await transport.startStep({
       ...baseRequest,
       workflowSessionId: '38ba614d-3927-472c-8b59-a2b6085bd347',
+      resume: true,
     });
 
     expect(result.workflowSessionId).toBe('38ba614d-3927-472c-8b59-a2b6085bd347');
     expect(mocks.spawnPty).toHaveBeenCalledWith('workflow-workflow-1', {
       cwd: 'C:\\repo',
-      startupCommand: 'copilot-custom --resume=38ba614d-3927-472c-8b59-a2b6085bd347',
+      startupCommand: 'copilot-custom --resume=38ba614d-3927-472c-8b59-a2b6085bd347; exit',
     });
   });
 

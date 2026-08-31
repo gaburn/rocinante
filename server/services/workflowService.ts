@@ -320,6 +320,7 @@ export class WorkflowService {
       const runId = randomUUID();
       const startedAt = this.timestamp();
       const beforeStart = structuredClone(state);
+      const resume = state.workflowSession !== null;
       const workflowSessionId = state.workflowSession?.id ?? randomUUID();
       next.status = 'running';
       next.step.status = 'running';
@@ -341,6 +342,7 @@ export class WorkflowService {
         result = await this.transport.startStep({
           workflowId: state.id,
           workflowSessionId,
+          resume,
           runId,
           phaseId,
           stepId,
@@ -398,6 +400,7 @@ export class WorkflowService {
       const result = await this.transport.startStep({
         workflowId: state.id,
         workflowSessionId: state.workflowSession.id,
+        resume: true,
         runId: context.runId,
         phaseId: phase.id,
         stepId: phase.step.id,
